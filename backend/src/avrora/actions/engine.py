@@ -70,7 +70,7 @@ def _order_and_delivery(m: pd.DataFrame) -> list[Action]:
                            "on_order": int(r.on_order)},
                           {"order_qty": int(r.order_qty), "supplier": r.supplier},
                           f"{int(r.stock)} left at about {r.base_rate:.1f} a day: runs out in "
-                          f"{r.days_cover:.1f} days, delivery takes {int(r.lead_time_days)}."))
+                          f"{r.days_cover:.1f} days, delivery takes {int(r.lead_time_days)} days."))
     return out
 
 
@@ -129,8 +129,8 @@ def _store_anomalies(data: StoreData, s: Settings) -> list[Action]:
         cause = None if ev.empty else ev.iloc[0]
         drop = round((1 - actual / expected) * 100)
         label = day.strftime("%a %d %b")
-        reason = (f"Sales on {label} were {drop}% below normal because of a "
-                  f"{int(cause.hours)}-hour {cause.type.replace('_', ' ')}. No action needed."
+        reason = (f"Sales on {label} were {drop}% below normal during a {cause.type.replace('_', ' ')} "
+                  f"lasting {int(cause.hours)} hours. No action needed."
                   if cause is not None else f"Sales on {label} were {drop}% below normal with no known cause.")
         out.append(Action(
             id=f"EXPLAIN_ANOMALY-{day.date()}", type=ActionType.EXPLAIN_ANOMALY, product_id="STORE",
