@@ -1,0 +1,201 @@
+product_id,name,category,price,supplier,lead_time_days,case_pack
+P001,Storage box M,Household,144.9,PolyHome LLC,3,12
+P002,Storage box 20L,Household,104.9,PolyHome LLC,3,6
+P003,Laundry basket L,Household,144.9,PolyHome LLC,4,6
+P004,Laundry basket White,Household,64.9,Dnipro Plast,6,6
+P005,Clothes hangers L,Household,29.9,PolyHome LLC,3,6
+P006,Clothes hangers 20L,Household,144.9,Dnipro Plast,2,24
+P007,Clothes hangers Grey,Household,144.9,PolyHome LLC,6,24
+P008,Clothes hangers White,Household,24.9,Dnipro Plast,3,6
+P009,Sponge set L,Household,74.9,Dnipro Plast,2,6
+P010,Sponge set Grey,Household,94.9,PolyHome LLC,6,6
+P011,Trash bags S,Household,54.9,PolyHome LLC,6,6
+P012,Trash bags L,Household,29.9,Dnipro Plast,6,24
+P013,Trash bags 20L,Household,114.9,PolyHome LLC,5,24
+P014,Trash bags White,Household,89.9,PolyHome LLC,3,24
+P015,Microfiber cloths S,Household,114.9,PolyHome LLC,6,24
+P016,Microfiber cloths M,Household,114.9,Dnipro Plast,4,6
+P017,Microfiber cloths L,Household,34.9,PolyHome LLC,2,24
+P018,Microfiber cloths 20L,Household,94.9,PolyHome LLC,6,12
+P019,Microfiber cloths White,Household,129.9,Dnipro Plast,5,24
+P020,Shoe rack S,Household,69.9,Dnipro Plast,6,6
+P021,Shoe rack M,Household,49.9,Dnipro Plast,5,12
+P022,Shoe rack Grey,Household,109.9,PolyHome LLC,5,6
+P023,Vacuum bags S,Household,89.9,PolyHome LLC,6,24
+P024,Vacuum bags L,Household,109.9,Dnipro Plast,4,24
+P025,Vacuum bags 20L,Household,64.9,PolyHome LLC,3,24
+P026,Vacuum bags Grey,Household,109.9,PolyHome LLC,4,12
+P027,Vacuum bags White,Household,69.9,PolyHome LLC,2,24
+P028,Drying rack S,Household,44.9,PolyHome LLC,2,12
+P029,Drying rack M,Household,94.9,Dnipro Plast,2,6
+P030,Drying rack L,Household,84.9,Dnipro Plast,4,24
+P031,Bath mat S,Household,34.9,Dnipro Plast,3,12
+P032,Bath mat 20L,Household,49.9,Dnipro Plast,5,12
+P033,Bath mat Grey,Household,34.9,PolyHome LLC,2,6
+P034,Bath mat White,Household,84.9,PolyHome LLC,6,24
+P035,Food container 0.5L,Kitchen,39.9,KitchenLine,3,6
+P036,Food container 1L,Kitchen,39.9,KitchenLine,3,6
+P037,Food container Set of 3,Kitchen,44.9,Dnipro Plast,6,24
+P038,Food container Blue,Kitchen,174.9,Dnipro Plast,2,6
+P039,Food container Classic,Kitchen,29.9,KitchenLine,5,6
+P040,Ceramic mug 0.5L,Kitchen,114.9,KitchenLine,5,24
+P041,Ceramic mug 1L,Kitchen,44.9,Dnipro Plast,6,12
+P042,Ceramic mug Blue,Kitchen,99.9,Dnipro Plast,3,6
+P043,Ceramic mug Black,Kitchen,149.9,KitchenLine,6,24
+P044,Ceramic mug Classic,Kitchen,174.9,Dnipro Plast,4,24
+P045,Chef knife Blue,Kitchen,39.9,KitchenLine,5,24
+P046,Chef knife Black,Kitchen,104.9,KitchenLine,5,6
+P047,Cutting board 0.5L,Kitchen,44.9,Dnipro Plast,4,12
+P048,Cutting board Black,Kitchen,124.9,Dnipro Plast,4,12
+P049,Glass jar 0.5L,Kitchen,99.9,KitchenLine,3,12
+P050,Glass jar 1L,Kitchen,169.9,KitchenLine,4,12
+P051,Glass jar Set of 3,Kitchen,89.9,KitchenLine,5,6
+P052,Glass jar Blue,Kitchen,69.9,Dnipro Plast,5,24
+P053,Glass jar Black,Kitchen,94.9,KitchenLine,2,12
+P054,Frying pan 0.5L,Kitchen,154.9,KitchenLine,3,6
+P055,Frying pan Set of 3,Kitchen,164.9,KitchenLine,2,6
+P056,Frying pan Black,Kitchen,124.9,KitchenLine,4,6
+P057,Baking tray 0.5L,Kitchen,179.9,Dnipro Plast,3,12
+P058,Baking tray 1L,Kitchen,194.9,KitchenLine,5,6
+P059,Baking tray Blue,Kitchen,129.9,KitchenLine,4,6
+P060,Tea towel 1L,Kitchen,159.9,KitchenLine,5,24
+P061,Tea towel Blue,Kitchen,179.9,Dnipro Plast,6,24
+P062,Water bottle 1L,Kitchen,44.9,KitchenLine,2,12
+P063,Water bottle Blue,Kitchen,189.9,Dnipro Plast,5,6
+P064,Spice rack 1L,Kitchen,109.9,KitchenLine,4,6
+P065,Spice rack Set of 3,Kitchen,69.9,Dnipro Plast,3,24
+P066,Spice rack Black,Kitchen,149.9,KitchenLine,3,12
+P067,Shampoo Herbal,Cosmetics,104.9,FreshCare,2,6
+P068,Shower gel Herbal,Cosmetics,49.9,FreshCare,4,6
+P069,Shower gel Mint,Cosmetics,109.9,FreshCare,2,12
+P070,Shower gel Sensitive,Cosmetics,59.9,FreshCare,4,12
+P071,Shower gel Travel,Cosmetics,89.9,FreshCare,4,24
+P072,Hand soap Herbal,Cosmetics,84.9,BeautyTrade UA,3,12
+P073,Hand soap Sensitive,Cosmetics,79.9,FreshCare,4,24
+P074,Hand soap Travel,Cosmetics,74.9,BeautyTrade UA,4,12
+P075,Toothpaste Herbal,Cosmetics,79.9,BeautyTrade UA,3,6
+P076,Toothpaste Mint,Cosmetics,59.9,BeautyTrade UA,5,12
+P077,Toothpaste Sensitive,Cosmetics,89.9,BeautyTrade UA,2,12
+P078,Hand cream Herbal,Cosmetics,104.9,FreshCare,3,12
+P079,Hand cream Sensitive,Cosmetics,64.9,FreshCare,6,24
+P080,Hand cream Family,Cosmetics,79.9,BeautyTrade UA,6,24
+P081,Hand cream Travel,Cosmetics,104.9,FreshCare,2,6
+P082,Deodorant Herbal,Cosmetics,24.9,BeautyTrade UA,6,6
+P083,Deodorant Mint,Cosmetics,44.9,FreshCare,5,6
+P084,Deodorant Sensitive,Cosmetics,89.9,FreshCare,5,12
+P085,Deodorant Family,Cosmetics,89.9,BeautyTrade UA,6,12
+P086,Deodorant Travel,Cosmetics,99.9,BeautyTrade UA,2,12
+P087,Deodorant Classic,Cosmetics,74.9,BeautyTrade UA,5,6
+P088,Cotton pads Classic,Cosmetics,104.9,FreshCare,4,24
+P089,Face wipes Travel,Cosmetics,54.9,FreshCare,3,24
+P090,Face wipes Classic,Cosmetics,29.9,FreshCare,3,24
+P091,Hair conditioner Sensitive,Cosmetics,59.9,BeautyTrade UA,2,12
+P092,Hair conditioner Family,Cosmetics,69.9,FreshCare,2,6
+P093,Hair conditioner Travel,Cosmetics,64.9,BeautyTrade UA,6,12
+P094,Lip balm Herbal,Cosmetics,104.9,BeautyTrade UA,4,24
+P095,Lip balm Mint,Cosmetics,89.9,BeautyTrade UA,2,6
+P096,Lip balm Sensitive,Cosmetics,84.9,FreshCare,4,12
+P097,Lip balm Family,Cosmetics,84.9,FreshCare,6,6
+P098,Toy car Mini,Toys,104.9,KidsMarket,6,12
+P099,Toy car Large,Toys,44.9,PlayWay,2,24
+P100,Toy car Red,Toys,124.9,KidsMarket,5,12
+P101,Toy car 100 pcs,Toys,169.9,KidsMarket,5,12
+P102,Toy car Deluxe,Toys,224.9,PlayWay,3,24
+P103,Puzzle Mini,Toys,104.9,KidsMarket,5,12
+P104,Puzzle Red,Toys,164.9,PlayWay,6,24
+P105,Puzzle 100 pcs,Toys,249.9,KidsMarket,5,6
+P106,Puzzle Classic,Toys,239.9,KidsMarket,5,24
+P107,Soft ball Mini,Toys,179.9,KidsMarket,6,24
+P108,Soft ball Large,Toys,49.9,PlayWay,4,6
+P109,Soft ball Red,Toys,219.9,KidsMarket,3,6
+P110,Soft ball 100 pcs,Toys,129.9,PlayWay,6,6
+P111,Soft ball Deluxe,Toys,224.9,PlayWay,2,24
+P112,Soft ball Classic,Toys,79.9,PlayWay,6,12
+P113,Building blocks Mini,Toys,149.9,KidsMarket,2,24
+P114,Building blocks Large,Toys,139.9,KidsMarket,2,6
+P115,Building blocks Deluxe,Toys,219.9,PlayWay,6,6
+P116,Doll Mini,Toys,139.9,KidsMarket,2,12
+P117,Doll Large,Toys,159.9,KidsMarket,3,6
+P118,Doll 100 pcs,Toys,209.9,KidsMarket,6,12
+P119,Doll Deluxe,Toys,94.9,KidsMarket,4,6
+P120,Coloring set Deluxe,Toys,159.9,KidsMarket,6,24
+P121,Bubble wand 100 pcs,Toys,234.9,KidsMarket,3,12
+P122,Bubble wand Classic,Toys,79.9,PlayWay,5,24
+P123,Toy kitchen set Large,Toys,179.9,PlayWay,2,24
+P124,Toy kitchen set 100 pcs,Toys,219.9,PlayWay,6,12
+P125,Toy kitchen set Deluxe,Toys,54.9,KidsMarket,4,6
+P126,Water gun Mini,Toys,239.9,PlayWay,3,6
+P127,Water gun Red,Toys,189.9,KidsMarket,2,24
+P128,Water gun Classic,Toys,199.9,PlayWay,6,6
+P129,Board game Large,Toys,74.9,KidsMarket,2,6
+P130,Notebook A5,Stationery,24.9,KidsMarket,3,12
+P131,Notebook A4,Stationery,69.9,KidsMarket,5,6
+P132,Notebook Blue,Stationery,74.9,PaperPro,3,24
+P133,Notebook 12 pcs,Stationery,29.9,PaperPro,3,12
+P134,Notebook Neon,Stationery,59.9,KidsMarket,5,6
+P135,Notebook Classic,Stationery,54.9,KidsMarket,3,12
+P136,Gel pen Blue,Stationery,14.9,PaperPro,4,6
+P137,Gel pen Neon,Stationery,69.9,KidsMarket,5,6
+P138,Pencil set Neon,Stationery,44.9,PaperPro,2,24
+P139,Sticky notes A4,Stationery,59.9,PaperPro,3,6
+P140,Sticky notes Blue,Stationery,44.9,PaperPro,6,12
+P141,Sticky notes 12 pcs,Stationery,34.9,PaperPro,3,24
+P142,Sticky notes Classic,Stationery,69.9,PaperPro,2,6
+P143,Glue stick A5,Stationery,44.9,KidsMarket,3,12
+P144,Glue stick Blue,Stationery,19.9,PaperPro,2,6
+P145,Glue stick Neon,Stationery,14.9,KidsMarket,4,6
+P146,Glue stick Classic,Stationery,29.9,PaperPro,5,6
+P147,Ruler A5,Stationery,44.9,PaperPro,5,12
+P148,Ruler A4,Stationery,29.9,PaperPro,6,6
+P149,Ruler Neon,Stationery,74.9,PaperPro,3,24
+P150,Ruler Classic,Stationery,49.9,PaperPro,4,12
+P151,Marker set A5,Stationery,74.9,PaperPro,3,24
+P152,Marker set A4,Stationery,19.9,PaperPro,3,24
+P153,Marker set Blue,Stationery,9.9,KidsMarket,2,12
+P154,Marker set 12 pcs,Stationery,64.9,PaperPro,2,6
+P155,Eraser Blue,Stationery,64.9,PaperPro,3,12
+P156,Eraser 12 pcs,Stationery,24.9,KidsMarket,4,12
+P157,Eraser Neon,Stationery,44.9,KidsMarket,2,24
+P158,File folder A5,Stationery,29.9,PaperPro,4,12
+P159,File folder A4,Stationery,34.9,PaperPro,6,6
+P160,File folder 12 pcs,Stationery,14.9,KidsMarket,6,24
+P161,File folder Neon,Stationery,34.9,PaperPro,2,24
+P162,File folder Classic,Stationery,49.9,PaperPro,6,6
+P163,Sketchbook A5,Stationery,24.9,KidsMarket,2,24
+P164,Sketchbook A4,Stationery,59.9,PaperPro,2,24
+P165,Sketchbook Blue,Stationery,64.9,PaperPro,6,24
+P166,Sketchbook Neon,Stationery,59.9,KidsMarket,6,6
+P167,Sketchbook Classic,Stationery,69.9,PaperPro,3,12
+P168,Christmas lights Warm white,Seasonal,229.9,PolyHome LLC,2,6
+P169,Christmas lights Gold,Seasonal,259.9,PolyHome LLC,4,6
+P170,Christmas lights Red,Seasonal,119.9,PolyHome LLC,6,24
+P171,Christmas lights Set of 6,Seasonal,39.9,PolyHome LLC,2,12
+P172,Christmas lights Large,Seasonal,169.9,FestiveGoods,5,6
+P173,Christmas bauble Warm white,Seasonal,209.9,PolyHome LLC,6,24
+P174,Christmas bauble Gold,Seasonal,139.9,PolyHome LLC,2,24
+P175,Christmas bauble Set of 6,Seasonal,64.9,PolyHome LLC,6,6
+P176,Christmas bauble Large,Seasonal,219.9,PolyHome LLC,5,12
+P177,Tinsel garland Warm white,Seasonal,229.9,FestiveGoods,3,24
+P178,Tinsel garland Red,Seasonal,114.9,PolyHome LLC,4,24
+P179,Tinsel garland Set of 6,Seasonal,139.9,PolyHome LLC,4,6
+P180,Tinsel garland Large,Seasonal,99.9,PolyHome LLC,3,24
+P181,Tinsel garland Classic,Seasonal,89.9,FestiveGoods,4,12
+P182,Gift bag Gold,Seasonal,184.9,PolyHome LLC,4,12
+P183,Gift bag Red,Seasonal,249.9,PolyHome LLC,6,24
+P184,Gift bag Set of 6,Seasonal,279.9,PolyHome LLC,5,6
+P185,Candle Large,Seasonal,184.9,PolyHome LLC,3,12
+P186,Candle Classic,Seasonal,204.9,FestiveGoods,2,6
+P187,Snowflake decor Warm white,Seasonal,89.9,PolyHome LLC,3,24
+P188,Snowflake decor Gold,Seasonal,184.9,PolyHome LLC,5,12
+P189,Snowflake decor Large,Seasonal,74.9,PolyHome LLC,2,12
+P190,Advent calendar Set of 6,Seasonal,229.9,PolyHome LLC,3,6
+P191,Wrapping paper Warm white,Seasonal,149.9,PolyHome LLC,6,12
+P192,Wrapping paper Gold,Seasonal,74.9,FestiveGoods,6,6
+P193,Wrapping paper Red,Seasonal,164.9,PolyHome LLC,6,6
+P194,Santa figure Warm white,Seasonal,29.9,PolyHome LLC,5,12
+P195,Santa figure Red,Seasonal,289.9,PolyHome LLC,5,6
+P196,Santa figure Set of 6,Seasonal,64.9,PolyHome LLC,6,24
+P197,Star topper Warm white,Seasonal,149.9,PolyHome LLC,6,12
+P198,Star topper Gold,Seasonal,234.9,FestiveGoods,5,24
+P199,Star topper Red,Seasonal,269.9,FestiveGoods,5,6
+P200,Star topper Classic,Seasonal,289.9,FestiveGoods,5,24
