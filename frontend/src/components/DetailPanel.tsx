@@ -81,78 +81,81 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 40, opacity: 0 }}
       transition={{ type: "spring", stiffness: 420, damping: 38 }}
-      className="flex h-full flex-col overflow-hidden bg-surface lg:rounded-l-2xl lg:shadow-[var(--shadow)]"
+      className="flex h-full flex-col overflow-hidden rounded-t-[12px] bg-bg lg:rounded-none"
       aria-label={`Details for ${action.product_name}`}
     >
       <div className="flex justify-center pt-2 lg:hidden" aria-hidden>
         <span className="h-[5px] w-9 rounded-full bg-label-3/60" />
       </div>
-      <header className="flex items-start gap-3 border-b border-separator px-5 pb-4 pt-3 lg:pt-5">
-        <div
-          className="grid size-9 shrink-0 place-items-center rounded-[10px] text-white"
-          style={{ background: meta.color }}
-        >
-          <TypeIcon type={action.type} size={18} />
-        </div>
+      <header className="flex items-center gap-3 border-b border-separator px-4 pb-3 pt-3 lg:pt-5">
+        <span className="icon-tile size-[38px] rounded-[9px]" style={{ background: meta.color }}>
+          <TypeIcon type={action.type} size={21} />
+        </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-medium text-label-2">
+          <div className="t-footnote text-label-2">
             {meta.label} · {action.category}
           </div>
-          <h2 className="truncate text-[20px] font-semibold tracking-[-0.01em]">{action.product_name}</h2>
+          <h2 className="t-title3 truncate">{action.product_name}</h2>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close details"
-          className="grid size-7 place-items-center rounded-full bg-fill text-label-2 hover:text-label"
+          className="grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
         >
           <CloseIcon />
         </button>
       </header>
 
-      <div className="flex-1 space-y-6 overflow-y-auto px-5 py-5">
+      <div tabIndex={0} aria-label="Details" className="flex-1 space-y-7 overflow-y-auto px-4 pb-6 pt-2 focus-visible:outline-none">
         <section>
-          <p className="text-[15px] leading-relaxed text-label">{action.reason}</p>
-          <div className="mt-3 flex items-baseline justify-between rounded-xl bg-surface-2 px-4 py-3 ring-1 ring-separator">
-            <span className="text-[15px] font-semibold">{proposalText(action)}</span>
-            <span className="num text-[13px] text-label-2">{money(action.risk_uah)} at stake</span>
+          <h3 className="group-header">Suggestion</h3>
+          <div className="group-list">
+            <div className="px-4 py-3">
+              <div className="t-headline">{proposalText(action)}</div>
+              <p className="t-subhead mt-1 text-label-2">{action.reason}</p>
+            </div>
+            <div className="relative flex justify-between px-4 py-[11px]">
+              <span className="absolute left-4 right-0 top-0 h-[0.5px] bg-separator" />
+              <span className="t-body">At stake</span>
+              <span className="t-body num text-label-2">{money(action.risk_uah)}</span>
+            </div>
           </div>
         </section>
 
         <section aria-label="The numbers behind this">
-          <h3 className="mb-2 text-[13px] font-semibold text-label-2">Why</h3>
-          <dl className="divide-y divide-separator overflow-hidden rounded-xl bg-surface-2 ring-1 ring-separator">
+          <h3 className="group-header">Why</h3>
+          <dl className="group-list">
             {Object.entries(action.facts).map(([k, v]) => (
-              <div key={k} className="flex justify-between px-4 py-2.5 text-[14px]">
-                <dt className="text-label-2">{FACT_LABELS[k]?.[0] ?? k}</dt>
-                <dd className="num font-medium">{formatFact(k, v)}</dd>
+              <div key={k} className="cell flex justify-between px-4 py-[11px]">
+                <dt className="t-body">{FACT_LABELS[k]?.[0] ?? k}</dt>
+                <dd className="t-body num text-label-2">{formatFact(k, v)}</dd>
               </div>
             ))}
           </dl>
         </section>
 
-        <section className="space-y-5" aria-busy={!product}>
+        <section aria-busy={!product}>
+          <h3 className="group-header">Trend</h3>
+          <div className="group-list space-y-8 px-4 pb-4 pt-4">
           {product ? (
             <>
-              <Chart
-                title="Units sold per day"
-                unit="units"
-                kind="bars"
-                color={meta.color}
-                data={sales}
-              />
-              <Chart title="Stock on hand" unit="units" kind="line" color="var(--label)" data={stock} />
-              <p className="text-[12px] text-label-3">
-                Shaded area: expected sales for the next 14 days ({product.daily_forecast} a day).
-              </p>
+              <div>
+                <Chart title="Units sold per day" unit="units" kind="bars" color="var(--chart-mark)" data={sales} />
+                <p className="t-footnote mt-1 text-label-2">
+                  Shaded area: expected sales for the next 14 days, about {product.daily_forecast.toFixed(1)} a day.
+                </p>
+              </div>
+              <Chart title="Stock on hand" unit="units" kind="line" color="var(--chart-mark)" data={stock} />
             </>
           ) : (
-            <div className="h-[340px] animate-pulse rounded-xl bg-fill" />
+            <div className="h-[340px] animate-pulse rounded-lg bg-fill" />
           )}
+          </div>
         </section>
       </div>
 
-      <footer className="border-t border-separator bg-[color-mix(in_srgb,var(--surface)_85%,transparent)] px-5 py-4 backdrop-blur">
+      <footer className="border-t border-separator bg-[rgba(249,249,249,0.94)] px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-3 backdrop-blur-xl">
         {decision ? (
           <div className="flex items-center justify-between">
             <span className="text-[14px] text-label-2">
@@ -186,7 +189,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
             <button type="button" onClick={() => setMode("idle")} className="px-3 py-2 text-[14px] text-tint">
               Cancel
             </button>
-            <button disabled={busy} className="rounded-[10px] bg-tint px-4 py-2 text-[14px] font-semibold text-white">
+            <button disabled={busy} className="rounded-[12px] bg-tint-fill px-4 py-2 text-[14px] font-semibold text-white">
               Approve
             </button>
           </form>
@@ -211,21 +214,21 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
             <button
               disabled={busy}
               onClick={() => run(() => onDecide("approve"))}
-              className="flex-1 rounded-[10px] bg-tint py-2.5 text-[15px] font-semibold text-white active:opacity-80"
+              className="flex-1 rounded-[12px] bg-tint-fill py-3 text-[17px] font-semibold text-white active:opacity-80"
             >
               Approve
             </button>
             {adj && (
               <button
                 onClick={() => setMode("adjust")}
-                className="rounded-[10px] bg-fill px-4 py-2.5 text-[15px] font-medium text-tint"
+                className="rounded-[12px] bg-fill px-5 py-3 text-[17px] font-semibold text-tint"
               >
                 Adjust
               </button>
             )}
             <button
               onClick={() => setMode("dismiss")}
-              className="rounded-[10px] bg-fill px-4 py-2.5 text-[15px] font-medium text-label"
+              className="rounded-[12px] bg-fill px-5 py-3 text-[17px] font-semibold text-label"
             >
               Dismiss
             </button>

@@ -1,11 +1,11 @@
 "use client";
 
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { ActionRow } from "@/components/ActionRow";
 import { DetailPanel } from "@/components/DetailPanel";
-import { BoltIcon, ClockIcon, ListIcon, SunIcon, TypeIcon } from "@/components/icons";
+import { BoltIcon, BoxIcon, ClockIcon, ListIcon, SunIcon, TypeIcon } from "@/components/icons";
 import { Ring } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview } from "@/lib/api";
 import { api, fetcher } from "@/lib/api";
@@ -22,7 +22,12 @@ const NAV: { id: View; label: string; Icon: typeof SunIcon }[] = [
 const FILTERS: (ActionType | "ALL")[] = ["ALL", "ORDER", "DISCOUNT", "MOVE_TO_FRONT", "CHECK_DELIVERY"];
 
 export default function Home() {
-  const [view, setView] = useState<View>("today");
+  const [view, setViewState] = useState<View>("today");
+  const mainRef = useRef<HTMLElement>(null);
+  const setView = (v: View) => {
+    setViewState(v);
+    mainRef.current?.scrollTo({ top: 0 });
+  };
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
 
@@ -71,82 +76,83 @@ export default function Home() {
   const handled = priorities.filter((a) => decided.has(a.id));
   const list = (actions ?? []).filter((a) => filter === "ALL" || a.type === filter);
 
+  const header = (title: string, subtitle?: string, trailing?: React.ReactNode) => (
+    <header className="flex items-end justify-between gap-4 px-1">
+      <div>
+        {subtitle && <p className="t-subhead text-label-2">{subtitle}</p>}
+        <h1 className="t-large-title">{title}</h1>
+      </div>
+      {trailing}
+    </header>
+  );
+
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
+    <div className="flex h-full overflow-hidden">
+      {/* macOS sidebar */}
       <nav
         aria-label="Sections"
-        className="hidden w-[232px] shrink-0 flex-col border-r border-separator bg-[var(--sidebar)] px-3 pb-4 pt-6 backdrop-blur-xl md:flex"
+        className="hidden w-[240px] shrink-0 flex-col border-r border-separator bg-[var(--sidebar)] px-2.5 pb-4 pt-5 backdrop-blur-2xl md:flex"
       >
-        <div className="px-2 pb-5">
-          <div className="text-[13px] font-semibold">{overview?.store_name ?? " "}</div>
-          <div className="text-[12px] text-label-2">{overview ? `${overview.products} products` : " "}</div>
+        <div className="flex items-center gap-2.5 px-2 pb-6">
+          <span className="icon-tile size-8 rounded-[8px]" style={{ background: "var(--order)" }}>
+            <BoxIcon size={17} />
+          </span>
+          <div className="min-w-0">
+            <div className="t-footnote truncate font-semibold">{overview?.store_name.split(", ")[0] ?? " "}</div>
+            <div className="t-caption truncate text-label-2">
+              {overview ? `${overview.store_name.split(", ")[1] ?? ""} · ${overview.products} products` : " "}
+            </div>
+          </div>
         </div>
-        <ul className="space-y-0.5">
+        <ul className="space-y-px">
           {NAV.map(({ id, label, Icon }) => (
             <li key={id}>
               <button
                 onClick={() => setView(id)}
                 aria-current={view === id ? "page" : undefined}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-[14px] ${
-                  view === id ? "bg-fill font-medium text-label" : "text-label-2 hover:text-label"
+                className={`t-subhead flex w-full items-center gap-2.5 rounded-[6px] px-2 py-[5px] ${
+                  view === id ? "bg-fill-2 font-medium" : "hover:bg-fill"
                 }`}
               >
-                <Icon size={17} className={view === id ? "text-tint" : ""} />
+                <Icon size={17} className="text-tint" />
                 {label}
                 {id === "today" && open.length > 0 && (
-                  <span className="num ml-auto text-[12px] text-label-2">{open.length}</span>
+                  <span className="t-footnote num ml-auto text-label-2" aria-label={`${open.length} to decide`}>{open.length}</span>
                 )}
               </button>
             </li>
           ))}
         </ul>
-        <div className="mt-auto px-2 text-[11px] leading-relaxed text-label-3">
-          Demo data for a fictional store.
-        </div>
+        <p className="t-caption mt-auto px-2 text-label-2">Demo data for a fictional store.</p>
       </nav>
 
-      {/* Main */}
-      <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="sticky top-0 z-10 flex gap-1 border-b border-separator bg-[var(--sidebar)] p-2 backdrop-blur-xl md:hidden">
-          {NAV.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setView(id)}
-              className={`flex-1 rounded-lg py-1.5 text-[13px] font-medium ${view === id ? "bg-surface shadow-sm" : "text-label-2"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mx-auto max-w-[760px] px-5 pb-16 pt-8 md:px-8 md:pt-12">
+      <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 md:pb-0">
+        <div className="mx-auto max-w-[720px] px-4 pb-16 pt-6 md:px-8 md:pt-10">
           {view === "today" && (
             <>
-              <header className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[13px] font-medium text-label-2">{overview ? longDate(overview.today) : " "}</p>
-                  <h1 className="text-[34px] font-bold leading-tight tracking-[-0.02em]">Today</h1>
-                </div>
-                {priorities.length > 0 && <Ring done={handled.length} total={priorities.length} />}
-              </header>
-              <p className="mt-3 max-w-[60ch] text-[17px] leading-snug text-label-2">
-                {briefing?.summary ?? "Preparing today's priorities…"}
-              </p>
+              {header(
+                "Today",
+                overview ? longDate(overview.today) : " ",
+                priorities.length > 0 ? <Ring done={handled.length} total={priorities.length} /> : null,
+              )}
+              <p className="t-body mt-2 px-1 text-label-2">{briefing?.summary ?? "Preparing today's priorities…"}</p>
 
               {briefing?.notices.map((n) => (
-                <div key={n.id} className="mt-5 flex gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-separator">
-                  <BoltIcon size={18} className="mt-0.5 shrink-0 text-label-2" />
-                  <p className="text-[14px] leading-snug text-label-2">{n.reason}</p>
+                <div key={n.id} className="group-list mt-6 flex items-start gap-3 px-4 py-3">
+                  <span className="icon-tile size-[30px]" style={{ background: "var(--note)" }}>
+                    <BoltIcon size={17} />
+                  </span>
+                  <div>
+                    <div className="t-body">Store note</div>
+                    <p className="t-subhead mt-0.5 text-label-2">{n.reason}</p>
+                  </div>
                 </div>
               ))}
 
               <LayoutGroup>
-                <section className="mt-7">
-                  <h2 className="mb-2 px-4 text-[13px] font-semibold text-label-2">
-                    {open.length ? "To decide" : "All done for today"}
-                  </h2>
-                  <motion.ul layout className="overflow-hidden rounded-xl bg-surface ring-1 ring-separator">
+                <section className="mt-8">
+                  <h2 className="group-header">{open.length || !briefing ? "To decide" : "All done"}</h2>
+                  <motion.ul layout className="group-list">
                     <AnimatePresence initial={false}>
                       {open.map((a) => (
                         <ActionRow
@@ -158,19 +164,20 @@ export default function Home() {
                         />
                       ))}
                     </AnimatePresence>
-                    {!briefing && <li className="h-[300px] animate-pulse bg-fill" />}
+                    {!briefing && <li className="h-[320px] animate-pulse bg-fill" />}
                     {briefing && open.length === 0 && (
-                      <li className="px-4 py-6 text-[14px] text-label-2">
-                        Every priority has a decision. Open “All suggestions” to look further ahead.
+                      <li className="t-subhead px-4 py-4 text-label-2">
+                        Every priority has a decision. See All suggestions to look further ahead.
                       </li>
                     )}
                   </motion.ul>
+                  <p className="group-footer">Tap the circle to approve. Open a row to see why, adjust or dismiss.</p>
                 </section>
 
                 {handled.length > 0 && (
-                  <motion.section layout className="mt-7">
-                    <h2 className="mb-2 px-4 text-[13px] font-semibold text-label-2">Handled</h2>
-                    <motion.ul layout className="overflow-hidden rounded-xl bg-surface ring-1 ring-separator">
+                  <motion.section layout className="mt-8">
+                    <h2 className="group-header">Handled</h2>
+                    <motion.ul layout className="group-list">
                       <AnimatePresence initial={false}>
                         {handled.map((a) => (
                           <ActionRow
@@ -189,50 +196,54 @@ export default function Home() {
               </LayoutGroup>
 
               {overview && (
-                <dl className="mt-9 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-separator ring-1 ring-separator sm:grid-cols-4">
-                  {[
-                    ["Running out", overview.stockout_risks, "items"],
-                    ["Late deliveries", overview.late_deliveries, "orders"],
-                    ["Hard to find", overview.visibility_issues, "items"],
-                    ["Slow stock", money(overview.slow_stock_value_uah), "tied up"],
-                  ].map(([k, v, u]) => (
-                    <div key={k as string} className="bg-surface px-4 py-3">
-                      <dt className="text-[12px] text-label-2">{k}</dt>
-                      <dd className="num mt-0.5 text-[20px] font-semibold">
-                        {v} <span className="text-[12px] font-normal text-label-3">{u}</span>
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+                <section className="mt-8">
+                  <h2 className="group-header">Store health</h2>
+                  <dl className="group-list">
+                    {[
+                      ["Items running out", `${overview.stockout_risks}`],
+                      ["Late deliveries", `${overview.late_deliveries}`],
+                      ["Items hard to find", `${overview.visibility_issues}`],
+                      ["Value in slow stock", money(overview.slow_stock_value_uah)],
+                    ].map(([k, v]) => (
+                      <div key={k} className="cell flex items-center justify-between px-4 py-[11px]">
+                        <dt className="t-body">{k}</dt>
+                        <dd className="t-body num text-label-2">{v}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
               )}
             </>
           )}
 
           {view === "all" && (
             <>
-              <h1 className="text-[34px] font-bold tracking-[-0.02em]">All suggestions</h1>
-              <p className="mt-1 text-[15px] text-label-2">Everything the store data points to, highest value first.</p>
-              <div role="tablist" className="mt-5 inline-flex flex-wrap gap-0.5 rounded-[10px] bg-fill p-0.5">
+              {header("All suggestions")}
+              <p className="t-body mt-2 px-1 text-label-2">Everything the store data points to, highest value first.</p>
+              <div role="tablist" aria-label="Filter by type" className="mt-6 flex w-full rounded-[9px] bg-fill p-[2px] sm:w-auto sm:inline-flex">
                 {FILTERS.map((f) => (
                   <button
                     key={f}
                     role="tab"
                     aria-selected={filter === f}
+                    aria-label={f === "ALL" ? "All" : TYPE_META[f].label}
                     onClick={() => setFilter(f)}
-                    className="relative rounded-lg px-3 py-1 text-[13px] font-medium"
+                    className="t-footnote relative flex-1 whitespace-nowrap rounded-[7px] px-3 py-[5px] font-medium sm:flex-none"
                   >
                     {filter === f && (
                       <motion.span
                         layoutId="seg"
-                        className="absolute inset-0 rounded-lg bg-surface shadow-sm"
+                        className="absolute inset-0 rounded-[7px] bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)]"
                         transition={{ type: "spring", stiffness: 500, damping: 40 }}
                       />
                     )}
-                    <span className="relative">{f === "ALL" ? "All" : TYPE_META[f].label}</span>
+                    <span className="relative sm:hidden">{f === "ALL" ? "All" : TYPE_META[f].short}</span>
+                    <span className="relative hidden sm:inline">{f === "ALL" ? "All" : TYPE_META[f].label}</span>
                   </button>
                 ))}
               </div>
-              <ul className="mt-4 overflow-hidden rounded-xl bg-surface ring-1 ring-separator">
+              <h2 className="group-header mt-6">{list.length} suggestions</h2>
+              <ul className="group-list">
                 <AnimatePresence initial={false}>
                   {list.map((a) => (
                     <ActionRow
@@ -251,30 +262,37 @@ export default function Home() {
 
           {view === "log" && (
             <>
-              <h1 className="text-[34px] font-bold tracking-[-0.02em]">Decisions</h1>
-              <p className="mt-1 text-[15px] text-label-2">Every approval and dismissal, newest first.</p>
+              {header("Decisions")}
+              <p className="t-body mt-2 px-1 text-label-2">Every approval and dismissal, newest first.</p>
               {decisions && decisions.length === 0 ? (
-                <p className="mt-8 text-[15px] text-label-2">No decisions yet. Approve or dismiss a priority on Today.</p>
+                <div className="group-list t-subhead mt-8 px-4 py-4 text-label-2">
+                  No decisions yet. Approve or dismiss a priority on Today.
+                </div>
               ) : (
-                <ul className="mt-5 divide-y divide-separator overflow-hidden rounded-xl bg-surface ring-1 ring-separator">
+                <ul className="group-list mt-8">
                   {(decisions ?? []).map((d) => {
                     const a = all.get(d.action_id);
                     return (
-                      <li key={d.action_id} className="flex items-center gap-3 px-4 py-3">
-                        {a && (
-                          <span style={{ color: TYPE_META[a.type].color }}>
-                            <TypeIcon type={a.type} />
-                          </span>
-                        )}
+                      <li key={d.action_id} className="cell flex items-center gap-3 px-4 py-[11px]">
                         <button onClick={() => setSelectedId(d.action_id)} className="min-w-0 flex-1 text-left">
-                          <div className="truncate text-[15px] font-medium">{a?.product_name ?? d.action_id}</div>
-                          <div className="text-[13px] text-label-2">
-                            {d.decision === "approve" ? "Approved" : d.decision === "change" ? `Approved with change: ${d.value}` : `Dismissed: ${d.reason}`}
-                            {" · "}
+                          <div className="t-body truncate">{a?.product_name ?? d.action_id}</div>
+                          {a && (
+                            <div className="t-footnote mt-[3px] flex items-center gap-1 font-medium" style={{ color: TYPE_META[a.type].text }}>
+                              <TypeIcon type={a.type} size={13} />
+                              {TYPE_META[a.type].label}
+                            </div>
+                          )}
+                          <div className="t-subhead mt-[2px] text-label-2">
+                            {d.decision === "approve"
+                              ? "Approved"
+                              : d.decision === "change"
+                                ? `Approved with change: ${d.value}`
+                                : `Dismissed · ${d.reason}`}
+                            {" at "}
                             {new Date(d.decided_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
                           </div>
                         </button>
-                        <button onClick={() => undo(d.action_id)} className="text-[14px] font-medium text-tint">
+                        <button onClick={() => undo(d.action_id)} className="t-body shrink-0 text-tint">
                           Undo
                         </button>
                       </li>
@@ -287,6 +305,24 @@ export default function Home() {
         </div>
       </main>
 
+      {/* iOS tab bar */}
+      <nav
+        aria-label="Sections"
+        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-separator bg-[rgba(249,249,249,0.94)] pb-[max(env(safe-area-inset-bottom),8px)] pt-1.5 backdrop-blur-xl md:hidden"
+      >
+        {NAV.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            aria-current={view === id ? "page" : undefined}
+            className={`flex flex-1 flex-col items-center gap-0.5 text-[10px] font-medium ${view === id ? "text-tint" : "text-[#6e6e73]"}`}
+          >
+            <Icon size={24} />
+            {label}
+          </button>
+        ))}
+      </nav>
+
       {/* Inspector (desktop) / sheet (mobile) */}
       <AnimatePresence>
         {selected && (
@@ -297,9 +333,9 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedId(null)}
-              className="fixed inset-0 z-20 bg-black/25 lg:hidden"
+              className="fixed inset-0 z-20 bg-black/30 lg:hidden"
             />
-            <div className="fixed inset-x-0 bottom-0 top-12 z-30 overflow-hidden rounded-t-2xl lg:static lg:inset-auto lg:z-auto lg:w-[420px] lg:shrink-0 lg:rounded-none lg:py-3">
+            <div className="fixed inset-x-0 bottom-0 top-10 z-30 lg:static lg:inset-auto lg:z-auto lg:w-[400px] lg:shrink-0 lg:border-l lg:border-separator">
               <DetailPanel
                 key={selected.id}
                 action={selected}

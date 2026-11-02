@@ -1,49 +1,36 @@
 @import "tailwindcss";
 
+/* Apple system colours, light appearance (Human Interface Guidelines). */
 :root {
   color-scheme: light;
-  --bg: #f5f5f7;
-  --surface: #ffffff;
-  --surface-2: #fbfbfd;
-  --sidebar: rgba(236, 236, 241, 0.72);
-  --label: #1d1d1f;
-  --label-2: #6e6e73;
-  --label-3: #a1a1a6;
-  --separator: rgba(60, 60, 67, 0.16);
-  --fill: rgba(120, 120, 128, 0.12);
-  --tint: #0071e3;
-  --done: #248a3d;
-  /* action hues: validated as a categorical set (light surface) */
-  --order: #d9302a;
-  --discount: #c86a00;
-  --move: #0a6cd6;
-  --delivery: #9a44c9;
-  --chart-grid: rgba(60, 60, 67, 0.1);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg: #000000;
-    --surface: #1c1c1e;
-    --surface-2: #232325;
-    --sidebar: rgba(30, 30, 32, 0.72);
-    --label: #f5f5f7;
-    --label-2: #98989d;
-    --label-3: #636366;
-    --separator: rgba(84, 84, 88, 0.6);
-    --fill: rgba(120, 120, 128, 0.24);
-    --tint: #2997ff;
-    --done: #30d158;
-    /* re-stepped for the dark surface, validated separately */
-    --order: #ee4a40;
-    --discount: #d87a06;
-    --move: #2f86e8;
-    --delivery: #b062de;
-    --chart-grid: rgba(235, 235, 245, 0.1);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.4);
-  }
+  --bg: #f2f2f7; /* systemGroupedBackground */
+  --surface: #ffffff; /* secondarySystemGroupedBackground */
+  --surface-2: #f2f2f7; /* tertiary fill inside cells */
+  --sidebar: rgba(246, 246, 248, 0.82);
+  --label: #000000;
+  --label-2: #636366; /* secondaryLabel, accessible-contrast variant (>=4.5:1 on every surface used) */
+  --label-3: rgba(60, 60, 67, 0.3); /* tertiaryLabel */
+  --separator: rgba(60, 60, 67, 0.18);
+  --fill: rgba(120, 120, 128, 0.12); /* tertiarySystemFill */
+  --fill-2: #e9e9ee;
+  --selected: #eaf2fc; /* selected cell, light tint keeps all text >=4.5:1 */
+  --tint: #0066cc; /* link blue for text and glyphs (apple.com) */
+  --tint-fill: #0071e3; /* filled button blue */
+  --done: #34c759; /* systemGreen */
+  /* icon tiles: white glyph on system colour, as in Settings */
+  --order: #ff3b30; /* systemRed */
+  --discount: #ff9500; /* systemOrange */
+  --move: #007aff; /* systemBlue */
+  --delivery: #af52de; /* systemPurple */
+  --note: #8e8e93; /* systemGray */
+  /* same hues darkened for text on white (>=4.5:1) */
+  --order-text: #d70015;
+  --discount-text: #b25000;
+  --move-text: #0066cc;
+  --delivery-text: #8944ab;
+  --note-text: #636366;
+  --chart-mark: #0066cc; /* accessible systemBlue for marks on white */
+  --chart-grid: rgba(60, 60, 67, 0.12);
 }
 
 @theme inline {
@@ -55,7 +42,9 @@
   --color-label-3: var(--label-3);
   --color-separator: var(--separator);
   --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
   --color-tint: var(--tint);
+  --color-tint-fill: var(--tint-fill);
   --color-done: var(--done);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -65,26 +54,40 @@ html {
   background: var(--bg);
   color: var(--label);
   font-family: var(--font-sans);
-  font-size: 15px;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "kern", "tnum" 0;
+  letter-spacing: -0.01em;
 }
 
-.num {
-  font-variant-numeric: tabular-nums;
-}
+/* HIG text styles (macOS/iPadOS sizes) */
+.t-large-title { font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: 0.012em; }
+.t-title2 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.t-title3 { font-size: 20px; line-height: 25px; font-weight: 600; letter-spacing: -0.02em; }
+.t-headline { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.025em; }
+.t-body { font-size: 17px; line-height: 22px; letter-spacing: -0.025em; }
+.t-callout { font-size: 16px; line-height: 21px; letter-spacing: -0.02em; }
+.t-subhead { font-size: 15px; line-height: 20px; letter-spacing: -0.015em; }
+.t-footnote { font-size: 13px; line-height: 18px; letter-spacing: -0.005em; }
+.t-caption { font-size: 12px; line-height: 16px; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* Inset grouped list */
+.group-list { background: var(--surface); border-radius: 10px; overflow: hidden; }
+.group-header { padding: 0 16px 6px; font-size: 13px; line-height: 18px; color: var(--label-2); text-transform: uppercase; letter-spacing: 0.01em; }
+.group-footer { padding: 6px 16px 0; font-size: 13px; line-height: 18px; color: var(--label-2); }
+
+/* hairline between cells, inset to the text like UITableView */
+.cell + .cell::before { content: ""; position: absolute; top: 0; right: 0; left: var(--inset, 16px); height: 0.5px; background: var(--separator); }
+.cell { position: relative; }
+
+.icon-tile { display: grid; place-items: center; border-radius: 7px; color: #fff; flex-shrink: 0; }
 
 :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--tint) 55%, transparent);
-  outline-offset: 2px;
+  outline: 3px solid rgba(0, 113, 227, 0.5);
+  outline-offset: 1px;
   border-radius: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

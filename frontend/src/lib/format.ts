@@ -11,12 +11,12 @@ export const longDate = (iso: string) =>
 export const shortDate = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
-export const TYPE_META: Record<ActionType, { label: string; color: string; verb: string }> = {
-  ORDER: { label: "Reorder", color: "var(--order)", verb: "Order" },
-  DISCOUNT: { label: "Mark down", color: "var(--discount)", verb: "Mark down" },
-  MOVE_TO_FRONT: { label: "Move to front", color: "var(--move)", verb: "Move" },
-  CHECK_DELIVERY: { label: "Chase delivery", color: "var(--delivery)", verb: "Chase" },
-  EXPLAIN_ANOMALY: { label: "Store note", color: "var(--label-2)", verb: "" },
+export const TYPE_META: Record<ActionType, { label: string; short: string; color: string; text: string; verb: string }> = {
+  ORDER: { label: "Reorder", short: "Reorder", color: "var(--order)", text: "var(--order-text)", verb: "Order" },
+  DISCOUNT: { label: "Mark down", short: "Mark down", color: "var(--discount)", text: "var(--discount-text)", verb: "Mark down" },
+  MOVE_TO_FRONT: { label: "Move to front", short: "Move", color: "var(--move)", text: "var(--move-text)", verb: "Move" },
+  CHECK_DELIVERY: { label: "Chase delivery", short: "Chase", color: "var(--delivery)", text: "var(--delivery-text)", verb: "Chase" },
+  EXPLAIN_ANOMALY: { label: "Store note", short: "Note", color: "var(--note)", text: "var(--note-text)", verb: "" },
 };
 
 /** The one concrete step the manager is asked to approve. */

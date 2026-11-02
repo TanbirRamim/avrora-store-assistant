@@ -64,7 +64,7 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
   const labelEvery = Math.ceil(data.length / 5);
 
   return (
-    <figure className="m-0">
+    <figure>
       <figcaption className="mb-1 flex items-baseline justify-between text-[13px]">
         <span className="font-semibold text-label">{title}</span>
         <span className="num text-label-2" aria-live="polite">
@@ -90,7 +90,7 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
           {ticks.map((t) => (
             <g key={t}>
               <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--chart-grid)" />
-              <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--label-3)" className="num">
+              <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--label-2)" className="num">
                 {Math.round(t)}
               </text>
             </g>
@@ -166,7 +166,7 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
 
           {data.map((d, i) =>
             i % labelEvery === 0 ? (
-              <text key={d.date} x={x(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--label-3)">
+              <text key={d.date} x={x(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--label-2)">
                 {shortDate(d.date)}
               </text>
             ) : null,
