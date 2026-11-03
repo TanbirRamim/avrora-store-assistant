@@ -90,6 +90,13 @@ export const ClockIcon = ({ size = 18, className }: P) => (
   </svg>
 );
 
+export const MapIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="m3.5 5 5-2 7 2 5-2v16l-5 2-7-2-5 2z" />
+    <path d="M8.5 3v16M15.5 5v16" />
+  </svg>
+);
+
 export function TypeIcon({ type, size = 16 }: { type: ActionType; size?: number }) {
   switch (type) {
     case "ORDER":

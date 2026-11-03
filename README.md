@@ -3,13 +3,18 @@
 A daily action list for retail store managers: what to reorder, discount, move or follow up today, and why.
 Built for the BIP 2026 "Problem Solving Through Generative AI" challenge set by Avrora.
 
-All data in this repository is synthetic. It describes one fictional store and contains no real company data.
+The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine network map uses public OpenStreetMap data and is labelled accordingly.
 
 ## Structure
 
 - `backend/` – Python: synthetic dataset, analytics, action engine, AI layer, API
-- `frontend/` – Next.js web app for store managers
+- `frontend/` – Next.js web app for store managers, including the Ukraine commercial network map
+- `docs/ukraine-commercial-map.md` – map scope, sources, methodology and licence
 - `cloudflare/` – Worker that hosts the app on Cloudflare, with decisions in D1
+
+## Ukraine commercial network map
+
+Open **Map** in the app to explore 6,211 public OpenStreetMap locations: 883 department stores, 5,320 warehouses and 8 logistics/distribution centres. The static map supports category filters, search, marker clustering, CSV/GeoJSON downloads and an embedding API. Its dated data snapshot and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
 
 ## Backend quick start
 

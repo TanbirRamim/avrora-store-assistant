@@ -6,19 +6,20 @@ import useSWR from "swr";
 import { ActionRow } from "@/components/ActionRow";
 import { AiSheet } from "@/components/AiSheet";
 import { DetailPanel } from "@/components/DetailPanel";
-import { BoltIcon, BoxIcon, ClockIcon, ListIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
+import { BoltIcon, BoxIcon, ClockIcon, ListIcon, MapIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
 import { Ring } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview } from "@/lib/api";
 import { useAi } from "@/lib/ai";
 import { api, fetcher } from "@/lib/api";
 import { longDate, money, TYPE_META } from "@/lib/format";
 
-type View = "today" | "all" | "log";
+type View = "today" | "all" | "log" | "map";
 
 const NAV: { id: View; label: string; Icon: typeof SunIcon }[] = [
   { id: "today", label: "Today", Icon: SunIcon },
   { id: "all", label: "All suggestions", Icon: ListIcon },
   { id: "log", label: "Decisions", Icon: ClockIcon },
+  { id: "map", label: "Map", Icon: MapIcon },
 ];
 
 const FILTERS: (ActionType | "ALL")[] = ["ALL", "ORDER", "DISCOUNT", "MOVE_TO_FRONT", "CHECK_DELIVERY"];
@@ -65,7 +66,7 @@ export default function Home() {
   );
   const toggle = (a: Action) => (decided.has(a.id) ? undo(a.id) : decide(a.id, "approve"));
 
-  if (overviewError) {
+  if (overviewError && view !== "map") {
     return (
       <main className="grid h-full place-items-center p-8 text-center">
         <div>
@@ -128,11 +129,11 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        <p className="t-caption mt-auto px-2 text-label-2">Demo data for a fictional store.</p>
+        <p className="t-caption mt-auto px-2 text-label-2">Store demo data is fictional. Map data: OpenStreetMap.</p>
       </nav>
 
       <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 md:pb-0">
-        <div className="mx-auto max-w-[720px] px-4 pb-16 pt-6 md:px-8 md:pt-10">
+        <div className={view === "map" ? "h-full p-3 md:p-4" : "mx-auto max-w-[720px] px-4 pb-16 pt-6 md:px-8 md:pt-10"}>
           {view === "today" && (
             <>
               {header(
@@ -272,6 +273,21 @@ export default function Home() {
                 </AnimatePresence>
               </ul>
             </>
+          )}
+
+          {view === "map" && (
+            <section className="h-full min-h-[640px]" aria-labelledby="network-map-heading">
+              <div className="mb-3 px-1">
+                <h1 id="network-map-heading" className="t-title2">Ukraine commercial network</h1>
+                <p className="t-footnote mt-1 text-label-2">6,211 public OpenStreetMap locations: department stores, warehouses and logistics centres.</p>
+              </div>
+              <iframe
+                title="Ukraine department stores, warehouses and logistics centres"
+                src="/network-map/index.html"
+                className="h-[calc(100%-62px)] min-h-[570px] w-full rounded-[14px] border border-separator bg-[#07111f]"
+                loading="lazy"
+              />
+            </section>
           )}
 
           {view === "log" && (
