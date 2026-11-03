@@ -69,6 +69,7 @@ class WarMapOrchestrator:
     def process_cycle(self, force_refresh_maps: bool = False) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         start_time = time.time()
         now_str = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        self.stores = self._load_stores()
 
         # 1. Fetch frontline coordinates
         if force_refresh_maps:
@@ -190,6 +191,8 @@ class WarMapOrchestrator:
             "stores_in_green_zone": stores_green,
             "stores_on_generator": sum(1 for r in rows if r["power_status"] == "generator"),
             "stores_blackout": sum(1 for r in rows if r["power_status"] == "blackout"),
+            "alerts_source": alerts_info.get("source", "Live Ukrainian Civil Defense Alerts API"),
+            "alerts_is_simulated": alerts_info.get("is_simulated", False),
             "frontline_data_source": frontline_meta.get("source"),
             "frontline_nodes_tracked": frontline_meta.get("total_nodes"),
             "cycle_duration_ms": round((time.time() - start_time) * 1000, 1),

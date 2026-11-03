@@ -2,6 +2,38 @@ from typing import Dict, Any
 from config import RED_ZONE_KM, ORANGE_ZONE_KM, YELLOW_ZONE_KM
 
 
+OBLAST_MAP = {
+    "Donetsk Oblast": "Донецька область",
+    "Kharkiv Oblast": "Харківська область",
+    "Dnipropetrovsk Oblast": "Дніпропетровська область",
+    "Zaporizhzhia Oblast": "Запорізька область",
+    "Kherson Oblast": "Херсонська область",
+    "Mykolaiv Oblast": "Миколаївська область",
+    "Odesa Oblast": "Одеська область",
+    "Poltava Oblast": "Полтавська область",
+    "Kyiv Oblast": "Київська область",
+    "Kyiv": "м. Київ",
+    "Kyiv City": "м. Київ",
+    "Lviv Oblast": "Львівська область",
+    "Sumy Oblast": "Сумська область",
+    "Luhansk Oblast": "Луганська область",
+    "Chernihiv Oblast": "Чернігівська область",
+    "Cherkasy Oblast": "Черкаська область",
+    "Vinnytsia Oblast": "Вінницька область",
+    "Zhytomyr Oblast": "Житомирська область",
+    "Rivne Oblast": "Рівненська область",
+    "Volyn Oblast": "Волинська область",
+    "Ternopil Oblast": "Тернопільська область",
+    "Ivano-Frankivsk Oblast": "Івано-Франківська область",
+    "Zakarpattia Oblast": "Закарпатська область",
+    "Chernivtsi Oblast": "Чернівецька область",
+    "Khmelnytskyi Oblast": "Хмельницька область",
+    "Kirovohrad Oblast": "Кіровоградська область",
+    "Sevastopol": "Севастополь",
+    "Autonomous Republic of Crimea": "Автономна Республіка Крим"
+}
+
+
 class RiskScorer:
     """
     Evaluates real-time war map telemetry to generate:
@@ -13,16 +45,20 @@ class RiskScorer:
     def evaluate_store(store: Dict[str, Any], dist_km: float, alerts_info: Dict[str, Any]) -> Dict[str, Any]:
         oblast = store.get("oblast", "")
         hromada = store.get("hromada", "")
+        city = store.get("city", "")
 
         active_regions = alerts_info.get("active_regions", [])
         active_hromadas = alerts_info.get("active_hromadas", [])
+
+        oblast_uk = OBLAST_MAP.get(oblast, oblast)
+        city_uk = "м. Київ" if city == "Kyiv" else ""
 
         # 1. Siren Alert Status
         if hromada in active_hromadas:
             alert_status = "ACTIVE_HROMADA"
             alert_label = "🚨 SIREN ACTIVE (LOCAL)"
             alert_multiplier = 40
-        elif oblast in active_regions:
+        elif (oblast in active_regions) or (oblast_uk in active_regions) or (city_uk in active_regions):
             alert_status = "ACTIVE_OBLAST"
             alert_label = "⚠️ SIREN ACTIVE (REGIONAL)"
             alert_multiplier = 25

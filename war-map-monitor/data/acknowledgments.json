@@ -3,5 +3,10 @@
     "status": "CONFIRMED_IN_SHELTER",
     "confirmed_at": "11:08:02",
     "confirmed_by": "Manager"
+  },
+  "AVR-0442": {
+    "status": "CONFIRMED_IN_SHELTER",
+    "confirmed_at": "11:17:03",
+    "confirmed_by": "Manager"
   }
 }

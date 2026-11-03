@@ -104,6 +104,23 @@ def force_refresh():
     }
 
 
+@app.get("/api/border")
+def get_ukraine_border():
+    """Returns official internationally recognized border of Ukraine (including Crimea and all oblasts)."""
+    border_path = os.path.join(os.path.dirname(__file__), "data", "ukraine_border.geojson")
+    if os.path.exists(border_path):
+        with open(border_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    raise HTTPException(status_code=404, detail="Ukraine border GeoJSON file not found")
+
+
+@app.get("/api/frontline")
+def get_frontline_coords():
+    """Returns the line-of-contact coordinates."""
+    pts = orchestrator.deepstate_reader.get_frontline_points()
+    return [{"lat": p[0], "lon": p[1]} for p in pts]
+
+
 @app.get("/", response_class=HTMLResponse)
 def get_alerts_map_html():
     """
@@ -111,7 +128,7 @@ def get_alerts_map_html():
     Displays store locations across Ukraine as interactive glowing markers,
     with slide-out inspection cards for life-safety directives and shelter proximity.
     """
-    return """<!DOCTYPE html>
+    return r"""<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -144,7 +161,7 @@ def get_alerts_map_html():
 
     /* Radar-Style Store Pins */
     @keyframes radar-pulse-red {
-      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.9); transform: scale(1); }
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.95); transform: scale(1); }
       70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); transform: scale(1.1); }
       100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
     }
@@ -158,17 +175,29 @@ def get_alerts_map_html():
       border: none !important;
     }
 
+    .pin-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+
     .store-marker-pin {
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 9999px;
       font-weight: 800;
-      cursor: pointer;
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s;
     }
-    .store-marker-pin:hover {
-      transform: scale(1.3) !important;
+    .pin-container:hover .store-marker-pin {
+      transform: scale(1.25) !important;
+    }
+
+    .pin-selected {
+      outline: 3px solid #facc15 !important;
+      outline-offset: 3px !important;
+      transform: scale(1.25) !important;
       z-index: 9999 !important;
     }
 
@@ -197,6 +226,22 @@ def get_alerts_map_html():
       color: #ffffff;
       border: 1.5px solid #ffffff;
       box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+    }
+
+    .pin-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #f1f5f9;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(4px);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      white-space: nowrap;
+      margin-top: 3px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      pointer-events: none;
+      letter-spacing: 0.02em;
     }
 
     /* Floating Quick Store Bar at the bottom */
@@ -230,7 +275,7 @@ def get_alerts_map_html():
       transition: all 0.18s ease;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .store-pill:hover {
+    .store-pill:hover, .store-pill.active {
       background: rgba(30, 41, 59, 0.98);
       border-color: #facc15;
       transform: translateY(-2px);
@@ -243,15 +288,37 @@ def get_alerts_map_html():
       top: 16px;
       left: 16px;
       z-index: 1000;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 14px;
-      padding: 10px 16px;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+      padding: 8px 16px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
+    }
+
+    .filter-btn {
+      padding: 4px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid transparent;
+      transition: all 0.18s ease;
+      cursor: pointer;
+    }
+    .filter-btn:hover {
+      color: #f8fafc;
+      background: rgba(51, 65, 85, 0.8);
+    }
+    .filter-btn.active {
+      color: #ffffff;
+      background: rgba(51, 65, 85, 0.95);
+      border-color: rgba(255, 255, 255, 0.2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
     /* Floating Legend & Filters */
@@ -274,17 +341,17 @@ def get_alerts_map_html():
       position: absolute;
       top: 16px;
       right: 16px;
-      width: 380px;
+      width: 410px;
       max-height: calc(100vh - 32px);
       z-index: 1001;
-      background: rgba(15, 23, 42, 0.96);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(11, 18, 33, 0.96);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 18px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
-      padding: 20px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+      padding: 18px;
       overflow-y: auto;
-      transform: translateX(420px);
+      transform: translateX(450px);
       transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .store-inspector.open {
@@ -305,14 +372,8 @@ def get_alerts_map_html():
       padding: 6px 10px !important;
       font-size: 11px !important;
     }
-    .leaflet-control-layers-toggle {
-      filter: invert(1);
-    }
-    .leaflet-control-layers label {
-      color: #cbd5e1 !important;
-      font-weight: 500;
-      margin: 2px 0;
-    }
+    .leaflet-control-layers-toggle { filter: invert(1); }
+    .leaflet-control-layers label { color: #cbd5e1 !important; font-weight: 500; margin: 2px 0; }
   </style>
 </head>
 <body>
@@ -320,54 +381,55 @@ def get_alerts_map_html():
   <!-- Fullscreen Interactive Map -->
   <div id="map"></div>
 
-  <!-- Alerts.in.ua Style Minimalist Header -->
+  <!-- Command Header with Live Filters & Telemetry Indicator -->
   <div class="top-header">
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-2.5">
       <div class="w-8 h-8 rounded-lg bg-yellow-400 flex items-center justify-center font-black text-slate-950 text-base shadow">
         A
       </div>
       <div>
-        <div class="text-sm font-bold text-white flex items-center gap-2">
-          Avrora Store Alert Map
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
-            <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-ping"></span> Live Sirens
+        <div class="text-xs font-bold text-white flex items-center gap-1.5">
+          Avrora War Map
+          <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 animate-pulse"></span> LIVE DSNS
           </span>
         </div>
-        <div class="text-[11px] text-slate-400">Real-time alerts.in.ua sirens + DeepStateMap frontline distance</div>
+        <div class="text-[10px] text-slate-400">National Network &amp; Real-Time Sirens</div>
       </div>
     </div>
 
-    <div class="h-6 w-px bg-slate-700 mx-1"></div>
+    <div class="h-6 w-px bg-slate-700/80 mx-0.5"></div>
 
-    <!-- Quick Stats -->
-    <div class="flex items-center space-x-4 text-xs">
-      <div class="text-center">
-        <div class="text-xs font-bold text-white" id="stat-total">13</div>
-        <div class="text-[9px] text-slate-400">Stores</div>
-      </div>
-      <div class="text-center">
-        <div class="text-xs font-bold text-red-400 flex items-center gap-1 justify-center" id="stat-alarms">
-          <i class="fa-solid fa-bell text-[10px]"></i> <span id="stat-alarms-num">--</span>
-        </div>
-        <div class="text-[9px] text-red-300">Under Siren</div>
-      </div>
-      <div class="text-center">
-        <div class="text-xs font-bold text-amber-400" id="stat-red">--</div>
-        <div class="text-[9px] text-slate-400">&lt;25km Front</div>
-      </div>
+    <!-- Quick Filter Tabs -->
+    <div class="flex items-center space-x-1.5 text-xs">
+      <button onclick="setFilter('ALL')" id="filter-all" class="filter-btn active">
+        All (<span id="stat-total">13</span>)
+      </button>
+      <button onclick="setFilter('SIREN')" id="filter-siren" class="filter-btn text-red-400 hover:text-red-300">
+        <i class="fa-solid fa-bell text-[10px] mr-1"></i> Sirens (<span id="stat-alarms-num">--</span>)
+      </button>
+      <button onclick="setFilter('FRONTLINE')" id="filter-frontline" class="filter-btn text-amber-400 hover:text-amber-300">
+        Frontline &lt;25km (<span id="stat-red">--</span>)
+      </button>
+      <button onclick="setFilter('SAFE')" id="filter-safe" class="filter-btn text-emerald-400 hover:text-emerald-300">
+        Safe Rear (<span id="stat-green">--</span>)
+      </button>
     </div>
 
-    <!-- Quick Search -->
-    <div class="relative ml-2 w-48">
-      <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
-      <input type="text" id="store-search" oninput="handleSearch()" placeholder="Search city or store..." class="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400">
+    <!-- Quick Search Input -->
+    <div class="relative ml-1 w-44">
+      <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-500 text-xs"></i>
+      <input type="text" id="store-search" oninput="handleSearch()" placeholder="Search [ / ]..." class="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-7 pr-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400">
     </div>
   </div>
 
   <!-- Alerts.in.ua Style Legend -->
   <div class="legend-panel">
-    <div class="font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-      <i class="fa-solid fa-circle-info text-yellow-400 text-xs"></i> Map Indicators
+    <div class="font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+      <span class="flex items-center gap-1.5">
+        <i class="fa-solid fa-circle-info text-yellow-400 text-xs"></i> Map Indicators
+      </span>
+      <span class="text-[9px] text-slate-500 font-mono">15s Live Sync</span>
     </div>
     <div class="space-y-1 text-slate-400">
       <div class="flex items-center gap-2">
@@ -382,6 +444,10 @@ def get_alerts_map_html():
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white inline-block"></span>
         <span>Safe Rear (Normal Trading)</span>
       </div>
+      <div class="flex items-center gap-2 pt-1 border-t border-slate-800/70">
+        <span class="w-5 h-0.5 border-t-2 border-solid border-sky-400 inline-block"></span>
+        <span class="text-[10px] text-sky-400 font-medium">Ukraine State Border</span>
+      </div>
     </div>
     <div class="mt-2 pt-1.5 border-t border-slate-800 text-[10px] text-slate-500 flex justify-between">
       <span>Click any store point for details</span>
@@ -391,13 +457,13 @@ def get_alerts_map_html():
 
   <!-- Store Details Slide-out Inspector Card -->
   <div class="store-inspector" id="inspector">
-    <div class="flex items-start justify-between pb-3 border-b border-slate-800">
+    <div class="flex items-start justify-between pb-2.5 border-b border-slate-800">
       <div>
         <div class="flex items-center gap-2">
           <span class="text-xs font-bold text-yellow-400 tracking-wider uppercase" id="card-id">AVR-0812</span>
           <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500/20 text-red-400 border border-red-500/30" id="card-zone-badge">RED ZONE</span>
         </div>
-        <h2 class="text-lg font-bold text-white mt-1 leading-tight" id="card-title">Pokrovsk (Center)</h2>
+        <h2 class="text-lg font-bold text-white mt-0.5 leading-tight" id="card-title">Pokrovsk (Center)</h2>
         <div class="text-xs text-slate-400 mt-0.5" id="card-address">24 Soborna St, Donetsk Oblast</div>
         <div class="text-[10px] text-slate-500 font-mono mt-0.5" id="card-coords">48.2831° N, 37.1772° E</div>
       </div>
@@ -414,108 +480,84 @@ def get_alerts_map_html():
         </div>
         <div>
           <div class="text-xs font-bold uppercase tracking-wide" id="card-siren-title">SIREN ACTIVE</div>
-          <div class="text-[11px] opacity-80" id="card-siren-sub">Community alert from alerts.in.ua</div>
+          <div class="text-[11px] opacity-80" id="card-siren-sub">Live alerts feed</div>
         </div>
       </div>
       <div class="text-right">
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded" id="card-mode-badge">CLOSED</span>
+        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded" id="card-mode-badge">CLOSED</span>
       </div>
     </div>
 
-    <!-- Risk Score & Assessment -->
-    <div class="mt-2.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-      <div class="flex items-center gap-1.5 text-slate-300">
-        <i class="fa-solid fa-chart-line text-yellow-400 text-xs"></i>
-        <span class="font-medium text-slate-400">Threat Assessment:</span>
-        <strong class="text-white font-bold" id="card-risk-score">Risk Score: 95 / 100</strong>
-      </div>
-      <span id="card-risk-grade" class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">CRITICAL</span>
-    </div>
-
-    <!-- Life-Saving Directive -->
+    <!-- Immediate Life-Saving Directive -->
     <div class="mt-2.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
       <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center justify-between">
         <span>Manager Action Directive</span>
-        <span class="text-[10px] text-yellow-400 font-semibold">LIFE-SAFETY PROTOCOL</span>
+        <span class="text-[10px] text-yellow-400 font-semibold" id="card-action-tag">IMMEDIATE PROTOCOL</span>
       </div>
       <div class="text-xs font-semibold mt-1 leading-snug" id="card-directive">
-        STOP CHECKOUT & EVACUATE: Immediate strike threat. Lock cash registers, move shoppers and staff to shelter.
+        STOP CHECKOUT &amp; EVACUATE: Immediate strike threat. Lock cash registers, move shoppers and staff to shelter.
       </div>
     </div>
 
     <!-- Designated Shelter Details (Crucial Life Safety) -->
     <div class="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs">
-      <div class="flex items-center space-x-2 text-amber-400 font-bold">
-        <i class="fa-solid fa-person-shelter text-sm"></i>
-        <span>Designated Safe Bunker</span>
+      <div class="flex items-center justify-between text-amber-400 font-bold">
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-person-shelter text-sm"></i> Designated Safe Bunker</span>
+        <span id="card-shelter-dist" class="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold text-[10px]">70m</span>
       </div>
       <div class="text-slate-200 font-semibold mt-1 text-xs" id="card-shelter">
         Bunker #102 (School Basement), 70m walking distance
       </div>
       <div class="text-[11px] text-slate-400 mt-0.5">
-        Mandatory civil defense evacuation point for staff & shoppers.
+        Mandatory civil defense evacuation point for personnel &amp; shoppers.
       </div>
     </div>
 
-    <!-- Frontline Distance & Comms Grid -->
-    <div class="mt-2.5 grid grid-cols-2 gap-2 text-xs">
+    <!-- Interactive Evacuation Confirmation Button -->
+    <div class="mt-2.5 pt-2" id="card-ack-container">
+      <button onclick="handleAcknowledgeClick()" id="btn-ack" class="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow">
+        <i class="fa-solid fa-person-shelter"></i> In Shelter - Confirm Evacuation
+      </button>
+    </div>
+
+    <!-- Operational Intelligence (2x2 Grid) -->
+    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
       <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
         <span class="text-[10px] text-slate-400 block font-medium">Frontline Distance</span>
         <strong class="text-sm font-bold text-yellow-400 mt-0.5 block" id="card-dist">8.8 km</strong>
         <span class="text-[10px] text-slate-500" id="card-zone">Red Zone (&lt; 25 km)</span>
       </div>
       <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
-        <span class="text-[10px] text-slate-400 block font-medium">Comms & Connection</span>
+        <span class="text-[10px] text-slate-400 block font-medium">Comms &amp; Connection</span>
         <strong class="text-xs font-bold text-cyan-400 mt-1 block flex items-center gap-1" id="card-comms">
           <i class="fa-solid fa-satellite"></i> Starlink Active
         </strong>
         <span class="text-[10px] text-slate-500">Autonomous Satellite</span>
       </div>
-    </div>
-
-    <!-- Power & Generator Telemetry -->
-    <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
-      <div class="flex items-center justify-between">
-        <span class="text-[10px] text-slate-400 font-medium">Power Grid / Generator Status</span>
-        <span id="card-power-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">Generator Active</span>
+      <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+        <span class="text-[10px] text-slate-400 block font-medium">Power Infrastructure</span>
+        <strong class="text-xs font-bold text-amber-400 mt-1 block" id="card-power">Generator Running</strong>
+        <span class="text-[10px] text-slate-400 block" id="card-fuel-runtime">75 L · ~12.5 hrs</span>
       </div>
-      <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-800/80 text-[11px]">
-        <div>
-          <span class="text-slate-400 block text-[10px]">Fuel Level</span>
-          <strong id="card-fuel" class="text-amber-400 font-bold">75 Liters</strong>
-        </div>
-        <div>
-          <span class="text-slate-400 block text-[10px]">Generator Autonomy</span>
-          <strong id="card-runtime" class="text-cyan-400 font-bold">~12.5 hrs</strong>
-        </div>
+      <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+        <span class="text-[10px] text-slate-400 block font-medium">Logistics &amp; Delivery ETA</span>
+        <strong class="text-xs font-bold text-slate-200 mt-1 block" id="card-eta">Today 16:30</strong>
+        <span class="text-[10px] text-slate-400 block truncate" id="card-restock">Flashlights, Water</span>
       </div>
     </div>
 
-    <!-- Logistics, Restock & Delivery ETA -->
-    <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
-      <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
-        <span>Logistics & Emergency Restock</span>
-        <span id="card-eta" class="text-amber-400 font-bold">Today 16:30</span>
-      </div>
-      <div class="text-[11px] text-slate-300 mt-1.5 font-medium leading-tight" id="card-restock">
-        Flashlights, 20k Powerbanks, Water
-      </div>
-    </div>
-
-    <!-- Manager Contact -->
+    <!-- Manager Emergency Contact & 1-Click Dial -->
     <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
       <div class="flex items-center space-x-2 text-slate-300">
         <i class="fa-solid fa-user-shield text-slate-500"></i>
-        <span id="card-manager" class="font-medium">Serhiy Kovalenko</span>
+        <div>
+          <div class="font-medium text-white" id="card-manager">Serhiy Kovalenko</div>
+          <div class="text-[10px] text-slate-400">Store Manager</div>
+        </div>
       </div>
-      <div class="text-slate-300 text-[11px] font-mono font-semibold" id="card-phone">+380501234501</div>
-    </div>
-
-    <!-- Acknowledgment Action Button -->
-    <div class="mt-3 pt-2.5 border-t border-slate-800" id="card-ack-container">
-      <button onclick="handleAcknowledgeClick()" id="btn-ack" class="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow">
-        <i class="fa-solid fa-person-shelter"></i> In Shelter - Confirm Evacuation
-      </button>
+      <a href="tel:+380501234501" id="card-phone-link" class="px-3 py-1.5 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow">
+        <i class="fa-solid fa-phone text-[10px]"></i> <span id="card-phone">+380501234501</span>
+      </a>
     </div>
   </div>
 
@@ -529,10 +571,11 @@ def get_alerts_map_html():
     let markersMap = {};
     let activeSelectedStore = null;
     let hasFittedInitialBounds = false;
+    let currentFilter = 'ALL';
+    let borderLayer = null;
 
-    // Initialize Map with dark basemap (Completely free, no API key required, zero watermarks)
+    // Initialize Map with dark basemap
     function initMap() {
-      // 1. Esri Dark Gray Canvas (Default: Alerts.in.ua tactical look)
       const esriDarkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
         attribution: '&copy; Esri &copy; OpenStreetMap | alerts.in.ua | DeepStateMap',
         maxNativeZoom: 16,
@@ -547,7 +590,6 @@ def get_alerts_map_html():
 
       const esriDarkGroup = L.layerGroup([esriDarkBase, esriDarkLabels]);
 
-      // 2. OpenStreetMap Tactical Dark (Free, high-detail street level)
       const osmDark = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         className: 'osm-dark-tiles',
         attribution: '&copy; OpenStreetMap contributors | alerts.in.ua',
@@ -561,7 +603,6 @@ def get_alerts_map_html():
         layers: [esriDarkGroup]
       }).setView([48.6, 31.5], 6.5);
 
-      // Layer switcher & Zoom controls at bottom-right
       L.control.layers({
         "Tactical Dark (Esri)": esriDarkGroup,
         "Street Dark (OSM)": osmDark
@@ -569,8 +610,43 @@ def get_alerts_map_html():
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
+      loadUkraineBorder();
       fetchStoreTelemetry();
-      setInterval(fetchStoreTelemetry, 15000); // 15s live refresh
+      setInterval(fetchStoreTelemetry, 15000);
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeInspector();
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault();
+          document.getElementById('store-search').focus();
+        }
+      });
+    }
+
+    async function loadUkraineBorder() {
+      try {
+        const res = await fetch('/api/border');
+        const data = await res.json();
+        if (data) {
+          borderLayer = L.geoJSON(data, {
+            style: {
+              color: '#38bdf8',
+              weight: 2,
+              opacity: 0.85,
+              fillColor: '#0284c7',
+              fillOpacity: 0.04
+            }
+          }).addTo(map);
+
+          if (!hasFittedInitialBounds) {
+            map.fitBounds(borderLayer.getBounds(), { padding: [35, 35] });
+            hasFittedInitialBounds = true;
+          }
+        }
+      } catch (e) {
+        console.warn("Ukraine border load failed:", e);
+      }
     }
 
     async function fetchStoreTelemetry() {
@@ -585,7 +661,6 @@ def get_alerts_map_html():
         updateHeaderStats(summary);
         renderStorePoints();
 
-        // Refresh active inspector if open
         if (activeSelectedStore) {
           const updated = storesData.find(s => s.store_id === activeSelectedStore.store_id);
           if (updated) openInspector(updated);
@@ -599,87 +674,119 @@ def get_alerts_map_html():
       document.getElementById('stat-total').textContent = summary.total_stores || storesData.length;
       document.getElementById('stat-alarms-num').textContent = summary.stores_under_alarm || 0;
       document.getElementById('stat-red').textContent = summary.stores_in_red_zone || 0;
+      document.getElementById('stat-green').textContent = summary.stores_in_green_zone || 0;
+    }
+
+    function setFilter(filterType) {
+      currentFilter = filterType;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      if (filterType === 'ALL') document.getElementById('filter-all').classList.add('active');
+      else if (filterType === 'SIREN') document.getElementById('filter-siren').classList.add('active');
+      else if (filterType === 'FRONTLINE') document.getElementById('filter-frontline').classList.add('active');
+      else if (filterType === 'SAFE') document.getElementById('filter-safe').classList.add('active');
+      renderStorePoints();
+    }
+
+    function getFilteredStores() {
+      if (currentFilter === 'SIREN') {
+        return storesData.filter(s => s.alert_status && s.alert_status !== 'CLEAR');
+      } else if (currentFilter === 'FRONTLINE') {
+        return storesData.filter(s => s.threat_zone === 'RED');
+      } else if (currentFilter === 'SAFE') {
+        return storesData.filter(s => s.threat_zone === 'GREEN');
+      }
+      return storesData;
     }
 
     function renderStorePoints() {
-      // Clear existing markers
       Object.values(markersMap).forEach(m => map.removeLayer(m));
       markersMap = {};
 
+      const filtered = getFilteredStores();
       const bounds = [];
 
-      storesData.forEach(store => {
+      filtered.forEach(store => {
         if (!store.lat || !store.lon) return;
 
         bounds.push([store.lat, store.lon]);
 
         const isSiren = (store.alert_status && store.alert_status !== 'CLEAR');
         let pinClass = 'pin-green';
-        let pinIcon = '<i class="fa-solid fa-store text-xs"></i>';
+        let pinIcon = '<i class="fa-solid fa-store text-[10px]"></i>';
         let size = 26;
 
         if (isSiren) {
           pinClass = 'pin-siren';
-          pinIcon = '<i class="fa-solid fa-bell text-xs animate-bounce"></i>';
+          pinIcon = '<i class="fa-solid fa-bell text-[11px] animate-bounce"></i>';
           size = 32;
         } else if (store.threat_zone === 'RED') {
           pinClass = 'pin-frontline-red';
-          pinIcon = '<i class="fa-solid fa-triangle-exclamation text-xs"></i>';
+          pinIcon = '<i class="fa-solid fa-triangle-exclamation text-[10px]"></i>';
           size = 28;
         } else if (store.threat_zone === 'ORANGE') {
           pinClass = 'pin-amber';
-          pinIcon = '<i class="fa-solid fa-shield-halved text-xs"></i>';
+          pinIcon = '<i class="fa-solid fa-shield-halved text-[10px]"></i>';
           size = 26;
         }
 
+        const isSelected = activeSelectedStore && (activeSelectedStore.store_id === store.store_id);
+
         const icon = L.divIcon({
           className: 'custom-pin-wrapper',
-          html: `<div class="store-marker-pin ${pinClass}" style="width:${size}px; height:${size}px;">${pinIcon}</div>`,
-          iconSize: [size, size],
+          html: `
+            <div class="pin-container ${isSelected ? 'pin-selected' : ''}">
+              <div class="store-marker-pin ${pinClass}" style="width:${size}px; height:${size}px;">
+                ${pinIcon}
+              </div>
+              <div class="pin-label">${store.city}</div>
+            </div>
+          `,
+          iconSize: [size, size + 16],
           iconAnchor: [size / 2, size / 2]
         });
 
         const marker = L.marker([store.lat, store.lon], { icon: icon });
         
-        // High-contrast clean tooltip on hover
         marker.bindTooltip(`
           <div style="font-size:11px; font-weight:700; color:#f8fafc; line-height:1.2;">
             ${store.store_id} · ${store.city}
             ${isSiren ? '<span style="color:#ef4444; margin-left:4px;">🚨 SIREN</span>' : ''}
           </div>
           <div style="font-size:10px; color:#94a3b8; margin-top:2px;">
-            ${store.dist_frontline_km} km to front · ${store.threat_zone} Zone
+            ${store.dist_frontline_km} km front · ${store.threat_zone} Zone
           </div>
-        `, { direction: 'top', offset: [0, -10], opacity: 0.95 });
+        `, { direction: 'top', offset: [0, -12], opacity: 0.95 });
 
-        // Click opens the Inspector Card and flies to the location
         marker.on('click', () => {
           openInspector(store);
-          map.flyTo([store.lat, store.lon], 13, { duration: 0.8 });
+          map.flyTo([store.lat, store.lon], Math.max(map.getZoom(), 11), { duration: 0.7 });
         });
 
         marker.addTo(map);
         markersMap[store.store_id] = marker;
       });
 
-      renderQuickBar();
+      renderQuickBar(filtered);
 
-      // Fit bounds to Ukraine on initial load
       if (!hasFittedInitialBounds && bounds.length > 0) {
         map.fitBounds(bounds, { padding: [60, 60], maxZoom: 8 });
         hasFittedInitialBounds = true;
       }
     }
 
-    function renderQuickBar() {
+    function renderQuickBar(storesToRender) {
       const container = document.getElementById('quick-store-bar');
       if (!container) return;
       container.innerHTML = '';
 
-      storesData.forEach(store => {
+      const list = storesToRender || getFilteredStores();
+
+      list.forEach(store => {
         const isSiren = (store.alert_status && store.alert_status !== 'CLEAR');
+        const isSelected = activeSelectedStore && (activeSelectedStore.store_id === store.store_id);
         const pill = document.createElement('div');
-        pill.className = 'store-pill';
+        pill.className = `store-pill ${isSelected ? 'active' : ''}`;
+        
         let statusDot = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>';
         if (isSiren) {
           statusDot = '<span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>';
@@ -690,7 +797,7 @@ def get_alerts_map_html():
         pill.innerHTML = `${statusDot} <span>${store.city}</span> <span class="text-[9px] text-slate-400 font-mono">${store.store_id}</span>`;
         pill.onclick = () => {
           openInspector(store);
-          map.flyTo([store.lat, store.lon], 13, { duration: 0.8 });
+          map.flyTo([store.lat, store.lon], Math.max(map.getZoom(), 11), { duration: 0.7 });
         };
         container.appendChild(pill);
       });
@@ -701,7 +808,7 @@ def get_alerts_map_html():
       const isSiren = (store.alert_status && store.alert_status !== 'CLEAR');
 
       document.getElementById('card-id').textContent = store.store_id;
-      document.getElementById('card-title').textContent = `${store.city} (${store.name ? store.name.split(' - ')[1] || 'Branch' : 'Store'})`;
+      document.getElementById('card-title').textContent = `${store.city} (${store.name ? store.name.split(' - ')[1] || 'Store' : 'Store'})`;
       document.getElementById('card-address').textContent = `${store.address}, ${store.oblast}`;
       document.getElementById('card-coords').textContent = `${store.lat}° N, ${store.lon}° E`;
 
@@ -726,29 +833,17 @@ def get_alerts_map_html():
       if (isSiren) {
         banner.className = "mt-3 p-3 rounded-xl border bg-red-950/40 border-red-800/60 text-red-200 flex items-center justify-between";
         sirenTitle.textContent = "AIR RAID SIREN ACTIVE";
-        sirenSub.textContent = "Hromada alert declared by alerts.in.ua";
+        sirenSub.textContent = "Confirmed by DSNS Live Alert Feed";
         sirenIcon.className = "w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center text-sm shadow animate-pulse";
-        modeBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded bg-red-600 text-white";
+        modeBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded bg-red-600 text-white";
         modeBadge.textContent = "EVACUATE";
       } else {
         banner.className = "mt-3 p-3 rounded-xl border bg-emerald-950/30 border-emerald-800/40 text-emerald-200 flex items-center justify-between";
         sirenTitle.textContent = "ALL CLEAR · NO SIREN";
-        sirenSub.textContent = "No air raid alert in this hromada";
+        sirenSub.textContent = "No air raid alert active in this region";
         sirenIcon.className = "w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-sm";
-        modeBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400";
+        modeBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400";
         modeBadge.textContent = "OPEN";
-      }
-
-      // Risk score & grade
-      document.getElementById('card-risk-score').textContent = `Risk Score: ${store.risk_score || 0} / 100`;
-      const riskGrade = document.getElementById('card-risk-grade');
-      riskGrade.textContent = store.risk_grade || 'NORMAL';
-      if (store.risk_grade === 'CRITICAL') {
-        riskGrade.className = "px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30";
-      } else if (store.risk_grade === 'HIGH') {
-        riskGrade.className = "px-2 py-0.5 rounded text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30";
-      } else {
-        riskGrade.className = "px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
       }
 
       // Directive
@@ -764,44 +859,52 @@ def get_alerts_map_html():
       
       const comms = document.getElementById('card-comms');
       if (store.comms_status === 'starlink') {
-        comms.innerHTML = '<i class="fa-solid fa-satellite text-cyan-400"></i> Starlink Active';
+        comms.innerHTML = '<i class="fa-solid fa-satellite text-cyan-400"></i> Starlink 42ms';
       } else {
         comms.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block mr-1"></span> Fiber Online';
       }
 
       // Power Infrastructure
-      const powerBadge = document.getElementById('card-power-badge');
+      const powerEl = document.getElementById('card-power');
       if (store.power_status === 'generator') {
-        powerBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
-        powerBadge.textContent = "Generator Running";
+        powerEl.textContent = "Generator Running";
+        powerEl.className = "text-xs font-bold text-amber-400 mt-1 block";
       } else if (store.power_status === 'blackout') {
-        powerBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30";
-        powerBadge.textContent = "Grid Blackout";
+        powerEl.textContent = "Grid Blackout";
+        powerEl.className = "text-xs font-bold text-red-400 mt-1 block";
       } else {
-        powerBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-        powerBadge.textContent = "Grid Power Normal";
+        powerEl.textContent = "Grid Power Normal";
+        powerEl.className = "text-xs font-bold text-emerald-400 mt-1 block";
       }
 
-      document.getElementById('card-fuel').textContent = store.generator_fuel_l ? `${store.generator_fuel_l} Liters` : 'N/A';
-      document.getElementById('card-runtime').textContent = store.generator_runtime_hours ? `~${store.generator_runtime_hours} hrs` : 'N/A';
+      const fuelText = store.generator_fuel_l ? `${store.generator_fuel_l}L` : 'Grid';
+      const runtimeText = store.generator_runtime_hours ? `~${store.generator_runtime_hours}h runtime` : 'Stable';
+      document.getElementById('card-fuel-runtime').textContent = `${fuelText} · ${runtimeText}`;
 
-      // Logistics & Restock
+      // Logistics
       document.getElementById('card-eta').textContent = store.delivery_eta || 'Scheduled';
       document.getElementById('card-restock').textContent = store.priority_restock || 'Standard Retail Assortment';
 
       // Shelter & Contact
       document.getElementById('card-shelter').textContent = store.shelter_nearby || "Nearest certified civil defense bunker";
+      
+      // Extract walking distance if present (e.g. 70m)
+      const distMatch = (store.shelter_nearby || "").match(/(\d+\s*m)/i);
+      document.getElementById('card-shelter-dist').textContent = distMatch ? distMatch[1] : 'Nearby';
+
       document.getElementById('card-manager').textContent = store.manager_name || "Store Manager";
-      document.getElementById('card-phone').textContent = store.manager_phone || "+380501234500";
+      const phone = store.manager_phone || "+380501234500";
+      document.getElementById('card-phone').textContent = phone;
+      document.getElementById('card-phone-link').href = `tel:${phone}`;
 
       // Acknowledgment Button
       const btnAck = document.getElementById('btn-ack');
       if (isSiren) {
         if (store.ack_status === 'CONFIRMED_IN_SHELTER') {
-          btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-emerald-600/30 text-emerald-300 border border-emerald-500/30";
+          btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 cursor-pointer";
           btnAck.innerHTML = `<i class="fa-solid fa-check-double text-emerald-400"></i> ${store.ack_label || 'Evacuation Confirmed by Manager'}`;
         } else {
-          btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/40 animate-pulse";
+          btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/40 animate-pulse cursor-pointer";
           btnAck.innerHTML = `<i class="fa-solid fa-person-shelter"></i> In Shelter - Confirm Evacuation`;
         }
       } else {
@@ -810,11 +913,13 @@ def get_alerts_map_html():
       }
 
       document.getElementById('inspector').classList.add('open');
+      renderStorePoints();
     }
 
     function closeInspector() {
       activeSelectedStore = null;
       document.getElementById('inspector').classList.remove('open');
+      renderStorePoints();
     }
 
     async function handleAcknowledgeClick() {
