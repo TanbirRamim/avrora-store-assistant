@@ -28,6 +28,8 @@ async function openNav(page: Page, name: string) {
   await page.getByRole("button", { name: re }).filter({ visible: true }).first().click();
 }
 
+test.afterAll(resetDecisions);
+
 test.beforeEach(async ({ page }) => {
   await resetDecisions();
   await page.goto("/");
