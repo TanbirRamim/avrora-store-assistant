@@ -46,10 +46,18 @@ export function WartimePanel({
   if (selected) {
     const { store: s, a } = selected;
     const rows: [string, string][] = [
+      ["Store ID", s.id],
+      ["City", s.city],
+      ["Oblast", `${s.oblast} · ${s.oblast_uk}`],
+      ["Hromada", s.hromada],
+      ["Coordinates", `${s.lat}, ${s.lon}`],
       ["Front line", `${a.km} km (${ZONES[a.zone].label.toLowerCase()})`],
+      ["Risk score", `${a.score}/100 · ${GRADES[a.grade].label}`],
+      ["Operating mode", a.mode],
       ["Air-raid alert", ALERT_LABEL[a.alert]],
       ["Shelter", s.shelter_nearby],
       ["Power", s.power_status === "generator" ? `Generator, about ${a.runtimeHours} h of fuel` : POWER[s.power_status] ?? s.power_status],
+      ["Generator fuel", `${s.generator_fuel_l} L`],
       ["Connection", COMMS[s.comms_status] ?? s.comms_status],
       ["Next delivery", s.delivery_eta],
       ["Restock first", s.priority_restock],
@@ -65,8 +73,10 @@ export function WartimePanel({
         </button>
         <div className="mt-1.5 flex items-start justify-between gap-3 px-1">
           <div className="min-w-0">
-            <h2 className="t-headline truncate">{s.city}</h2>
-            <p className="t-footnote truncate text-label-2">{s.address}</p>
+            <h2 className="t-headline truncate">{s.name}</h2>
+            <p className="t-footnote truncate text-label-2">
+              {s.city} · {s.address}
+            </p>
           </div>
           <span className="mt-0.5">
             <Grade a={a} />
@@ -94,6 +104,17 @@ export function WartimePanel({
         {failed ? "The war-time data could not be loaded." : alertLine}
       </p>
       {rated && (
+        <div className="t-caption mt-1 space-y-0.5 px-1 text-label-2">
+          <p>All {rated.length} stores available in the war-time dataset are shown.</p>
+          {alerts?.connected && (
+            <>
+              <p>Active oblasts: {alerts.oblasts.length ? alerts.oblasts.join(", ") : "None"}</p>
+              <p>Active hromadas: {alerts.hromadas.length ? alerts.hromadas.join(", ") : "None"}</p>
+            </>
+          )}
+        </div>
+      )}
+      {rated && (
         <ul aria-label="Stores by risk" className="mt-2 max-h-[24vh] overflow-y-auto rounded-[10px] bg-white md:max-h-[46vh]">
           {rated.map(({ store: s, a }) => (
             <li key={s.id} className="cell [--inset:12px]">
@@ -111,7 +132,7 @@ export function WartimePanel({
         </ul>
       )}
       <p className="t-caption mt-2 px-1 text-label-2">
-        Sample stores. The front line is a hand-drawn sketch, not a live or current map.
+        All available sample-store fields are shown. Store operations are illustrative; the front line is a hand-drawn sketch, not a live or current map.
       </p>
     </>
   );
