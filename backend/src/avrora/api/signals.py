@@ -25,7 +25,7 @@ router = APIRouter()
 KYIV = ZoneInfo("Europe/Kyiv")
 STORE = {"lat": 49.2331, "lon": 28.4682}
 OUTAGES = Path(__file__).resolve().parents[4] / "cloudflare" / "src" / "outages.json"
-POWER_SOURCE = "VOE schedule, entered manually"
+POWER_SOURCE = "power company schedule (Vinnytsiaoblenergo)"
 SIM_SOURCE = "Simulated for the demo"
 WEATHER_SOURCE = "Open-Meteo (CC BY 4.0)"
 LOOKAHEAD = timedelta(hours=24)
@@ -87,7 +87,7 @@ def power_signal(id_: str, start: datetime, end: datetime, now: datetime, queue:
         id=id_, kind="power",
         severity="high" if active or start - now <= timedelta(hours=2) else "medium",
         title=f"Power cut until {_hm(end)}" if active else f"Power cut {_hm(start)}–{_hm(end)}",
-        detail=f"Scheduled outage for queue {queue}. Tills, lights and card terminals need backup power.",
+        detail=f"Scheduled power cut for outage queue {queue}. Tills, lights and card terminals need backup power.",
         starts_at=_iso(start), ends_at=_iso(end), source=source, simulated=simulated,
     )
 
@@ -103,7 +103,7 @@ def alert_signal(id_: str, since: datetime, until: datetime | None, source: str,
 def scheduled_power(now: datetime, schedule: dict | None = None) -> list[Signal]:
     s = schedule if schedule is not None else _schedule()
     today = now.astimezone(KYIV).date()
-    source = f"{POWER_SOURCE} (example windows)" if s.get("example") else POWER_SOURCE
+    source = f"{POWER_SOURCE} (example times)" if s.get("example") else POWER_SOURCE
     out = []
     for day in (today - timedelta(days=1), today, today + timedelta(days=1)):
         for start_s, end_s in s.get("days", {}).get(day.isoformat(), []):
@@ -181,10 +181,10 @@ def signals() -> SignalsOut:
     weather = _weather(now)
     out += weather or []
     out.sort(key=lambda x: (RANK[x.severity], x.starts_at))
-    power_source = f"{POWER_SOURCE} (example windows)" if s.get("example") else POWER_SOURCE
+    power_source = f"{POWER_SOURCE} (example times)" if s.get("example") else POWER_SOURCE
     return SignalsOut(updated_at=_iso(now), signals=out, feeds=[
         Feed(kind="power", source=power_source, live=not s.get("example")),
-        Feed(kind="air_alert", source="not connected, simulated only", live=False),
+        Feed(kind="air_alert", source="not connected yet, simulated only", live=False),
         Feed(kind="weather", source=WEATHER_SOURCE, live=weather is not None),
     ])
 

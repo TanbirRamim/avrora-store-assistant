@@ -43,7 +43,7 @@ const HOUR = 3_600_000;
 /** Power cuts are shown this far ahead. */
 const LOOKAHEAD = 24 * HOUR;
 const CACHE_MS = 5 * 60_000;
-export const POWER_SOURCE = "VOE schedule, entered manually";
+export const POWER_SOURCE = "power company schedule (Vinnytsiaoblenergo)";
 export const SIM_SOURCE = "Simulated for the demo";
 const WEATHER_SOURCE = "Open-Meteo (CC BY 4.0)";
 const ALERTS_SOURCE = "alerts.in.ua";
@@ -103,7 +103,7 @@ export function powerSignal(opts: { id: string; start: Date; end: Date; now: Dat
     kind: "power",
     severity: active || start.getTime() - now.getTime() <= 2 * HOUR ? "high" : "medium",
     title: active ? `Power cut until ${kyivTime(end)}` : `Power cut ${range(start, end)}`,
-    detail: `Scheduled outage for queue ${opts.queue}. Tills, lights and card terminals need backup power.`,
+    detail: `Scheduled power cut for outage queue ${opts.queue}. Tills, lights and card terminals need backup power.`,
     starts_at: iso(start),
     ends_at: iso(end),
     source: opts.source,
@@ -126,7 +126,7 @@ export function scheduledPower(now: Date, schedule = outages): ExternalSignal[] 
         powerSignal({
           id: `power:${schedule.queue}:${iso(start)}`,
           start, end, now, queue: schedule.queue,
-          source: schedule.example ? `${POWER_SOURCE} (example windows)` : POWER_SOURCE,
+          source: schedule.example ? `${POWER_SOURCE} (example times)` : POWER_SOURCE,
           simulated: Boolean(schedule.example),
         }),
       );
@@ -276,8 +276,8 @@ export async function externalSignals(db: D1Database, now: Date, env: ExternalEn
   }
   signals.sort((a, b) => RANK[a.severity] - RANK[b.severity] || a.starts_at.localeCompare(b.starts_at));
   const feeds: Feed[] = [
-    { kind: "power", source: outages.example ? `${POWER_SOURCE} (example windows)` : POWER_SOURCE, live: !outages.example },
-    { kind: "air_alert", source: env.ALERTS_IN_UA_TOKEN ? ALERTS_SOURCE : "not connected, simulated only", live: Boolean(env.ALERTS_IN_UA_TOKEN) },
+    { kind: "power", source: outages.example ? `${POWER_SOURCE} (example times)` : POWER_SOURCE, live: !outages.example },
+    { kind: "air_alert", source: env.ALERTS_IN_UA_TOKEN ? ALERTS_SOURCE : "not connected yet, simulated only", live: Boolean(env.ALERTS_IN_UA_TOKEN) },
     { kind: "weather", source: WEATHER_SOURCE, live: parts[3].status === "fulfilled" },
   ];
   return { signals, feeds };

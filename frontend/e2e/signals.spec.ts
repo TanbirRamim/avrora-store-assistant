@@ -15,9 +15,9 @@ function power(simulated = true) {
   return {
     id: "sim:power-test", kind: "power", severity: "high",
     title: `Power cut ${kyiv(starts)}–${kyiv(ends)}`,
-    detail: "Scheduled outage for queue 3.1. Tills, lights and card terminals need backup power.",
+    detail: "Scheduled power cut for outage queue 3.1. Tills, lights and card terminals need backup power.",
     starts_at: starts, ends_at: ends,
-    source: simulated ? "Simulated for the demo" : "VOE schedule, entered manually", simulated,
+    source: simulated ? "Simulated for the demo" : "power company schedule (Vinnytsiaoblenergo)", simulated,
   };
 }
 const alert = () => ({
@@ -31,8 +31,8 @@ const frost = {
   starts_at: at(14 * 60 * MIN), ends_at: at(38 * 60 * MIN), source: "Open-Meteo (CC BY 4.0)", simulated: false,
 };
 const FEEDS = [
-  { kind: "power", source: "VOE schedule, entered manually", live: true },
-  { kind: "air_alert", source: "not connected, simulated only", live: false },
+  { kind: "power", source: "power company schedule (Vinnytsiaoblenergo)", live: true },
+  { kind: "air_alert", source: "not connected yet, simulated only", live: false },
   { kind: "weather", source: "Open-Meteo (CC BY 4.0)", live: true },
 ];
 
@@ -89,12 +89,12 @@ test("card lists power, alert and weather with simulated badges and sources", as
   await open(page);
   const card = live(page);
   await expect(card.getByTestId("signal")).toHaveCount(3);
-  await expect(card.getByText("Simulated", { exact: true })).toHaveCount(2);
+  await expect(card.getByText("Simulated, not real", { exact: true })).toHaveCount(2);
   await expect(card.getByText(/^Now · ends in \d+ min$/)).toBeVisible();
   await expect(card.getByText(/^Starts in 1 h 30 min$/)).toBeVisible();
   await expect(card.getByText("Frost down to −7 °C")).toBeVisible();
   await expect(card.getByText(/Weather: Open.Meteo \(CC BY 4\.0\)\./)).toBeVisible();
-  await expect(card.getByText(/Air.raid alerts: not connected, simulated only\./)).toBeVisible();
+  await expect(card.getByText(/Air.raid alerts: not connected yet, simulated only\./)).toBeVisible();
   // the card sits above the store note
   const cardBox = (await card.boundingBox())!;
   const noteBox = (await page.getByText("Store note", { exact: true }).boundingBox())!;
@@ -112,9 +112,9 @@ test("without a key the re-plan uses the rules and can be reverted", async ({ pa
   await mockSignals(page, [power(false)]);
   await open(page);
   const before = await rowNames(page);
-  await expect(live(page).getByText("Simulated", { exact: true })).toHaveCount(0);
+  await expect(live(page).getByText("Simulated, not real", { exact: true })).toHaveCount(0);
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
-  await expect(live(page).getByText("Ranked by rules.")).toBeVisible();
+  await expect(live(page).getByText("Sorted by fixed rules, not AI.")).toBeVisible();
   await expect(page.getByTestId("replan-note")).toContainText("Orders and price changes first");
   const after = await rowNames(page);
   expect(after).toEqual(["Ceramic mug Black", "Bubble wand 100 pcs", "Frying pan Set of 3", "Vacuum bags White", "Bath mat S"]);
@@ -135,7 +135,7 @@ test("with a key the OTH model reorders and explains, numbers checked", async ({
   await mockSignals(page, [power()]);
   await open(page, { key: true });
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
-  await expect(live(page).getByText("Reordered by the OTH model, numbers checked.")).toBeVisible();
+  await expect(live(page).getByText("Reordered by AI. Numbers checked against store data.")).toBeVisible();
   await expect(page.getByTestId("replan-note")).toContainText("place both orders first");
   expect((await rowNames(page))[0]).toBe("Bubble wand 100 pcs");
   await expect(page.getByTestId("moved-up")).toHaveCount(1);
@@ -153,7 +153,7 @@ test("a model note with an invented number or a new action falls back to the rul
   await mockSignals(page, [alert()]);
   await open(page, { key: true });
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
-  await expect(live(page).getByText("Ranked by rules.")).toBeVisible();
+  await expect(live(page).getByText("Sorted by fixed rules, not AI.")).toBeVisible();
   await expect(page.getByText(/450/)).toHaveCount(0);
   await expect(page.getByTestId("replan-note")).toContainText("floor work waits for the all-clear");
 });
@@ -176,7 +176,7 @@ test("Ukrainian briefing and re-plan note, language kept in this browser", async
   const sheet = page.getByRole("dialog", { name: "AI briefing" });
   await expect(sheet.getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
   await sheet.getByRole("radio", { name: "Українська" }).click();
-  await sheet.getByLabel("Open WebUI API key").fill("sk-test-key");
+  await sheet.getByLabel("Open WebUI key").fill("sk-test-key");
   await sheet.getByRole("button", { name: "Save and write briefing" }).click();
   await expect(sheet).toHaveCount(0);
   await expect(page.getByTestId("summary")).toHaveText("Сьогодні 5 пріоритетів; найбільше під загрозою 6 041,22 ₴ на кухлях.");

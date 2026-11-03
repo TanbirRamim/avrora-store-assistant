@@ -38,7 +38,7 @@ export function NotificationsSheet({ onClose }: { onClose: () => void }) {
     try {
       await work();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      const msg = err instanceof Error && !(err instanceof DOMException) ? err.message : "Something went wrong. Try again.";
       if (msg === "blocked") setDenied(true);
       else setError(msg);
     } finally {

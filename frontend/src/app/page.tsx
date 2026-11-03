@@ -15,6 +15,7 @@ import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview, Si
 import { savedKey, useAi } from "@/lib/ai";
 import { applyOrder, type Replan, replanByRules, replanWithModel } from "@/lib/replan";
 import { api, fetcher } from "@/lib/api";
+import { ModelError } from "@/lib/ollama";
 import { longDate, money, TYPE_META } from "@/lib/format";
 
 type View = "today" | "all" | "log" | "map";
@@ -38,7 +39,7 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
 
-  const { data: overview, error: overviewError } = useSWR<Overview>("/api/overview", fetcher);
+  const { data: overview, error: overviewError, mutate: retryOverview, isValidating: retrying } = useSWR<Overview>("/api/overview", fetcher);
   const { data: baseBriefing } = useSWR<Briefing>("/api/briefing", fetcher);
   const ai = useAi();
   const briefing = ai.briefing ?? baseBriefing;
@@ -98,7 +99,7 @@ export default function Home() {
     try {
       setReplan(await replanWithModel(savedKey(), s, base, ai.lang));
     } catch (err) {
-      setReplanError(err instanceof Error ? err.message : "The re-plan could not be written.");
+      setReplanError(err instanceof ModelError ? err.message : "The new order could not be worked out. Try again.");
     } finally {
       setReplanBusy(false);
     }
@@ -109,8 +110,15 @@ export default function Home() {
     return (
       <main className="grid h-full place-items-center p-8 text-center">
         <div>
-          <h1 className="text-[22px] font-semibold">The store data service isn&apos;t running</h1>
-          <p className="mt-2 text-label-2">Start it with <code className="rounded bg-fill px-1.5 py-0.5">uv run uvicorn avrora.api.main:app</code> in the backend folder, then reload.</p>
+          <h1 className="text-[22px] font-semibold">Can&apos;t load the store data</h1>
+          <p className="mt-2 text-label-2">Check your connection and try again.</p>
+          <button
+            onClick={() => retryOverview()}
+            disabled={retrying}
+            className="t-body mt-5 rounded-[12px] bg-tint-fill px-5 py-2 font-semibold text-white active:opacity-80 disabled:opacity-50"
+          >
+            {retrying ? "Trying…" : "Retry"}
+          </button>
         </div>
       </main>
     );
@@ -178,7 +186,7 @@ export default function Home() {
           <BellIcon size={17} className="text-tint" />
           Notifications
         </button>
-        <p className="t-caption mt-3 px-2 text-label-2">Store data is fictional. Map data: avrora.ua and OpenStreetMap.</p>
+        <p className="t-caption mt-3 px-2 text-label-2">Store data is made up for this demo. Map: avrora.ua, © OpenStreetMap contributors.</p>
       </nav>
 
       <main ref={mainRef} className={`relative min-w-0 flex-1 ${view === "map" ? "overflow-hidden pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0" : "overflow-y-auto pb-24 md:pb-0"}`}>
@@ -195,7 +203,7 @@ export default function Home() {
               {briefing && (
                 <p className="t-footnote mt-2 flex flex-wrap items-center gap-x-1.5 px-1 text-label-2">
                   <SparkleIcon size={13} className={briefing.source === "model" ? "text-tint" : ""} />
-                  {briefing.source === "model" ? "Written by the OTH model, numbers checked." : "Ranked by rules."}
+                  {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : "Sorted by fixed rules, not AI."}
                   <button onClick={() => setAiOpen(true)} className="font-medium text-tint">
                     {briefing.source === "model" ? "AI settings" : "Write with AI"}
                   </button>
@@ -369,7 +377,7 @@ export default function Home() {
                     return (
                       <li key={d.action_id} className="cell flex items-center gap-3 px-4 py-[11px]">
                         <button onClick={() => setSelectedId(d.action_id)} className="min-w-0 flex-1 text-left">
-                          <div className="t-body truncate">{a?.product_name ?? d.action_id}</div>
+                          <div className="t-body truncate">{a?.product_name ?? "Earlier suggestion"}</div>
                           {a && (
                             <div className="t-footnote mt-[3px] flex items-center gap-1 font-medium" style={{ color: TYPE_META[a.type].text }}>
                               <TypeIcon type={a.type} size={13} />

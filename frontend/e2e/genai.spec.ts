@@ -116,7 +116,7 @@ test("without a key the sections ask for one; unreachable server shows the VPN h
   await page.getByText(TOP).first().click();
   const ask = panel(page).getByRole("region", { name: "Ask about this" });
   await ask.getByRole("button", { name: "Why this quantity?" }).click();
-  await expect(ask.getByText(/connect to the OTH VPN/)).toBeVisible();
+  await expect(ask.getByText(/through the university VPN/)).toBeVisible();
 });
 
 test("screenshots of the AI sections", async ({ page }, info) => {

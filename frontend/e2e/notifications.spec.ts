@@ -77,7 +77,7 @@ test("desktop: a server error is shown and the switch stays off", async ({ page,
   await page.goto("/");
   const dialog = await openNotifications(page);
   await dialog.getByRole("switch", { name: "Urgent alerts" }).click();
-  await expect(dialog.getByRole("alert")).toHaveText("Notifications are not set up on this server.");
+  await expect(dialog.getByRole("alert")).toHaveText("Notifications aren't available right now. Try again later.");
   await expect(dialog.getByRole("switch")).toHaveAttribute("aria-checked", "false");
 });
 

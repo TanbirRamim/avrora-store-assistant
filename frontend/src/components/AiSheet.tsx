@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { forgetKey, setLang, useAi, writeBriefing } from "@/lib/ai";
 import type { Action } from "@/lib/api";
+import { ModelError } from "@/lib/ollama";
 import { CloseIcon, SparkleIcon } from "./icons";
 
 interface Props {
@@ -34,7 +35,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
       await writeBriefing(actions, notices, key || undefined, lang);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The AI briefing could not be written.");
+      setError(err instanceof ModelError ? err.message : "The AI briefing couldn't be written. Try again.");
     } finally {
       setBusy(false);
     }
@@ -79,17 +80,17 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
 
           <div className="px-4 pt-4">
             <p className="t-subhead text-label-2">
-              The OTH model picks today&apos;s five priorities and explains them in plain words. Every number it writes
-              is checked against the store data.
+              AI picks today&apos;s five priorities and explains them in plain words. Every number it writes is checked
+              against the store data.
             </p>
 
-            <h3 className="group-header mt-5">Open WebUI API key</h3>
+            <h3 className="group-header mt-5">Open WebUI key</h3>
             <div className="group-list">
               <input
                 type="password"
                 autoComplete="off"
                 spellCheck={false}
-                aria-label="Open WebUI API key"
+                aria-label="Open WebUI key"
                 placeholder={hasKey ? "Saved in this browser" : "sk-…"}
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
@@ -98,8 +99,8 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
               />
             </div>
             <p className="group-footer">
-              Create one in Open WebUI under Settings, Account, API keys. It stays in this browser and goes only to the
-              OTH server, which answers on the university network or VPN.
+              In Open WebUI, open Settings, then Account, and copy your API key. It is saved only in this browser.
+              AI works only on the OTH university network (on campus or through the university VPN).
             </p>
 
             <h3 className="group-header mt-5">Language</h3>
@@ -123,7 +124,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
                 </div>
               </div>
             </div>
-            <p className="group-footer">The model writes in this language. Numbers are checked either way.</p>
+            <p className="group-footer">AI writes in this language. Numbers are checked either way.</p>
 
             {error && (
               <p role="alert" className="t-subhead mt-4 px-1" style={{ color: "var(--order-text)" }}>
@@ -148,7 +149,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
                 className="t-body mt-2 w-full py-2.5"
                 style={{ color: "var(--order-text)" }}
               >
-                Remove key and use rules
+                Remove key and stop using AI
               </button>
             )}
           </div>

@@ -46,7 +46,7 @@
                                                  │
                                                  ▼
                      [ МОДУЛЬ ІНТЕГРАЦІЇ З AI-РІДЕРОМ ТА ПРОГНОЗУВАННЯМ ]
-                     - LLM Prompts & Structured Outputs (Gemini / Claude)
+                     - LLM Prompts & Structured Outputs (Gemini and other LLMs)
                      - Прогноз простою торгових годин (Downtime forecast)
                      - Чек-листи безпеки для директорів магазинів
                      - Перенаправлення логістичних маршрутів РЦ
@@ -124,7 +124,7 @@ python server.py
 
 ## 🤖 Модуль Інтеграції з AI (Reader & Prediction)
 
-Файл `ai/ai_prompts.py` та скрипт `ai/ai_reader_demo.py` реалізують інтерфейс для подальшого підключення до LLM (Gemini 1.5/2.0 Flash, Claude тощо).
+Файл `ai/ai_prompts.py` та скрипт `ai/ai_reader_demo.py` реалізують інтерфейс для подальшого підключення до LLM (Gemini 1.5/2.0 Flash та інших).
 
 ### Запуск тесту генерації AI-підказок:
 ```powershell

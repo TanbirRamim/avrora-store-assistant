@@ -8,7 +8,7 @@ export const MODEL = "qwen3:32b";
 export class ModelError extends Error {}
 
 export const VPN_MESSAGE =
-  "The OTH server could not be reached. It only answers on the university network, so connect to the OTH VPN and try again.";
+  "Can't reach the AI service. It only works on the OTH university network: connect on campus or through the university VPN, then try again.";
 
 /** Sends one system + user message and returns the parsed JSON the model wrote. */
 export async function chatJson<T>(key: string, system: string, user: string, schema: object, timeoutMs = 180_000): Promise<T> {
@@ -26,13 +26,13 @@ export async function chatJson<T>(key: string, system: string, user: string, sch
   } catch {
     throw new ModelError(VPN_MESSAGE);
   }
-  if (res.status === 401 || res.status === 403) throw new ModelError("The OTH server rejected this key. Check it in Open WebUI under Settings, Account.");
-  if (res.status === 404) throw new ModelError(`The OTH server has no model called ${MODEL}.`);
-  if (!res.ok) throw new ModelError(`The OTH server answered with an error (${res.status}). Try again.`);
+  if (res.status === 401 || res.status === 403) throw new ModelError("This key didn't work. Copy a new one from Open WebUI (Settings, Account) and paste it again.");
+  if (res.status === 404) throw new ModelError("The AI service isn't available right now. Try again later.");
+  if (!res.ok) throw new ModelError("The AI service had a problem. Try again.");
   try {
     return JSON.parse(((await res.json()) as { message: { content: string } }).message.content) as T;
   } catch {
-    throw new ModelError("The AI answer could not be used. Try again.");
+    throw new ModelError("The AI answer couldn't be used. Try again.");
   }
 }
 

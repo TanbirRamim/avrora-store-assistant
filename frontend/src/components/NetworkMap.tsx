@@ -108,7 +108,7 @@ function popupHtml(p: Props) {
   ].filter(Boolean);
   return `
     <div class="nm-kind" style="color:${color}"><span class="nm-dot" style="background:${color}"></span>${esc(kind(p))}</div>
-    <div class="nm-name">${esc(p.n ?? "No name in OpenStreetMap")}</div>
+    <div class="nm-name">${esc(p.n ?? "Unnamed place")}</div>
     ${rows.join("")}
     ${link ? `<a class="nm-link" href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a>` : ""}`;
 }
@@ -243,7 +243,7 @@ export function NetworkMap() {
 
       popupRef.current = new maplibre.Popup({ closeButton: false, maxWidth: "280px", offset: 10, className: "nm-popup" });
 
-      map.on("error", (e) => console.warn("map:", e.error?.message));
+      map.on("error", (e) => console.error("map:", e.error?.message));
       map.on("load", () => {
         map.addSource("places", {
           type: "geojson",
@@ -510,7 +510,7 @@ export function NetworkMap() {
           <>
         <h1 className="t-headline px-1">Supply network</h1>
         <p className="t-footnote px-1 text-label-2">
-          {features ? `${fmt.format(total)} places in Ukraine from Avrora and OpenStreetMap` : failed ? "The map data could not be loaded." : "Loading places…"}
+          {features ? `${fmt.format(total)} places in Ukraine from Avrora and OpenStreetMap` : failed ? "Can't load the map. Check your connection and try again." : "Loading places…"}
         </p>
 
         <div role="tablist" aria-label="Show on map" className="mt-3 flex rounded-[9px] bg-fill p-[2px]">

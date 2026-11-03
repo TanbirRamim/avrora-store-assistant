@@ -107,7 +107,7 @@ async function simulate(req: Request, env: Env, ctx: ExecutionContext): Promise<
     env.DB.prepare("DELETE FROM simulated_signals WHERE ends_at <= ?").bind(now.toISOString()),
     env.DB.prepare("INSERT INTO simulated_signals VALUES (?, ?, ?, ?, ?)").bind(row.id, row.kind, row.starts_at, row.ends_at, now.toISOString()),
   ]);
-  ctx.waitUntil(sendUrgent(env, now).then((r) => console.log("push after simulate", r)));
+  ctx.waitUntil(sendUrgent(env, now));
   return json(simulatedSignal(row, now), 201);
 }
 
@@ -167,6 +167,6 @@ export default {
 
   // Every 15 minutes: push new urgent signals to subscribed phones.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(sendUrgent(env).then((r) => console.log("push run", r)));
+    ctx.waitUntil(sendUrgent(env));
   },
 } satisfies ExportedHandler<Env>;

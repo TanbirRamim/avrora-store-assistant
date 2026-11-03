@@ -31,15 +31,11 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
+const UNAVAILABLE = "Notifications aren't available right now. Try again later.";
+
 async function send(path: string, method: string, body: unknown) {
   const res = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  if (!res.ok) {
-    let detail = "";
-    try {
-      detail = (await res.json()).detail ?? "";
-    } catch {}
-    throw new Error(detail || `The server answered ${res.status}.`);
-  }
+  if (!res.ok) throw new Error(UNAVAILABLE);
 }
 
 export function registerServiceWorker() {
@@ -61,9 +57,9 @@ export async function currentSubscription(): Promise<PushSubscription | null> {
 /** Asks for permission, subscribes this device and stores it on the server. */
 export async function subscribe(): Promise<PushSubscription> {
   const permission = await Notification.requestPermission();
-  if (permission !== "granted") throw new Error(permission === "denied" ? "blocked" : "Permission was not given.");
+  if (permission !== "granted") throw new Error(permission === "denied" ? "blocked" : "Notifications weren't allowed. Try again and choose Allow.");
   const res = await fetch("/api/push/key");
-  if (!res.ok) throw new Error("Notifications are not set up on this server.");
+  if (!res.ok) throw new Error(UNAVAILABLE);
   const { publicKey } = (await res.json()) as { publicKey: string };
   const reg = await registration();
   const sub =

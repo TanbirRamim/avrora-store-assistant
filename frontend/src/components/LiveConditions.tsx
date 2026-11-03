@@ -83,7 +83,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                   <span className="t-body">{s.title}</span>
                   {s.simulated && (
                     <span className="t-caption mt-[3px] shrink-0 rounded-full bg-fill px-2 py-px font-medium text-label-2">
-                      {s.source.includes("example") ? "Example" : "Simulated"}
+                      {s.source.includes("example") ? "Example" : "Simulated, not real"}
                     </span>
                   )}
                 </div>
@@ -110,7 +110,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                 <SparkleIcon size={19} />
               </span>
               <span className="t-body flex-1 text-tint">{busy ? "Re-planning, about 20 seconds…" : "Re-plan for this"}</span>
-              <span className="t-footnote text-label-2">{hasKey ? "OTH model" : "Rules"}</span>
+              <span className="t-footnote text-label-2">{hasKey ? "With AI" : "Fixed rules"}</span>
             </button>
             {error && (
               <p role="alert" className="t-footnote px-4 pb-3 pl-[58px]" style={{ color: "var(--order-text)" }}>
@@ -137,7 +137,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                   {replan.note}
                 </p>
                 <p className="t-footnote mt-1.5 text-label-2">
-                  {replan.source === "model" ? "Reordered by the OTH model, numbers checked." : "Ranked by rules."}
+                  {replan.source === "model" ? "Reordered by AI. Numbers checked against store data." : "Sorted by fixed rules, not AI."}
                 </p>
               </div>
             </div>
@@ -145,7 +145,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
         )}
       </ul>
       <p className="group-footer">
-        {nb(feeds.map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" "))}
+        {nb(`Sources. ${feeds.map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" ")}`)}
       </p>
     </section>
   );

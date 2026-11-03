@@ -66,31 +66,31 @@ test("AI briefing: add a key, see the model's text, remove the key", async ({ pa
     await route.fulfill({ json: { message: { content } } });
   });
 
-  await expect(page.getByText("Ranked by rules.")).toBeVisible();
+  await expect(page.getByText("Sorted by fixed rules, not AI.")).toBeVisible();
   await page.getByRole("button", { name: "Write with AI" }).click();
   const dialog = page.getByRole("dialog", { name: "AI briefing" });
   const submit = dialog.getByRole("button", { name: "Save and write briefing" });
   await expect(submit).toBeDisabled();
 
-  await dialog.getByLabel("Open WebUI API key").fill("sk-wrong-key");
+  await dialog.getByLabel("Open WebUI key").fill("sk-wrong-key");
   await submit.click();
-  await expect(dialog.getByRole("alert")).toContainText("rejected this key");
+  await expect(dialog.getByRole("alert")).toContainText("This key didn't work");
 
-  await dialog.getByLabel("Open WebUI API key").fill("sk-test-key-123");
+  await dialog.getByLabel("Open WebUI key").fill("sk-test-key-123");
   await submit.click();
   await expect(dialog).toBeHidden();
   expect(sentKey).toBe("Bearer sk-test-key-123");
   await expect(todayList(page).getByText("Plain reason from the model.")).toHaveCount(5);
   await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
-  await expect(page.getByText("Written by the OTH model, numbers checked.")).toBeVisible();
+  await expect(page.getByText("Written by AI. Numbers checked against store data.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
 
   await page.getByRole("button", { name: "AI settings" }).click();
-  await expect(dialog.getByLabel("Open WebUI API key")).toHaveAttribute("placeholder", "Saved in this browser");
-  await dialog.getByRole("button", { name: "Remove key and use rules" }).click();
-  await expect(page.getByText("Ranked by rules.")).toBeVisible();
+  await expect(dialog.getByLabel("Open WebUI key")).toHaveAttribute("placeholder", "Saved in this browser");
+  await dialog.getByRole("button", { name: "Remove key and stop using AI" }).click();
+  await expect(page.getByText("Sorted by fixed rules, not AI.")).toBeVisible();
   expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("avrora.")))).toEqual([]);
 });
 
