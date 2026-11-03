@@ -26,9 +26,9 @@ const panel = (page: Page) => page.getByRole("complementary", { name: /Details f
 async function openNav(page: Page, name: string) {
   const re = new RegExp(`^${name}( \\d+ to decide)?$`);
   const target = page.getByRole("button", { name: re }).filter({ visible: true });
-  // on phones All suggestions sits under More in the tab bar
+  // All suggestions and the settings sit under More in the tab bar
   if (["All suggestions", "Notifications", "AI briefing"].includes(name) && !(await target.count()))
-    await page.getByRole("button", { name: "More", exact: true }).click();
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "More", exact: true }).click();
   await target.first().click();
 }
 
@@ -332,37 +332,111 @@ test("keyboard: j/k move, a approves, d dismisses, Esc closes, typing is left al
   await expect(panel(page)).toHaveCount(0);
 });
 
-test("phone tab bar: five tabs, badge, More holds settings, nothing hides behind it", async ({ page }, info) => {
-  test.skip(info.project.name === "desktop", "phones only");
-  const bar = page.getByRole("navigation", { name: "Sections" }).filter({ visible: true });
+const tabBar = (page: Page) => page.getByRole("navigation", { name: "Sections" });
+
+/** Scroll the section to its end and check its last element sits fully above the floating tab bar. */
+async function clearsBar(page: Page, last: ReturnType<Page["locator"]>, what: string) {
+  await expect(last, what).toBeAttached();
+  await page.locator("main").evaluate((m) => m.scrollTo({ top: m.scrollHeight }));
+  await expect(last, what).toBeInViewport();
+  const bar = (await tabBar(page).locator("ul").boundingBox())!;
+  const box = (await last.boundingBox())!;
+  expect(box.y + box.height, what).toBeLessThanOrEqual(bar.y);
+}
+
+async function checkBar(page: Page) {
+  const bar = tabBar(page);
+  await expect(bar).toBeVisible();
   for (const name of ["Products", "Map", "Decisions", "More"]) await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
-  const today = bar.getByRole("button", { name: "Today 5 to decide" });
-  await expect(today).toHaveAttribute("aria-current", "page");
+  await expect(bar.getByRole("button", { name: /^Today \d+ to decide$/ })).toHaveAttribute("aria-current", "page");
+  const vp = page.viewportSize()!;
+  const pill = (await bar.locator("ul").boundingBox())!;
+  // floating: inset from the edges and centred
+  expect(pill.x).toBeGreaterThan(0);
+  expect(pill.y + pill.height).toBeLessThan(vp.height);
+  expect(Math.abs(pill.x + pill.width / 2 - vp.width / 2)).toBeLessThanOrEqual(2);
   for (const b of await bar.getByRole("button").all()) {
     const box = (await b.boundingBox())!;
     expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.width).toBeGreaterThanOrEqual(44);
   }
+  // nothing ends behind the bar
+  await clearsBar(page, page.getByText("Value in slow stock"), "Today");
+  await bar.getByRole("button", { name: "Products", exact: true }).click();
+  await clearsBar(page, page.getByText(/^Lasts: days the stock covers/), "Products");
+  await bar.getByRole("button", { name: "Decisions", exact: true }).click();
+  await clearsBar(page, page.getByText(/No decisions yet|Undo$/).last(), "Decisions");
+  await bar.getByRole("button", { name: "More", exact: true }).click();
+  await clearsBar(page, page.getByText(/^Store data is made up/), "More");
+  await page.getByRole("button", { name: /^All suggestions/ }).click();
+  await clearsBar(page, page.locator("main li").last(), "All suggestions");
+  await bar.getByRole("button", { name: "Map", exact: true }).click();
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  for (const el of [page.getByRole("button", { name: "Your store" }), page.locator(".maplibregl-ctrl-attrib")]) {
+    await expect(el).toBeVisible();
+    const box = (await el.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(pill.y);
+  }
+  await bar.getByRole("button", { name: /^Today/ }).click();
+}
+
+test("tab bar: five tabs, badge, More holds settings, nothing hides behind it", async ({ page }) => {
+  const bar = tabBar(page);
+  await expect(page.getByRole("navigation")).toHaveCount(1); // no sidebar on any screen
+  await checkBar(page);
   await page.getByRole("button", { name: `Approve ${TOP}` }).click();
   await expect(bar.getByRole("button", { name: "Today 4 to decide" })).toBeVisible();
 
-  // the last thing on Today scrolls fully clear of the bar
-  await page.locator("main").evaluate((m) => m.scrollTo({ top: m.scrollHeight }));
-  const barTop = (await bar.boundingBox())!.y;
-  const last = page.getByText("Value in slow stock");
-  expect((await last.boundingBox())!.y + 22).toBeLessThanOrEqual(barTop);
-
   await bar.getByRole("button", { name: "More", exact: true }).click();
   await expect(page.getByRole("heading", { name: "More", level: 1 })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Avrora" })).toBeVisible();
   await page.getByRole("button", { name: /^All suggestions/ }).click();
   await expect(page.getByRole("heading", { name: "All suggestions", level: 1 })).toBeVisible();
   await expect(bar.getByRole("button", { name: "More", exact: true })).toHaveAttribute("aria-current", "page");
-  await page.getByRole("button", { name: "More", exact: true }).first().click();
+  await page.getByRole("main").getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("button", { name: "AI briefing" }).click();
   await expect(page.getByRole("dialog", { name: "AI briefing" })).toBeVisible();
   await page.getByRole("button", { name: "Close AI briefing" }).click();
+  await page.getByRole("button", { name: "Notifications" }).click();
+  await expect(page.getByRole("dialog", { name: "Notifications" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "Products", exact: true }).click();
   await expect(bar.getByRole("button", { name: "Products", exact: true })).toHaveAttribute("aria-current", "page");
+});
+
+test("tab bar works on tablet and small desktop widths too", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "desktop project resizes itself");
+  for (const size of [{ width: 1024, height: 768 }, { width: 820, height: 1180 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(size);
+    await checkBar(page);
+  }
+  await tabBar(page).getByRole("button", { name: "More", exact: true }).click();
+  await expect(page.getByTestId("shortcuts")).toBeVisible();
+  // keyboard: tab into the bar, focus ring, Enter switches
+  const map = tabBar(page).getByRole("button", { name: "Map", exact: true });
+  await map.focus();
+  await page.keyboard.press("Enter");
+  await expect(map).toHaveAttribute("aria-current", "page");
+});
+
+test("desktop: an open panel keeps the list and the tab bar clear", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "wide screens only");
+  for (const width of [1024, 1180, 1360, 1440]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/");
+    await page.getByText(TOP).click();
+    const p = (await panel(page).boundingBox())!;
+    const pill = (await tabBar(page).locator("ul").boundingBox())!;
+    expect(pill.x + pill.width, `${width} action`).toBeLessThanOrEqual(p.x);
+    await page.keyboard.press("Escape");
+    await tabBar(page).getByRole("button", { name: "Products", exact: true }).click();
+    await page.getByRole("main").getByRole("listitem").first().getByRole("button").click();
+    const pp = (await page.getByRole("complementary", { name: /^Product / }).boundingBox())!;
+    const list = (await page.locator("main ul.group-list").first().boundingBox())!;
+    expect(list.x + list.width, `${width} products`).toBeLessThanOrEqual(pp.x);
+    const pill2 = (await tabBar(page).locator("ul").boundingBox())!;
+    expect(pill2.x + pill2.width, `${width} product bar`).toBeLessThanOrEqual(pp.x);
+  }
 });
 
 test("phone: the large title folds into the navigation bar", async ({ page }, info) => {
@@ -457,11 +531,9 @@ test("screens for review", async ({ page }, info) => {
   await openNav(page, "Products");
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${dir}/${info.project.name}-products.png` });
-  if (info.project.name !== "desktop") {
-    await openNav(page, "More");
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: `${dir}/${info.project.name}-more.png` });
-  }
+  await openNav(page, "More");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${dir}/${info.project.name}-more.png` });
   await openNav(page, "Today");
   await page.locator("main").evaluate((m) => m.scrollTo({ top: 400 }));
   await page.waitForTimeout(400);

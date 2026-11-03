@@ -5,7 +5,7 @@ import type { FilterSpecification, GeoJSONSource, Map as MapLibre, MapLayerMouse
 import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { CloseIcon } from "./icons";
+import { CheckIcon, CloseIcon } from "./icons";
 import { type Rated, WartimePanel } from "./WartimePanel";
 import { fetcher } from "@/lib/api";
 import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, STORES_URL, type WarStore, ZONES } from "@/lib/wartime";
@@ -16,7 +16,7 @@ import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, S
  * MapLibre draws everything on the GPU, so 7,500 points and their clusters stay smooth while
  * zooming. Tiles: OpenFreeMap (free, no key).
  *
- * War-time mode swaps those layers for sample Avrora stores rated by distance to the front line
+ * The war-time layer (on by default with the network; checkmarks narrow to one) adds sample Avrora stores rated by distance to the front line
  * and, when the server is connected to alerts.in.ua, live air-raid alerts (see lib/wartime.ts).
  */
 
@@ -135,7 +135,8 @@ function cardOffset(el: HTMLElement | null, cardEl: HTMLElement | null): [number
 /** Initial fit: Ukraine in the map area that the card doesn't cover. */
 function fitPadding(el: HTMLElement | null, cardEl: HTMLElement | null) {
   const p = cardPadding(el, cardEl);
-  return { top: p.top + 16, left: p.left + 16, right: 16, bottom: 16 };
+  const dock = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dock-h")) || 60;
+  return { top: p.top + 16, left: p.left + 16, right: 16, bottom: dock + 32 };
 }
 
 export function NetworkMap() {
@@ -149,11 +150,12 @@ export function NetworkMap() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [failed, setFailed] = useState(false);
-  const [mode, setMode] = useState<Mode>("network");
+  // both layers show by default; the checkmarks narrow the map to one of them (never to none)
+  const [show, setShow] = useState<Record<Mode, boolean>>({ network: true, war: true });
   const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
   const [warFailed, setWarFailed] = useState(false);
   const [warId, setWarId] = useState<string | null>(null);
-  const { data: alerts, error: alertsError } = useSWR<Alerts>(mode === "war" ? ALERTS_URL : null, fetcher, {
+  const { data: alerts, error: alertsError } = useSWR<Alerts>(show.war ? ALERTS_URL : null, fetcher, {
     refreshInterval: 60_000,
   });
   const alertState = useMemo<Alerts | undefined>(
@@ -161,9 +163,9 @@ export function NetworkMap() {
     [alerts, alertsError],
   );
 
-  // war-time data, loaded the first time the mode is opened
+  // war-time data, loaded the first time that layer is shown
   useEffect(() => {
-    if (mode !== "war" || war) return;
+    if (!show.war || war) return;
     let live = true;
     Promise.all([fetch(STORES_URL).then((r) => r.json()), fetch(LINES_URL).then((r) => r.json())])
       .then(([s, l]: [{ stores: WarStore[] }, { features: LineFeature[] }]) => live && setWar({ stores: s.stores, lines: l.features }))
@@ -171,7 +173,7 @@ export function NetworkMap() {
     return () => {
       live = false;
     };
-  }, [mode, war]);
+  }, [show.war, war]);
 
   const rated = useMemo<Rated[] | null>(
     () =>
@@ -318,7 +320,7 @@ export function NetworkMap() {
           },
         });
 
-        // war-time layers, hidden until that mode is chosen
+        // war-time layers; visibility follows the checkmarks
         map.addSource("war-lines", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         map.addSource("war-stores", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
         // distance bands, precomputed buffers around the sketched line, drawn under the map's labels
@@ -417,13 +419,13 @@ export function NetworkMap() {
     if (popupCat.current && !inFilter(filter, popupCat.current)) popupRef.current?.remove();
   }, [ready, visible, filter]);
 
-  // switch layer sets with the mode
+  // show or hide each layer set with its checkmark
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    for (const id of NETWORK_LAYERS) map.setLayoutProperty(id, "visibility", mode === "network" ? "visible" : "none");
-    for (const id of WAR_LAYERS) map.setLayoutProperty(id, "visibility", mode === "war" ? "visible" : "none");
-  }, [ready, mode]);
+    for (const id of NETWORK_LAYERS) map.setLayoutProperty(id, "visibility", show.network ? "visible" : "none");
+    for (const id of WAR_LAYERS) map.setLayoutProperty(id, "visibility", show.war ? "visible" : "none");
+  }, [ready, show]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -476,37 +478,41 @@ export function NetworkMap() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        className="absolute left-3 right-3 top-3 z-10 rounded-[14px] bg-[rgba(255,255,255,0.92)] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl md:left-4 md:right-auto md:top-4 md:w-[380px]"
+        className="absolute left-3 right-3 top-3 z-10 rounded-[14px] bg-[rgba(255,255,255,0.92)] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl max-h-[46%] overflow-y-auto overscroll-contain md:left-4 md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]"
       >
-        <div aria-label="Map mode" role="group" className="mb-3 flex rounded-[9px] bg-fill p-[2px]">
-          {(["network", "war"] as const).map((m) => (
-            <button
-              key={m}
-              aria-pressed={mode === m}
-              onClick={() => {
-                if (m !== mode) popupRef.current?.remove();
-                setMode(m);
-              }}
-              className="t-footnote relative flex-1 rounded-[7px] px-1 py-[5px] font-medium"
-            >
-              {mode === m && (
-                <motion.span
-                  layoutId="map-mode"
-                  className="absolute inset-0 rounded-[7px] bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)]"
-                  transition={{ type: "spring", stiffness: 500, damping: 40 }}
-                />
-              )}
-              <span className="relative">{m === "network" ? "Network" : "War-time"}</span>
-            </button>
-          ))}
+        <div aria-label="Show on map" role="group" className="mb-3 flex gap-2">
+          {(["network", "war"] as const).map((m) => {
+            const on = show[m];
+            const last = on && !show[m === "network" ? "war" : "network"];
+            return (
+              <button
+                key={m}
+                role="checkbox"
+                aria-checked={on}
+                aria-disabled={last || undefined}
+                title={last ? "At least one layer stays on" : undefined}
+                onClick={() => {
+                  if (last) return;
+                  if (on) popupRef.current?.remove();
+                  setShow((v) => ({ ...v, [m]: !on }));
+                }}
+                className={`t-footnote flex min-h-[32px] flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 font-medium transition-colors ${
+                  on ? "bg-[var(--selected)] text-tint" : "bg-fill text-label-2 hover:text-label"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`grid size-[16px] place-items-center rounded-full transition-colors ${on ? "bg-tint-fill text-white" : "border-[1.5px] border-[#aeaeb2]"}`}
+                >
+                  {on && <CheckIcon size={10} />}
+                </span>
+                {m === "network" ? "Supply network" : "War-time risk"}
+              </button>
+            );
+          })}
         </div>
 
-        {mode === "war" ? (
-          <>
-            {!selectedWar && <h1 className="t-headline px-1">War-time risk</h1>}
-            <WartimePanel rated={rated} alerts={alertState} failed={warFailed} selected={selectedWar} onSelect={setWarId} />
-          </>
-        ) : (
+        {show.network && (
           <>
         <h1 className="t-headline px-1">Supply network</h1>
         <p className="t-footnote px-1 text-label-2">
@@ -575,11 +581,18 @@ export function NetworkMap() {
         )}
           </>
         )}
+
+        {show.war && (
+          <div className={show.network ? "mt-3 border-t border-separator pt-3" : ""}>
+            {!selectedWar && (show.network ? <h2 className="t-headline px-1">War-time risk</h2> : <h1 className="t-headline px-1">War-time risk</h1>)}
+            <WartimePanel rated={rated} alerts={alertState} failed={warFailed} selected={selectedWar} onSelect={setWarId} />
+          </div>
+        )}
       </motion.div>
 
       <button
         onClick={toStore}
-        className="t-subhead absolute bottom-[44px] right-[10px] md:bottom-[124px] z-10 flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.9)] py-1.5 pl-1.5 pr-3 font-medium shadow-[0_4px_14px_rgba(0,0,0,0.14),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl"
+        className="t-subhead absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+124px)] z-10 flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.9)] py-1.5 pl-1.5 pr-3 font-medium shadow-[0_4px_14px_rgba(0,0,0,0.14),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
         <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-6" />

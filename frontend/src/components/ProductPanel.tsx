@@ -8,6 +8,7 @@ import { fetcher } from "@/lib/api";
 import { money, proposalText, TYPE_META } from "@/lib/format";
 import { Chart } from "./Chart";
 import { ChevronIcon, CloseIcon, TypeIcon } from "./icons";
+import { ProductPurchases } from "./ProductPurchases";
 import { coverText, dayLabel, signed, STATUS_META, StatusChip, UPDATE_COLOR } from "./ProductStatus";
 
 interface Props {
@@ -35,6 +36,9 @@ function Rows({ items }: { items: [string, React.ReactNode, string?][] }) {
 }
 
 /** One product: key facts, open suggestion, recent changes and trend. Sheet on phones, inspector on desktop. */
+/** "Today" reads as "today" mid-sentence; dates keep their capital month. */
+const relative = (label: string) => (/^(Today|Yesterday|Tomorrow)$/.test(label) ? label.toLowerCase() : label);
+
 export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
   const { data: product } = useSWR<ProductDetail>(`/api/products/${row.product_id}`, fetcher);
   const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
@@ -127,7 +131,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
               ["On order", row.on_order ? units(row.on_order) : "Nothing"],
               [
                 "Next delivery",
-                nd ? `${units(nd.qty)}, ${nd.late ? `was due ${dayLabel(nd.date, today).toLowerCase()}` : dayLabel(nd.date, today).toLowerCase()}` : "None booked",
+                nd ? `${units(nd.qty)}, ${nd.late ? `was due ${relative(dayLabel(nd.date, today))}` : relative(dayLabel(nd.date, today))}` : "None booked",
                 nd?.late ? "var(--delivery-text)" : undefined,
               ],
               ["Price", `₴${row.price.toFixed(2)}`],
@@ -148,6 +152,8 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
             ]}
           />
         </section>
+
+        <ProductPurchases purchases={product ? (product.purchases ?? []) : undefined} summary={product?.purchase_summary} today={today} />
 
         <section aria-busy={!product}>
           <h3 className="group-header">Updates</h3>

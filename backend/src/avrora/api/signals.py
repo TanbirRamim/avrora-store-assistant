@@ -169,6 +169,7 @@ def _simulated_signal(row: dict, now: datetime, queue: str) -> Signal:
 
 
 RANK = {"high": 0, "medium": 1, "low": 2}
+KIND_RANK = {"air_alert": 0, "power": 1, "weather": 2}
 
 
 @router.get("/api/signals", response_model=SignalsOut)
@@ -180,7 +181,8 @@ def signals() -> SignalsOut:
     out += scheduled_power(now, s)
     weather = _weather(now)
     out += weather or []
-    out.sort(key=lambda x: (RANK[x.severity], x.starts_at))
+    # safety first: at the same severity an air-raid alert leads, then power, then weather
+    out.sort(key=lambda x: (RANK[x.severity], KIND_RANK[x.kind], x.starts_at))
     power_source = f"{POWER_SOURCE} (example times)" if s.get("example") else POWER_SOURCE
     return SignalsOut(updated_at=_iso(now), signals=out, feeds=[
         Feed(kind="power", source=power_source, live=not s.get("example")),

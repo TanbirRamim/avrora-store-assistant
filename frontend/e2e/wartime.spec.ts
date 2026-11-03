@@ -5,7 +5,10 @@ async function openWartime(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: /^Map$/ }).filter({ visible: true }).first().click();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
-  await page.getByRole("button", { name: "War-time" }).click();
+  // both layers show together by default
+  await expect(page.getByRole("checkbox", { name: "Supply network" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("checkbox", { name: "War-time risk" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("heading", { name: "Supply network" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "War-time risk" })).toBeVisible();
 }
 
@@ -39,8 +42,15 @@ test("war-time mode without an alerts token rates stores by distance only", asyn
 
   await details.getByRole("button", { name: "All stores" }).click();
   await expect(stores(page)).toHaveCount(13);
-  await page.getByRole("button", { name: "Network", exact: true }).click();
+  // narrow to one layer with its checkmark; the last one can't be turned off
+  await page.getByRole("checkbox", { name: "War-time risk" }).click();
+  await expect(page.getByRole("heading", { name: "War-time risk" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Supply network" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Supply network" })).toHaveAttribute("aria-disabled", "true");
+  await page.getByRole("checkbox", { name: "War-time risk" }).click();
+  await page.getByRole("checkbox", { name: "Supply network" }).click();
+  await expect(page.getByRole("heading", { name: "Supply network" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "War-time risk", level: 1 })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

@@ -260,6 +260,7 @@ export async function simulated(db: D1Database, now: Date): Promise<ExternalSign
 // ----------------------------------------------------------------------------- all
 
 const RANK: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
+const KIND_RANK: Record<string, number> = { air_alert: 0, power: 1, weather: 2 };
 
 /** Every current signal; a failing feed is logged and skipped. */
 export async function externalSignals(db: D1Database, now: Date, env: ExternalEnv): Promise<{ signals: ExternalSignal[]; feeds: Feed[] }> {
@@ -274,7 +275,10 @@ export async function externalSignals(db: D1Database, now: Date, env: ExternalEn
     if (p.status === "fulfilled") signals.push(...p.value);
     else console.error("external feed failed", p.reason);
   }
-  signals.sort((a, b) => RANK[a.severity] - RANK[b.severity] || a.starts_at.localeCompare(b.starts_at));
+  // safety first: at the same severity an air-raid alert leads, then power, then weather
+  signals.sort(
+    (a, b) => RANK[a.severity] - RANK[b.severity] || KIND_RANK[a.kind] - KIND_RANK[b.kind] || a.starts_at.localeCompare(b.starts_at),
+  );
   const feeds: Feed[] = [
     { kind: "power", source: outages.example ? `${POWER_SOURCE} (example times)` : POWER_SOURCE, live: !outages.example },
     { kind: "air_alert", source: env.ALERTS_IN_UA_TOKEN ? ALERTS_SOURCE : "not connected yet, simulated only", live: Boolean(env.ALERTS_IN_UA_TOKEN) },

@@ -60,6 +60,31 @@ export interface ProductDetail {
   last_sale?: string | null;
   actions?: ActionRef[];
   updates?: ProductUpdate[];
+  purchases?: Purchase[];
+  purchase_summary?: PurchaseSummary | null;
+}
+
+/** One supplier order. Dates and quantities only: the data has no purchase cost. */
+export interface Purchase {
+  id: string;
+  ordered: string;
+  expected: string;
+  /** null while the order has not arrived */
+  received: string | null;
+  qty: number;
+  /** late: due before today and not here, or arrived after the expected date */
+  status: "received" | "late" | "on_the_way";
+  days_late: number;
+}
+
+export interface PurchaseSummary {
+  orders: number;
+  units: number;
+  /** ordered to received, received orders only */
+  avg_lead_days: number | null;
+  /** share of orders due by today that arrived on time */
+  on_time_pct: number | null;
+  last_received: string | null;
 }
 
 /** Stock status on the Products screen. The first four follow the open suggestion's type. */

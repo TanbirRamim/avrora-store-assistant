@@ -39,15 +39,6 @@ const TABS: { id: View; label: string; Icon: typeof SunIcon }[] = [
   { id: "more", label: "More", Icon: MoreIcon },
 ];
 
-/** Desktop sidebar: the same sections, with All suggestions listed directly. */
-const SIDEBAR: { id: View; label: string; Icon: typeof SunIcon }[] = [
-  { id: "today", label: "Today", Icon: SunIcon },
-  { id: "products", label: "Products", Icon: GridIcon },
-  { id: "all", label: "All suggestions", Icon: ListIcon },
-  { id: "map", label: "Map", Icon: MapIcon },
-  { id: "log", label: "Decisions", Icon: ClockIcon },
-];
-
 const FILTERS: (ActionType | "ALL")[] = ["ALL", "ORDER", "DISCOUNT", "MOVE_TO_FRONT", "CHECK_DELIVERY"];
 
 type Toast = { key: number; text: string; undoId?: string; error?: boolean };
@@ -78,12 +69,15 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
   const wide = useMedia("(min-width: 1024px)");
+  const reduceMotion = useMedia("(prefers-reduced-motion: reduce)");
 
   const { data: overview, error: overviewError, mutate: retryOverview, isValidating: retrying } = useSWR<Overview>("/api/overview", fetcher);
   const { data: baseBriefing } = useSWR<Briefing>("/api/briefing", fetcher);
   const ai = useAi();
   const briefing = ai.briefing ?? baseBriefing;
   const [aiOpen, setAiOpen] = useState(false);
+  // the Products view reports its fixed panel so the content column and the tab bar make room for it
+  const [productPanel, setProductPanel] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
   // Notification taps open the app at /?action=<id>, or message an already open window.
@@ -337,68 +331,13 @@ export default function Home() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* macOS sidebar */}
-      <nav
-        aria-label="Sections"
-        className="material hidden w-[240px] shrink-0 flex-col border-r border-separator bg-[var(--sidebar)] px-2.5 pb-4 pt-5 md:flex"
-      >
-        <div className="flex items-center gap-2.5 px-2 pb-6">
-          {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
-          <img src="/avrora-mark.svg" alt="Avrora" width={32} height={32} className="size-8 shrink-0" />
-          <div className="min-w-0">
-            <div className="t-footnote truncate font-semibold">{overview?.store_name.split(", ")[0] ?? " "}</div>
-            <div className="t-caption truncate text-label-2">
-              {overview ? `${overview.store_name.split(", ")[1] ?? ""} · ${overview.products} products` : " "}
-            </div>
-          </div>
-        </div>
-        <ul className="space-y-px">
-          {SIDEBAR.map(({ id, label, Icon }) => (
-            <li key={id}>
-              <button
-                onClick={() => setView(id)}
-                aria-current={view === id ? "page" : undefined}
-                className={`t-subhead flex w-full items-center gap-2.5 rounded-[6px] px-2 py-[6px] ${
-                  view === id ? "bg-fill-2 font-medium" : "hover:bg-fill"
-                }`}
-              >
-                <Icon size={17} className="text-tint" />
-                {label}
-                {id === "today" && open.length > 0 && (
-                  <span className="t-footnote num ml-auto text-label-2" aria-label={`${open.length} to decide`}>{open.length}</span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-        <h2 className="t-caption mt-6 px-2 pb-1 font-semibold text-label-2">Settings</h2>
-        <ul className="space-y-px">
-          <li>
-            <button onClick={() => setAiOpen(true)} className="t-subhead flex w-full items-center gap-2.5 rounded-[6px] px-2 py-[6px] hover:bg-fill">
-              <SparkleIcon size={17} className="text-tint" />
-              AI briefing
-            </button>
-          </li>
-          <li>
-            <button onClick={() => setNotifOpen(true)} className="t-subhead flex w-full items-center gap-2.5 rounded-[6px] px-2 py-[6px] hover:bg-fill">
-              <BellIcon size={17} className="text-tint" />
-              Notifications
-            </button>
-          </li>
-        </ul>
-        <p className="t-caption mt-auto px-2 text-label-2">
-          Keys: J and K move, A approves, D dismisses, Esc closes.
-        </p>
-        <p className="t-caption mt-2 px-2 text-label-2">Store data is made up for this demo. Map: avrora.ua, © OpenStreetMap contributors.</p>
-      </nav>
-
       <main
         ref={mainRef}
         className={`relative min-w-0 flex-1 ${
           view === "map"
-            ? "overflow-hidden pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] pt-[env(safe-area-inset-top)] md:pb-0 md:pt-0"
+            ? "overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
             : "pb-tabbar overflow-y-auto overscroll-contain"
-        }`}
+        } ${productPanel && view === "products" ? "lg:mr-[400px]" : ""}`}
       >
         {/* Phones: compact navigation bar the large title folds into */}
         {view !== "map" && (
@@ -530,11 +469,21 @@ export default function Home() {
             </>
           )}
 
-          {view === "products" && <ProductsView onOpenAction={(id) => setSelectedId(id)} />}
+          {view === "products" && <ProductsView onOpenAction={(id) => setSelectedId(id)} onPanel={setProductPanel} />}
 
           {view === "more" && (
             <>
               {header("More")}
+              <div className="group-list mt-6 flex items-center gap-3 px-4 py-3">
+                {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
+                <img src="/avrora-mark.svg" alt="Avrora" width={44} height={44} className="size-11 shrink-0" />
+                <div className="min-w-0">
+                  <div className="t-headline truncate">{overview?.store_name.split(", ")[0] ?? "\u00a0"}</div>
+                  <div className="t-subhead truncate text-label-2">
+                    {overview ? `${overview.store_name.split(", ")[1] ?? ""} · ${overview.products} products` : "\u00a0"}
+                  </div>
+                </div>
+              </div>
               <section className="mt-6">
                 <div className="group-list">
                   {settingsRow("All suggestions", "var(--move)", ListIcon, () => setView("all"), actions ? `${actions.length}` : undefined)}
@@ -547,6 +496,9 @@ export default function Home() {
                   {settingsRow("AI briefing", "var(--delivery)", SparkleIcon, () => setAiOpen(true))}
                   {settingsRow("Notifications", "var(--order)", BellIcon, () => setNotifOpen(true))}
                 </div>
+                <p className="group-footer hidden [@media(hover:hover)_and_(pointer:fine)]:block" data-testid="shortcuts">
+                  Keyboard: J and K move through the list, A approves, D dismisses, Esc closes.
+                </p>
               </section>
               {overview && (
                 <section className="mt-8">
@@ -573,7 +525,7 @@ export default function Home() {
             <>
               <button
                 onClick={() => setView("more")}
-                className="t-body -ml-1.5 mb-1 flex min-h-[44px] items-center gap-0.5 text-tint md:hidden"
+                className="t-body -ml-1.5 mb-1 flex min-h-[44px] items-center gap-0.5 text-tint"
               >
                 <BackIcon size={20} />
                 More
@@ -675,27 +627,37 @@ export default function Home() {
         </div>
       </main>
 
-      {/* iOS tab bar */}
+      {/* Tab bar: one floating pill on every screen size, centred in the content area beside an open panel */}
       <nav
         aria-label="Sections"
-        className="material fixed inset-x-0 bottom-0 z-10 border-t border-separator bg-[var(--bar)] pb-[env(safe-area-inset-bottom)] md:hidden"
+        className={`pointer-events-none fixed inset-x-0 bottom-[var(--dock-bottom)] z-10 flex justify-center px-3 ${
+          (selected || (productPanel && view === "products")) ? "lg:right-[400px]" : ""
+        }`}
       >
-        <ul className="mx-auto flex h-[var(--tabbar-h)] max-w-[560px]">
+        <ul className="dock pointer-events-auto flex h-[var(--dock-h)] w-full max-w-[400px] p-1 md:w-auto md:max-w-none">
           {TABS.map(({ id, label, Icon }) => (
-            <li key={id} className="flex flex-1">
+            <li key={id} className="flex flex-1 md:w-[78px] md:flex-none">
               <button
                 onClick={() => setView(id)}
                 aria-current={tabActive(id) ? "page" : undefined}
-                className={`relative flex flex-1 flex-col items-center justify-center gap-[3px] pt-[3px] text-[10px] font-medium leading-[12px] tracking-[0.01em] transition-colors ${
-                  tabActive(id) ? "text-tint" : "text-[#6e6e73]"
+                className={`dock-item relative flex flex-1 flex-col items-center justify-center gap-[2px] rounded-full text-[11px] font-medium leading-[13px] tracking-[0.01em] transition-colors ${
+                  tabActive(id) ? "text-tint" : "text-[#6e6e73] hover:text-label"
                 }`}
               >
-                <Icon size={25} />
-                {label}
+                {tabActive(id) && (
+                  <motion.span
+                    layoutId="dock-pill"
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-[var(--selected)]"
+                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38 }}
+                  />
+                )}
+                <Icon size={24} className="relative" />
+                <span className="relative">{label}</span>
                 {id === "today" && open.length > 0 && (
                   <span
                     aria-label={`${open.length} to decide`}
-                    className="num absolute left-1/2 top-[3px] ml-[7px] grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--badge)] px-[5px] text-[12px] font-semibold leading-none text-white"
+                    className="num absolute left-1/2 top-[4px] ml-[6px] grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--badge)] px-[5px] text-[12px] font-semibold leading-none text-white"
                   >
                     {open.length}
                   </span>
@@ -710,8 +672,8 @@ export default function Home() {
       <div
         className={`pointer-events-none fixed inset-x-0 z-[35] flex justify-center px-3 ${
           selected
-            ? "bottom-[calc(max(env(safe-area-inset-bottom),14px)+78px)] lg:bottom-6 lg:pl-[240px] lg:pr-[400px]"
-            : "bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+12px)] md:bottom-6 md:pl-[240px]"
+            ? "bottom-[calc(max(env(safe-area-inset-bottom),14px)+78px)] lg:bottom-[calc(var(--nav-clear)+12px)] lg:pr-[400px]"
+            : `bottom-[calc(var(--nav-clear)+12px)] ${productPanel && view === "products" ? "lg:pr-[400px]" : ""}`
         }`}
       >
         <AnimatePresence>

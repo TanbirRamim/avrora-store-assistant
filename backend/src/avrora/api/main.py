@@ -8,6 +8,7 @@ from contextlib import closing
 from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
+from typing import Literal
 
 import httpx
 import pandas as pd
@@ -20,6 +21,7 @@ from avrora.actions.models import Action, ActionType
 from avrora.ai.briefing import Briefing, build_briefing
 from avrora.analytics.forecast import sales_history
 from avrora.analytics.products import ProductFacts, build_products, store_feed
+from avrora.analytics.purchases import purchase_history
 from avrora.api.signals import router as signals_router
 from avrora.config import SETTINGS
 from avrora.data.loader import StoreData, load
@@ -153,6 +155,24 @@ class ProductList(BaseModel):
     updates: list[StoreUpdate]
 
 
+class Purchase(BaseModel):
+    id: str
+    ordered: str
+    expected: str
+    received: str | None
+    qty: int
+    status: Literal["received", "late", "on_the_way"]
+    days_late: int
+
+
+class PurchaseSummary(BaseModel):
+    orders: int
+    units: int
+    avg_lead_days: float | None
+    on_time_pct: int | None
+    last_received: str | None
+
+
 class ProductDetail(BaseModel):
     product_id: str
     name: str
@@ -174,6 +194,9 @@ class ProductDetail(BaseModel):
     last_sale: str | None = None
     actions: list[ActionRef] = []
     updates: list[ProductUpdate] = []
+    # purchase history: supplier orders newest first, dates and quantities only (no costs in the data)
+    purchases: list[Purchase] = []
+    purchase_summary: PurchaseSummary | None = None
 
 
 class Decision(str, Enum):
@@ -265,6 +288,7 @@ def product(product_id: str, days: int = 30) -> ProductDetail:
             "last_sale", "actions")
     return ProductDetail(
         **{k: extra[k] for k in keys}, updates=f.updates[product_id],
+        **purchase_history(_data().deliveries, product_id),
         product_id=product_id, name=r["name"], category=r.category, price=float(r.price),
         supplier=r.supplier, lead_time_days=int(r.lead_time_days), daily_forecast=round(float(r.base_rate), 2),
         days_cover=None if cover == float("inf") else round(cover, 1), history=points,

@@ -40,6 +40,10 @@ type Row = Record<(typeof FROM_ROW)[number], unknown>;
 interface CompactDetail {
   daily_forecast: number;
   h: { start: string | null; sold: number[]; stock: number[]; ahead: number; ahead_start: string | null };
+  /** Purchases: [delivery number, ordered, days to expected, days to received or null, qty]. */
+  p: [number, string, number, number | null, number][];
+  /** Purchase summary averages: [avg_lead_days, on_time_pct]. */
+  ps: [number | null, number | null];
   [key: string]: unknown;
 }
 const ROWS = new Map((snapshot.product_list.products as unknown as Row[]).map((r) => [r.product_id as string, r]));
@@ -48,17 +52,42 @@ const DETAILS = snapshot.product_details as unknown as Record<string, CompactDet
 const days = (start: string | null, n: number) =>
   start === null ? [] : Array.from({ length: n }, (_, i) => new Date(Date.parse(`${start}T00:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10));
 
+const TODAY = snapshot.product_list.today;
+const DAY = 86_400_000;
+const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY);
+
+/** Purchase rows as analytics/purchases.order_row builds them (late: due before today and not here, or arrived after due). */
+function purchases(rows: CompactDetail["p"]) {
+  return rows.map(([n, ordered, toExpected, toReceived, qty]) => {
+    const expected = addDays(ordered, toExpected);
+    const received = toReceived === null ? null : addDays(ordered, toReceived);
+    const late = received === null ? Math.max(0, daysBetween(expected, TODAY)) : Math.max(0, daysBetween(expected, received));
+    const status = late > 0 ? "late" : received === null ? "on_the_way" : "received";
+    return { id: `D${String(n).padStart(5, "0")}`, ordered, expected, received, qty, status, days_late: late };
+  });
+}
+
 /** GET /api/products/{id}, rebuilt from the list row and the compact detail as export.expand_detail does. */
 function productDetail(id: string): unknown {
   const row = ROWS.get(id);
   const c = Object.hasOwn(DETAILS, id) ? DETAILS[id] : undefined;
   if (!row || !c) return undefined;
-  const { h, ...rest } = c;
+  const { h, p, ps, ...rest } = c;
   const history = [
     ...days(h.start, h.sold.length).map((date, i) => ({ date, units_sold: h.sold[i], stock_end: h.stock[i], forecast: null })),
     ...days(h.ahead_start, h.ahead).map((date) => ({ date, units_sold: null, stock_end: null, forecast: c.daily_forecast })),
   ];
-  return { ...Object.fromEntries(FROM_ROW.map((k) => [k, row[k]])), ...rest, history };
+  const bought = purchases(p);
+  const received = bought.flatMap((o) => (o.received === null ? [] : [o.received])).sort();
+  const purchase_summary = {
+    orders: bought.length,
+    units: bought.reduce((n, o) => n + o.qty, 0),
+    avg_lead_days: ps[0],
+    on_time_pct: ps[1],
+    last_received: received.at(-1) ?? null,
+  };
+  return { ...Object.fromEntries(FROM_ROW.map((k) => [k, row[k]])), ...rest, history, purchases: bought, purchase_summary };
 }
 
 const json = (body: unknown, status = 200) =>

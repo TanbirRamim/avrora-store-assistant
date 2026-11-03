@@ -116,4 +116,4 @@ def test_unknown_product(client):
 def test_snapshot_compaction_round_trips(client, listing):
     for row in listing["products"][:20]:
         full = client.get(f"/api/products/{row['product_id']}").json()
-        assert expand_detail(row, compact_detail(full)) == full
+        assert expand_detail(row, compact_detail(full), listing["today"]) == full

@@ -117,3 +117,79 @@ test("a store update opens that product", async ({ page }) => {
   await item.click();
   await expect(productPanel(page).getByRole("heading", { name })).toBeVisible();
 });
+
+interface Purchase {
+  id: string;
+  ordered: string;
+  received: string | null;
+  qty: number;
+  status: string;
+  days_late: number;
+}
+interface Detail {
+  purchases: Purchase[];
+  purchase_summary: { orders: number; units: number; on_time_pct: number | null };
+}
+const detail = async (id: string): Promise<Detail> => (await fetch(`${API}/api/products/${id}`)).json();
+
+async function openProduct(page: Page, row: Row) {
+  await openProducts(page);
+  await page.getByRole("searchbox", { name: "Search products" }).fill(row.product_id);
+  await page.getByRole("button", { name: new RegExp(row.name) }).click();
+  const history = productPanel(page).getByRole("list", { name: "Purchase history" });
+  await expect(history).toBeVisible();
+  return history;
+}
+
+test("purchase history matches the API and expands to every order", async ({ page }, info) => {
+  const errors = watchConsole(page);
+  // a product with more orders than the preview shows
+  let row: Row | undefined;
+  let d: Detail | undefined;
+  for (const r of rows) {
+    d = await detail(r.product_id);
+    if (d.purchases.length > 5) {
+      row = r;
+      break;
+    }
+  }
+  expect(row).toBeDefined();
+  const history = await openProduct(page, row!);
+  const s = d!.purchase_summary;
+  const items = history.getByRole("listitem");
+  await expect(items.first()).toContainText(`${s.orders} orders · ${s.units.toLocaleString("en-GB")} units`);
+  if (s.on_time_pct !== null) await expect(items.first()).toContainText(`${s.on_time_pct}% on time`);
+  await expect(items).toHaveCount(1 + 5);
+  await expect(items.nth(1)).toContainText(`${d!.purchases[0].qty} units`);
+  const head = section(page, /Purchase history/);
+  await head.getByRole("button", { name: `Show all ${s.orders}` }).click();
+  await expect(items).toHaveCount(1 + s.orders);
+  await expect(items.last()).toContainText(`${d!.purchases.at(-1)!.qty} units`);
+  if (SHOTS) {
+    await items.first().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${SHOTS}/product-purchases-${info.project.name}.png` });
+  }
+  await head.getByRole("button", { name: "Show less" }).click();
+  await expect(items).toHaveCount(1 + 5);
+  const axe = await new AxeBuilder({ page }).include(`aside ul[aria-label="Purchase history"]`).analyze();
+  expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test("a late order shows how late it is", async ({ page }, info) => {
+  const row = rows.find((r) => r.status === "late")!;
+  const d = await detail(row.product_id);
+  const late = d.purchases.find((p) => p.status === "late" && p.received === null)!;
+  expect(late).toBeDefined();
+  const history = await openProduct(page, row);
+  const n = late.days_late;
+  await expect(history.getByText(`Late by ${n} ${n === 1 ? "day" : "days"}`, { exact: true })).toBeVisible();
+  const received = d.purchases.slice(0, 5).filter((p) => p.status === "received").length;
+  await expect(history.getByText("Received", { exact: true })).toHaveCount(received);
+  if (SHOTS) {
+    await history.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${SHOTS}/product-purchases-late-${info.project.name}.png` });
+  }
+});

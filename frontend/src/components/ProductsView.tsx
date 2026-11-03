@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import type { ProductList, ProductRow, StoreUpdate } from "@/lib/api";
 import { fetcher } from "@/lib/api";
@@ -78,7 +78,7 @@ function Feed({ items, today, onOpen }: { items: StoreUpdate[]; today: string; o
 }
 
 /** Every product in the store with its stock status and recent changes. */
-export function ProductsView({ onOpenAction }: { onOpenAction?: (actionId: string) => void }) {
+export function ProductsView({ onOpenAction, onPanel }: { onOpenAction?: (actionId: string) => void; onPanel?: (open: boolean) => void }) {
   const { data, error, mutate, isValidating } = useSWR<ProductList>("/api/products", fetcher);
   const [query, setQuery] = useState("");
   const q = useDeferredValue(query.trim().toLowerCase());
@@ -104,22 +104,12 @@ export function ProductsView({ onOpenAction }: { onOpenAction?: (actionId: strin
   const needCount = (rows ?? []).filter((r) => r.attention).length;
   const selected = selectedId ? rows?.find((r) => r.product_id === selectedId) : undefined;
 
-  // Desktop: the inspector is fixed on the right; slide the list left so it stays clear of it when there is room.
-  const root = useRef<HTMLDivElement>(null);
-  const [shift, setShift] = useState(0);
-  useLayoutEffect(() => {
-    const measure = () => {
-      const el = root.current?.parentElement;
-      if (!el || !selected || window.innerWidth < 1024) return setShift(0);
-      const box = el.getBoundingClientRect();
-      const overlap = box.right - (window.innerWidth - PANEL_W - 24);
-      const room = box.left - (el.offsetParent?.getBoundingClientRect().left ?? 0) - 16;
-      setShift(overlap > 0 ? Math.min(overlap, Math.max(room, 0)) : 0);
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [selected]);
+  // Desktop: the panel is fixed on the right; the page narrows the content column so nothing sits under it.
+  const panelOpen = Boolean(selected && data);
+  useEffect(() => {
+    onPanel?.(panelOpen);
+  }, [panelOpen, onPanel]);
+  useEffect(() => () => onPanel?.(false), [onPanel]);
 
   if (error && !data) {
     return (
@@ -154,7 +144,7 @@ export function ProductsView({ onOpenAction }: { onOpenAction?: (actionId: strin
 
   return (
     <>
-      <motion.div ref={root} animate={{ x: -shift }} transition={{ type: "spring", stiffness: 420, damping: 40 }}>
+      <div>
         <header className="px-1">
           <p className="t-subhead text-label-2">{rows ? `${rows.length} products · ${needCount} need attention` : " "}</p>
           <h1 className="t-large-title">Products</h1>
@@ -242,7 +232,7 @@ export function ProductsView({ onOpenAction }: { onOpenAction?: (actionId: strin
           list("Products", shown, "all")
         )}
         {rows && <p className="group-footer">Lasts: days the stock covers at the expected daily sales. Prices in hryvnia.</p>}
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {selected && data && (
