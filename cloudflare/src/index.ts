@@ -10,7 +10,7 @@
 import { externalSignals, simulatedSignal, type SimRow } from "./external";
 import { handlePush, sendUrgent, type PushEnv } from "./push";
 import snapshot from "./snapshot.json";
-import { wartimeAlerts } from "./wartime";
+import { wartimeAlerts, wartimeThreats } from "./wartime";
 
 interface Env extends PushEnv {
   /** Guards the demo simulation routes; requests send it as X-Demo-Key. */
@@ -162,6 +162,8 @@ export default {
         }
         case "/api/wartime/alerts":
           return json(await wartimeAlerts(env.ALERTS_IN_UA_TOKEN));
+        case "/api/wartime/threats":
+          return json(await wartimeThreats());
         case "/api/decisions": {
           const { results } = await env.DB.prepare(
             "SELECT action_id, decision, reason, value, decided_at FROM decisions ORDER BY decided_at DESC",
