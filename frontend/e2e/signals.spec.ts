@@ -17,7 +17,7 @@ function power(simulated = true) {
     title: `Power cut ${kyiv(starts)}–${kyiv(ends)}`,
     detail: "Scheduled power cut for outage queue 3.1. Tills, lights and card terminals need backup power.",
     starts_at: starts, ends_at: ends,
-    source: simulated ? "Simulated for the demo" : "power company schedule (Vinnytsiaoblenergo)", simulated,
+    source: simulated ? "Simulated for the demo" : "Vinnytsiaoblenergo schedule", simulated,
   };
 }
 const alert = () => ({
@@ -31,7 +31,7 @@ const frost = {
   starts_at: at(14 * 60 * MIN), ends_at: at(38 * 60 * MIN), source: "Open-Meteo (CC BY 4.0)", simulated: false,
 };
 const FEEDS = [
-  { kind: "power", source: "power company schedule (Vinnytsiaoblenergo)", live: true },
+  { kind: "power", source: "Vinnytsiaoblenergo schedule", live: true },
   { kind: "air_alert", source: "not connected yet, simulated only", live: false },
   { kind: "weather", source: "Open-Meteo (CC BY 4.0)", live: true },
 ];

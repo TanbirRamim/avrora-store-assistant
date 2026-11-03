@@ -150,3 +150,27 @@ export const CheckCircleIcon = ({ size = 15, className }: P) => (
     <path d="m8 12.3 2.7 2.7L16 9.7" />
   </svg>
 );
+
+export const GridIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" />
+  </svg>
+);
+
+export const MoreIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="7.8" cy="12" r="0.6" fill="currentColor" />
+    <circle cx="12" cy="12" r="0.6" fill="currentColor" />
+    <circle cx="16.2" cy="12" r="0.6" fill="currentColor" />
+  </svg>
+);
+
+export const BackIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} strokeWidth={2.2} className={className}>
+    <path d="m15 5-7 7 7 7" />
+  </svg>
+);

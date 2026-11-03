@@ -32,6 +32,9 @@ async function fakePush(page: Page) {
 }
 
 async function openNotifications(page: Page) {
+  // phones keep settings under More in the tab bar
+  const more = page.getByRole("button", { name: "More", exact: true }).filter({ visible: true });
+  if (await more.count()) await more.click();
   await page.getByRole("button", { name: "Notifications" }).filter({ visible: true }).first().click();
   const dialog = page.getByRole("dialog", { name: "Notifications" });
   await expect(dialog).toBeVisible();

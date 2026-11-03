@@ -31,6 +31,13 @@
   --note-text: #636366;
   --chart-mark: #0066cc; /* accessible systemBlue for marks on white */
   --chart-grid: rgba(60, 60, 67, 0.12);
+  /* bar material (tab bar, navigation bar, sheet footers): translucent over content */
+  --bar: rgba(249, 249, 249, 0.94);
+  --bar-on-bg: rgba(242, 242, 247, 0.94);
+  --badge: #ff3b30;
+  --tabbar-h: 50px;
+  /* height of the on-screen keyboard where the browser doesn't resize the page (iOS); set from visualViewport */
+  --kb: 0px;
 }
 
 @theme inline {
@@ -81,6 +88,19 @@ html {
 .cell { position: relative; }
 
 .icon-tile { display: grid; place-items: center; border-radius: 7px; color: #fff; flex-shrink: 0; }
+
+.material { -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+
+/* 44pt hit target around a smaller visual control */
+.hit { position: relative; }
+.hit::after { content: ""; position: absolute; inset: -7px; }
+
+/* scroll areas leave room for the phone tab bar and the home indicator */
+.pb-tabbar { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px); }
+@media (min-width: 768px) { .pb-tabbar { padding-bottom: 0; } }
+
+html, body { overscroll-behavior-y: none; }
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 :focus-visible {
   outline: 3px solid rgba(0, 113, 227, 0.5);

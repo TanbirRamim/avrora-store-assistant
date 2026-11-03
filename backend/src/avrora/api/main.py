@@ -19,6 +19,7 @@ from avrora.actions.engine import Plan, build_plan
 from avrora.actions.models import Action, ActionType
 from avrora.ai.briefing import Briefing, build_briefing
 from avrora.analytics.forecast import sales_history
+from avrora.analytics.products import ProductFacts, build_products, store_feed
 from avrora.api.signals import router as signals_router
 from avrora.config import SETTINGS
 from avrora.data.loader import StoreData, load
@@ -50,6 +51,11 @@ def _plan() -> Plan:
 def _briefing() -> Briefing:
     p = _plan()
     return build_briefing(p.actions, p.notices, SETTINGS.top_n)
+
+
+@lru_cache(maxsize=1)
+def _products() -> ProductFacts:
+    return build_products(_data(), _plan())
 
 
 def _db() -> sqlite3.Connection:
@@ -87,6 +93,66 @@ class Point(BaseModel):
     forecast: float | None
 
 
+class ProductStatus(str, Enum):
+    late = "late"
+    running_out = "running_out"
+    hard_to_find = "hard_to_find"
+    overstocked = "overstocked"
+    low = "low"
+    on_order = "on_order"
+    ok = "ok"
+
+
+class NextDelivery(BaseModel):
+    date: str
+    qty: int
+    late: bool
+
+
+class ActionRef(BaseModel):
+    id: str
+    type: ActionType
+    risk_uah: float
+
+
+class ProductUpdate(BaseModel):
+    date: str
+    kind: str = Field(description="suggestion, late, expected, received, sold_out, no_sales or promotion")
+    text: str
+
+
+class StoreUpdate(ProductUpdate):
+    product_id: str
+    name: str
+
+
+class ProductRow(BaseModel):
+    product_id: str
+    name: str
+    category: str
+    price: float
+    supplier: str
+    stock: int
+    daily_sales: float = Field(description="Expected units a day, as the actions engine forecasts")
+    days_cover: float | None = Field(description="Days the stock lasts; null when nothing sells")
+    on_order: int
+    next_delivery: NextDelivery | None
+    sold_7d: int
+    received_7d: int
+    stock_change_7d: int | None
+    last_sale: str | None
+    status: ProductStatus
+    attention: bool
+    actions: list[ActionRef]
+
+
+class ProductList(BaseModel):
+    today: str
+    last_day: str = Field(description="Last trading day in the data")
+    products: list[ProductRow]
+    updates: list[StoreUpdate]
+
+
 class ProductDetail(BaseModel):
     product_id: str
     name: str
@@ -97,6 +163,17 @@ class ProductDetail(BaseModel):
     daily_forecast: float
     days_cover: float | None
     history: list[Point]
+    # added for the Products screen; the fields above keep their meaning
+    status: ProductStatus | None = None
+    stock: int | None = None
+    on_order: int | None = None
+    next_delivery: NextDelivery | None = None
+    sold_7d: int | None = None
+    received_7d: int | None = None
+    stock_change_7d: int | None = None
+    last_sale: str | None = None
+    actions: list[ActionRef] = []
+    updates: list[ProductUpdate] = []
 
 
 class Decision(str, Enum):
@@ -160,6 +237,13 @@ def actions() -> list[Action]:
     return _plan().actions
 
 
+@app.get("/api/products", response_model=ProductList)
+def products() -> ProductList:
+    f = _products()
+    return ProductList(today=SETTINGS.today.isoformat(), last_day=_data().stock["date"].max().date().isoformat(),
+                       products=f.rows, updates=store_feed(f, SETTINGS, _data().stock["date"].max()))
+
+
 @app.get("/api/products/{product_id}", response_model=ProductDetail)
 def product(product_id: str, days: int = 30) -> ProductDetail:
     m = _plan().metrics
@@ -175,7 +259,12 @@ def product(product_id: str, days: int = 30) -> ProductDetail:
         points.append(Point(date=(start + pd.Timedelta(days=i)).date().isoformat(),
                             units_sold=None, stock_end=None, forecast=round(float(r.base_rate), 2)))
     cover = float(r.days_cover)
+    f = _products()
+    extra = next(x for x in f.rows if x["product_id"] == product_id)
+    keys = ("status", "stock", "on_order", "next_delivery", "sold_7d", "received_7d", "stock_change_7d",
+            "last_sale", "actions")
     return ProductDetail(
+        **{k: extra[k] for k in keys}, updates=f.updates[product_id],
         product_id=product_id, name=r["name"], category=r.category, price=float(r.price),
         supplier=r.supplier, lead_time_days=int(r.lead_time_days), daily_forecast=round(float(r.base_rate), 2),
         days_cover=None if cover == float("inf") else round(cover, 1), history=points,

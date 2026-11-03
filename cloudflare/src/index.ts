@@ -30,7 +30,36 @@ interface DecisionRow {
 
 const KINDS = new Set<DecisionKind>(["approve", "reject", "change"]);
 const KNOWN = new Set(snapshot.actions.map((a) => a.id));
-const PRODUCTS = snapshot.products as Record<string, unknown>;
+
+/** List-row fields that the snapshot leaves out of each product detail (export.py FROM_ROW). */
+const FROM_ROW = [
+  "product_id", "name", "category", "price", "supplier", "days_cover", "status", "stock", "on_order",
+  "next_delivery", "sold_7d", "received_7d", "stock_change_7d", "last_sale", "actions",
+] as const;
+type Row = Record<(typeof FROM_ROW)[number], unknown>;
+interface CompactDetail {
+  daily_forecast: number;
+  h: { start: string | null; sold: number[]; stock: number[]; ahead: number; ahead_start: string | null };
+  [key: string]: unknown;
+}
+const ROWS = new Map((snapshot.product_list.products as unknown as Row[]).map((r) => [r.product_id as string, r]));
+const DETAILS = snapshot.product_details as unknown as Record<string, CompactDetail>;
+
+const days = (start: string | null, n: number) =>
+  start === null ? [] : Array.from({ length: n }, (_, i) => new Date(Date.parse(`${start}T00:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10));
+
+/** GET /api/products/{id}, rebuilt from the list row and the compact detail as export.expand_detail does. */
+function productDetail(id: string): unknown {
+  const row = ROWS.get(id);
+  const c = Object.hasOwn(DETAILS, id) ? DETAILS[id] : undefined;
+  if (!row || !c) return undefined;
+  const { h, ...rest } = c;
+  const history = [
+    ...days(h.start, h.sold.length).map((date, i) => ({ date, units_sold: h.sold[i], stock_end: h.stock[i], forecast: null })),
+    ...days(h.ahead_start, h.ahead).map((date) => ({ date, units_sold: null, stock_end: null, forecast: c.daily_forecast })),
+  ];
+  return { ...Object.fromEntries(FROM_ROW.map((k) => [k, row[k]])), ...rest, history };
+}
 
 const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -125,6 +154,8 @@ export default {
         case "/api/actions":
         case "/api/evaluation":
           return json(snapshot[pathname.slice(5) as "overview" | "briefing" | "actions" | "evaluation"]);
+        case "/api/products":
+          return json(snapshot.product_list);
         case "/api/signals": {
           const now = new Date();
           return json({ updated_at: now.toISOString(), ...(await externalSignals(env.DB, now, env)) });
@@ -141,7 +172,8 @@ export default {
       const product = pathname.match(/^\/api\/products\/([^/]+)$/);
       if (product) {
         const id = decodeURIComponent(product[1]);
-        return id in PRODUCTS ? json(PRODUCTS[id]) : fail(404, `Unknown product ${id}`);
+        const detail = productDetail(id);
+        return detail ? json(detail) : fail(404, `Unknown product ${id}`);
       }
     }
 

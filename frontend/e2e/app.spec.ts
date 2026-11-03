@@ -25,10 +25,20 @@ const panel = (page: Page) => page.getByRole("complementary", { name: /Details f
 
 async function openNav(page: Page, name: string) {
   const re = new RegExp(`^${name}( \\d+ to decide)?$`);
-  await page.getByRole("button", { name: re }).filter({ visible: true }).first().click();
+  const target = page.getByRole("button", { name: re }).filter({ visible: true });
+  // on phones All suggestions sits under More in the tab bar
+  if (["All suggestions", "Notifications", "AI briefing"].includes(name) && !(await target.count()))
+    await page.getByRole("button", { name: "More", exact: true }).click();
+  await target.first().click();
 }
 
+const toast = (page: Page) => page.getByTestId("toast");
+
 test.afterAll(resetDecisions);
+// optimistic saves finish in the background: let them land before the next test resets the server
+test.afterEach(async ({ page }) => {
+  await page.waitForLoadState("networkidle").catch(() => undefined);
+});
 
 test.beforeEach(async ({ page }) => {
   await resetDecisions();
@@ -140,8 +150,11 @@ test("adjust approves with the changed quantity", async ({ page }) => {
   await expect(input).toHaveValue("120");
   await input.fill("96");
   await p.getByRole("button", { name: "Approve", exact: true }).click();
-  await expect(p.getByText("Approved with 96 units")).toBeVisible();
   await expect(handledList(page).getByText("Approved with change: 96")).toBeVisible();
+  // reopening the handled item shows the change
+  await page.keyboard.press("Escape");
+  await handledList(page).getByText(TOP).click();
+  await expect(panel(page).getByText("Approved with 96 units")).toBeVisible();
 });
 
 test("dismiss records the reason", async ({ page }) => {
@@ -149,9 +162,11 @@ test("dismiss records the reason", async ({ page }) => {
   const p = panel(page);
   await p.getByRole("button", { name: "Dismiss" }).click();
   await p.getByRole("button", { name: "Already handled" }).click();
-  await expect(p.getByText("Dismissed: Already handled")).toBeVisible();
-  await p.getByRole("button", { name: "Undo" }).click();
-  await expect(p.getByRole("button", { name: "Dismiss" })).toBeVisible();
+  await expect(handledList(page).getByText("Dismissed · Already handled")).toBeVisible();
+  await expect(toast(page)).toContainText(`Dismissed ${SECOND}`);
+  await toast(page).getByRole("button", { name: "Undo" }).click();
+  await expect(handledList(page)).toHaveCount(0);
+  await expect(todayList(page).getByRole("listitem")).toHaveCount(5);
 });
 
 test("All suggestions filters by type", async ({ page }) => {
@@ -244,6 +259,146 @@ test("Map shows Avrora stores, supply partners and OpenStreetMap infrastructure"
   expect(errors).toEqual([]);
 });
 
+test("a decision in the panel moves on to the next open priority, then closes", async ({ page }) => {
+  await page.getByText(TOP).click();
+  await expect(panel(page)).toHaveAccessibleName(`Details for ${TOP}`);
+  await panel(page).getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(panel(page)).toHaveAccessibleName(`Details for ${SECOND}`);
+  await expect(toast(page)).toContainText(`Approved ${TOP}`);
+  for (let i = 0; i < 4; i++) await panel(page).getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(panel(page)).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "5 of 5 handled" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "All done" })).toBeVisible();
+});
+
+test("approval shows at once, Undo in the toast takes it back", async ({ page }) => {
+  // hold the save so the row can only have moved because of the optimistic update
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  await page.route("**/api/decisions", async (route) => {
+    if (route.request().method() === "POST") await held;
+    await route.fallback();
+  });
+  await page.getByRole("button", { name: `Approve ${TOP}` }).click();
+  await expect(handledList(page).getByText(TOP)).toBeVisible();
+  await expect(page.getByRole("img", { name: "1 of 5 handled" })).toBeVisible();
+  release();
+  await toast(page).getByRole("button", { name: "Undo" }).click();
+  await expect(handledList(page)).toHaveCount(0);
+  await expect(toast(page)).toHaveCount(0);
+  await page.reload(); // the undo reached the server after the approval
+  await expect(todayList(page).getByRole("listitem")).toHaveCount(5);
+  await expect(handledList(page)).toHaveCount(0);
+});
+
+test("a failed save rolls back with a plain message", async ({ page }) => {
+  await page.route("**/api/decisions", (route) =>
+    route.request().method() === "POST" ? route.fulfill({ status: 500, body: "" }) : route.fallback(),
+  );
+  await page.getByRole("button", { name: `Approve ${TOP}` }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "That decision wasn't saved" })).toBeVisible();
+  await expect(handledList(page)).toHaveCount(0);
+  await expect(todayList(page).getByRole("listitem")).toHaveCount(5);
+});
+
+test("keyboard: j/k move, a approves, d dismisses, Esc closes, typing is left alone", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "hardware keyboard shortcuts are for desktop");
+  await page.keyboard.press("j");
+  await expect(panel(page)).toHaveAccessibleName(`Details for ${TOP}`);
+  await page.keyboard.press("j");
+  await expect(panel(page)).toHaveAccessibleName(`Details for ${SECOND}`);
+  await page.keyboard.press("k");
+  await expect(panel(page)).toHaveAccessibleName(`Details for ${TOP}`);
+  await page.keyboard.press("a");
+  await expect(handledList(page).getByText(TOP)).toBeVisible();
+  await expect(panel(page)).toHaveAccessibleName(`Details for ${SECOND}`);
+  await page.keyboard.press("d");
+  await expect(panel(page).getByRole("button", { name: "Not needed" })).toBeVisible();
+  await page.keyboard.press("Escape"); // first Esc leaves the reason picker
+  await expect(panel(page).getByRole("button", { name: "Not needed" })).toHaveCount(0);
+  await page.keyboard.press("d");
+  await page.keyboard.press("1");
+  await expect(handledList(page).getByText("Dismissed · Not needed")).toBeVisible();
+  // typing in a field never triggers a shortcut
+  await panel(page).getByRole("button", { name: "Adjust" }).click();
+  const input = panel(page).getByRole("spinbutton");
+  const name = await panel(page).getAttribute("aria-label");
+  await input.press("a");
+  await input.press("j");
+  await expect(panel(page)).toHaveAttribute("aria-label", name!);
+  await expect(handledList(page).getByRole("listitem")).toHaveCount(2);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await expect(panel(page)).toHaveCount(0);
+});
+
+test("phone tab bar: five tabs, badge, More holds settings, nothing hides behind it", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop", "phones only");
+  const bar = page.getByRole("navigation", { name: "Sections" }).filter({ visible: true });
+  for (const name of ["Products", "Map", "Decisions", "More"]) await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
+  const today = bar.getByRole("button", { name: "Today 5 to decide" });
+  await expect(today).toHaveAttribute("aria-current", "page");
+  for (const b of await bar.getByRole("button").all()) {
+    const box = (await b.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.width).toBeGreaterThanOrEqual(44);
+  }
+  await page.getByRole("button", { name: `Approve ${TOP}` }).click();
+  await expect(bar.getByRole("button", { name: "Today 4 to decide" })).toBeVisible();
+
+  // the last thing on Today scrolls fully clear of the bar
+  await page.locator("main").evaluate((m) => m.scrollTo({ top: m.scrollHeight }));
+  const barTop = (await bar.boundingBox())!.y;
+  const last = page.getByText("Value in slow stock");
+  expect((await last.boundingBox())!.y + 22).toBeLessThanOrEqual(barTop);
+
+  await bar.getByRole("button", { name: "More", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "More", level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: /^All suggestions/ }).click();
+  await expect(page.getByRole("heading", { name: "All suggestions", level: 1 })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "More", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("button", { name: "More", exact: true }).first().click();
+  await page.getByRole("button", { name: "AI briefing" }).click();
+  await expect(page.getByRole("dialog", { name: "AI briefing" })).toBeVisible();
+  await page.getByRole("button", { name: "Close AI briefing" }).click();
+  await bar.getByRole("button", { name: "Products", exact: true }).click();
+  await expect(bar.getByRole("button", { name: "Products", exact: true })).toHaveAttribute("aria-current", "page");
+});
+
+test("phone: the large title folds into the navigation bar", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop", "phones only");
+  const compact = page.locator("main .t-headline").first();
+  await expect(compact).toHaveCSS("opacity", "0");
+  await page.locator("main").evaluate((m) => m.scrollTo({ top: 300 }));
+  await expect(compact).toHaveCSS("opacity", "1");
+  await expect(compact).toHaveText("Today");
+});
+
+test("phone: swipe the detail sheet down to close it", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop", "phones only");
+  await page.getByText(TOP).click();
+  await expect(panel(page)).toBeVisible();
+  await page.waitForTimeout(500);
+  const h = (await panel(page).getByRole("heading", { name: TOP }).boundingBox())!;
+  await page.mouse.move(h.x + 10, h.y + 5);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(h.x + 10, h.y + 5 + i * 30);
+  await page.mouse.up();
+  await expect(panel(page)).toHaveCount(0);
+});
+
+test("phone: the adjust field and its buttons stay on screen", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop", "phones only");
+  await page.getByText(TOP).click();
+  await panel(page).getByRole("button", { name: "Adjust" }).click();
+  const vp = page.viewportSize()!;
+  for (const el of [panel(page).getByRole("spinbutton"), panel(page).getByRole("button", { name: "Approve", exact: true })]) {
+    await expect(el).toBeInViewport({ ratio: 1 });
+    const b = (await el.boundingBox())!;
+    expect(b.x + b.width).toBeLessThanOrEqual(vp.width);
+  }
+});
+
 test("switching sections starts at the top", async ({ page }) => {
   await page.locator("main").evaluate((m) => m.scrollTo({ top: 600 }));
   await openNav(page, "All suggestions");
@@ -251,7 +406,7 @@ test("switching sections starts at the top", async ({ page }) => {
 });
 
 test("layout never scrolls sideways", async ({ page }) => {
-  for (const view of ["Today", "All suggestions", "Decisions", "Map"]) {
+  for (const view of ["Today", "Products", "All suggestions", "Decisions", "Map"]) {
     await openNav(page, view);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, view).toBeLessThanOrEqual(0);
@@ -296,8 +451,36 @@ test("screens for review", async ({ page }, info) => {
   await openNav(page, "All suggestions");
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${dir}/${info.project.name}-all.png` });
+  await openNav(page, "Decisions");
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${dir}/${info.project.name}-decisions.png` });
+  await openNav(page, "Products");
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${dir}/${info.project.name}-products.png` });
+  if (info.project.name !== "desktop") {
+    await openNav(page, "More");
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${dir}/${info.project.name}-more.png` });
+  }
   await openNav(page, "Today");
+  await page.locator("main").evaluate((m) => m.scrollTo({ top: 400 }));
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${dir}/${info.project.name}-today-scrolled.png` });
+  await todayList(page).getByRole("listitem").first().getByRole("button").nth(1).click();
+  await panel(page).getByRole("button", { name: "Dismiss" }).click();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${dir}/${info.project.name}-detail-dismiss.png` });
+  await panel(page).getByRole("button", { name: "Cancel" }).click();
+  await panel(page).getByRole("button", { name: "Approve", exact: true }).click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${dir}/${info.project.name}-advance-toast.png` });
+  await page.keyboard.press("Escape");
+  await page.locator("main").evaluate((m) => m.scrollTo({ top: 0 }));
   await page.getByRole("button", { name: "Write with AI" }).click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${dir}/${info.project.name}-ai.png` });
+  await page.keyboard.press("Escape");
+  await openNav(page, "Notifications");
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${dir}/${info.project.name}-notifications.png` });
 });

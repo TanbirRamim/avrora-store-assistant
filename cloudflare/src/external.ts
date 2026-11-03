@@ -43,7 +43,7 @@ const HOUR = 3_600_000;
 /** Power cuts are shown this far ahead. */
 const LOOKAHEAD = 24 * HOUR;
 const CACHE_MS = 5 * 60_000;
-export const POWER_SOURCE = "power company schedule (Vinnytsiaoblenergo)";
+export const POWER_SOURCE = "Vinnytsiaoblenergo schedule";
 export const SIM_SOURCE = "Simulated for the demo";
 const WEATHER_SOURCE = "Open-Meteo (CC BY 4.0)";
 const ALERTS_SOURCE = "alerts.in.ua";

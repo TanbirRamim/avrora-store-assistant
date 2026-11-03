@@ -25,7 +25,7 @@ router = APIRouter()
 KYIV = ZoneInfo("Europe/Kyiv")
 STORE = {"lat": 49.2331, "lon": 28.4682}
 OUTAGES = Path(__file__).resolve().parents[4] / "cloudflare" / "src" / "outages.json"
-POWER_SOURCE = "power company schedule (Vinnytsiaoblenergo)"
+POWER_SOURCE = "Vinnytsiaoblenergo schedule"
 SIM_SOURCE = "Simulated for the demo"
 WEATHER_SOURCE = "Open-Meteo (CC BY 4.0)"
 LOOKAHEAD = timedelta(hours=24)

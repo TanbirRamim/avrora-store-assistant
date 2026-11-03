@@ -50,7 +50,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
         onClick={() => !busy && onClose()}
         className="fixed inset-0 z-40 bg-black/30"
       />
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
+      <div className="pointer-events-none fixed inset-x-0 top-0 bottom-[var(--kb,0px)] z-50 flex items-end justify-center pt-[calc(env(safe-area-inset-top)+10px)] md:items-center md:p-6">
         <motion.form
           role="dialog"
           aria-modal="true"
@@ -60,7 +60,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
           transition={{ type: "spring", stiffness: 420, damping: 38 }}
-          className="pointer-events-auto w-full max-w-[460px] rounded-t-[12px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] md:rounded-[14px] md:pb-4 md:shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
+          className="pointer-events-auto max-h-full w-full max-w-[460px] overflow-y-auto overscroll-contain rounded-t-[12px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] md:rounded-[14px] md:pb-4 md:shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
         >
           <header className="flex items-center gap-3 border-b border-separator px-4 py-3">
             <span className="icon-tile size-[30px]" style={{ background: "var(--move)" }}>
@@ -72,7 +72,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
               onClick={onClose}
               disabled={busy}
               aria-label="Close AI briefing"
-              className="grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
+              className="hit grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
             >
               <CloseIcon />
             </button>
@@ -106,7 +106,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
             <h3 className="group-header mt-5">Language</h3>
             <div className="group-list">
               <div className="cell flex items-center gap-3 px-4 py-[9px]">
-                <span className="t-body flex-1">Briefing and re-plan</span>
+                <span className="t-body min-w-0 flex-1">Writes in</span>
                 <div role="radiogroup" aria-label="Briefing language" className="flex rounded-[9px] bg-fill p-[2px]">
                   {(["uk", "en"] as const).map((l) => (
                     <button
