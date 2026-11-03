@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "avrora-store-assistant",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  // Static export of the Next.js app; /api/* is answered by the Worker.
+  "assets": { "directory": "../frontend/out", "run_worker_first": ["/api/*"] },
+  "d1_databases": [{ "binding": "DB", "database_name": "avrora-decisions", "database_id": "1be5108f-2d3f-48b4-955c-dc62bf88c309", "migrations_dir": "migrations" }]
+}

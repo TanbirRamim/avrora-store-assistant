@@ -9,6 +9,7 @@ All data in this repository is synthetic. It describes one fictional store and c
 
 - `backend/` – Python: synthetic dataset, analytics, action engine, AI layer, API
 - `frontend/` – Next.js web app for store managers
+- `cloudflare/` – Worker that hosts the app on Cloudflare, with decisions in D1
 
 ## Backend quick start
 
@@ -35,6 +36,22 @@ npm run dev
 
 Open http://localhost:3000. Without an AI key the app still works: priorities are ranked by the rules engine and
 explained with template text.
+
+## Live demo
+
+https://avrora-store-assistant.tanbirramim420.workers.dev
+
+The store data is fixed, so the deployment needs no Python server. `python -m avrora.export` writes every read-only
+API response to `cloudflare/src/snapshot.json`; the Worker serves those, keeps decisions in D1, and serves the
+static build of the web app.
+
+```bash
+cd cloudflare
+npm install
+npm run deploy                  # export snapshot, build the web app, apply D1 migrations, deploy
+```
+
+To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright test`.
 
 ## How it decides
 

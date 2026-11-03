@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
-const API = "http://127.0.0.1:8000";
+const API = process.env.BASE_URL ?? "http://127.0.0.1:8000";
 const TOP = "Ceramic mug Black";
 const SECOND = "Vacuum bags White";
 

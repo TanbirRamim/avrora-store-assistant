@@ -1,0 +1,16 @@
+{
+  "name": "avrora-cloudflare",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd ../backend && uv run python -m avrora.export ../cloudflare/src/snapshot.json && cd ../frontend && STATIC_EXPORT=1 npm run build",
+    "dev": "wrangler dev",
+    "deploy": "npm run build && wrangler d1 migrations apply avrora-decisions --remote && wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261103.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.156.2"
+  }
+}
