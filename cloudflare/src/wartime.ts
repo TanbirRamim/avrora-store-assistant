@@ -45,3 +45,58 @@ export async function wartimeAlerts(token: string | undefined): Promise<WartimeA
     return { connected: false, reason: "unavailable" };
   }
 }
+
+
+const MAPA_CURRENT_URL = "https://mapa.ua/api/v1/current";
+
+export interface AerialThreat {
+  id: string;
+  kind: string;
+  title: string;
+  lat: number;
+  lon: number;
+  amount: number;
+  status: string;
+}
+
+export type WartimeThreats =
+  | { connected: true; source: "mapa.ua"; fetched_at: string; threats: AerialThreat[] }
+  | { connected: false; reason: "unavailable" };
+
+/** Public monitoring reports, reduced to the fields needed for defensive supply-chain planning. */
+export async function wartimeThreats(): Promise<WartimeThreats> {
+  try {
+    const response = await fetch(MAPA_CURRENT_URL, {
+      cf: { cacheTtl: 30, cacheEverything: true },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return { connected: false, reason: "unavailable" };
+    const body = (await response.json()) as {
+      objects?: Array<Partial<AerialThreat>>;
+      ts?: number;
+    };
+    const threats = (body.objects ?? []).flatMap((item) =>
+      typeof item.id === "number" || typeof item.id === "string"
+        ? typeof item.lat === "number" && typeof item.lon === "number"
+          ? [{
+              id: String(item.id),
+              kind: typeof item.kind === "string" ? item.kind : "unknown",
+              title: typeof item.title === "string" ? item.title : "Active aerial threat",
+              lat: item.lat,
+              lon: item.lon,
+              amount: typeof item.amount === "number" ? item.amount : 1,
+              status: typeof item.status === "string" ? item.status : "active",
+            }]
+          : []
+        : [],
+    );
+    return {
+      connected: true,
+      source: "mapa.ua",
+      fetched_at: new Date((body.ts ?? Date.now() / 1000) * 1000).toISOString(),
+      threats,
+    };
+  } catch {
+    return { connected: false, reason: "unavailable" };
+  }
+}
