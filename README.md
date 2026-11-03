@@ -72,3 +72,19 @@ To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright tes
 4. **The manager decides:** approve, adjust or dismiss. Every decision is logged.
 
 The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
+
+
+## Real-Time War Threat & Logistics Monitor (war-map-monitor/)
+
+Real-time situational intelligence and dual-mode data sheet system for Avrora store managers and supply chain dispatchers across Ukraine.
+
+- **War Map Ingestion**: Reads frontline geometry from DeepStateMap OSINT telemetry and community siren alerts from lerts.in.ua.
+- **Life Safety View**: Air raid alerts, nuanced manager action directives, exact walking distance to verified bunkers, and store manager evacuation acknowledgment loop.
+- **Logistics & Supply View**: Crisis surge demand forecasting (batteries, powerbanks, water), truck delivery ETAs & route safety, and generator fuel runtime tracking.
+- **Multi-Format Exports**: Real-time synchronized multi-tab Excel (vrora_war_threat_sheet.xlsx), UTF-8-BOM CSV, and REST API.
+
+`ash
+cd war-map-monitor
+python server.py       # Web Dashboard at http://localhost:8000
+python monitor.py      # Real-time console monitor
+`
