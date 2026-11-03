@@ -6,9 +6,9 @@ import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { CloseIcon } from "./icons";
-import { type Rated, WartimePanel } from "./WartimePanel";
+import { type FacilityImpact, type Rated, WartimePanel } from "./WartimePanel";
 import { fetcher } from "@/lib/api";
-import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, STORES_URL, type WarStore, ZONES } from "@/lib/wartime";
+import { ALERTS_URL, type Alerts, assess, distanceToLineKm, type Grade, GRADES, LINES_URL, type LineFeature, STORES_URL, THREATS_URL, type ThreatFeed, type WarStore, ZONES } from "@/lib/wartime";
 
 /**
  * Ukraine supply network: official Avrora stores, Avrora distribution centres, partners and
@@ -90,9 +90,19 @@ const NETWORK_LAYERS = NETWORK_GROUPS.flatMap((group) => [
   `${group}-cluster-letter`,
   `${group}-points`,
 ]);
-const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-halo", "war-stores"];
+const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-facilities", "war-threat-halo", "war-threats", "war-halo", "war-stores"];
 
 const fmt = new Intl.NumberFormat("en-US");
+
+function distanceKm(a: [number, number], b: [number, number]) {
+  const rad = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * rad;
+  const dLon = (b[0] - a[0]) * rad;
+  const lat1 = a[1] * rad;
+  const lat2 = b[1] * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 10) / 10;
+}
 
 /** Kind line above the name: the role for supply nodes and food sites, else the category. */
 const kind = (p: Props) => p.r ?? CATEGORIES[p.c].one;
@@ -165,12 +175,20 @@ export function NetworkMap() {
   const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
   const [warFailed, setWarFailed] = useState(false);
   const [warId, setWarId] = useState<string | null>(null);
+  const [facilityId, setFacilityId] = useState<string | null>(null);
   const { data: alerts, error: alertsError } = useSWR<Alerts>(mode === "war" ? ALERTS_URL : null, fetcher, {
     refreshInterval: 60_000,
   });
   const alertState = useMemo<Alerts | undefined>(
     () => (alertsError ? { connected: false, reason: "unavailable" } : alerts),
     [alerts, alertsError],
+  );
+  const { data: threats, error: threatsError } = useSWR<ThreatFeed>(mode === "war" ? THREATS_URL : null, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const threatState = useMemo<ThreatFeed | undefined>(
+    () => (threatsError ? { connected: false, reason: "unavailable" } : threats),
+    [threats, threatsError],
   );
 
   // war-time data, loaded the first time the mode is opened
@@ -194,6 +212,53 @@ export function NetworkMap() {
     [war, alertState],
   );
   const selectedWar = rated?.find((r) => r.store.id === warId) ?? null;
+
+  const facilityImpacts = useMemo<FacilityImpact[] | null>(() => {
+    if (!features || !war) return null;
+    const fronts = war.lines.flatMap((line) =>
+      line.properties.kind === "front" && line.geometry.type === "LineString" ? [line.geometry.coordinates] : [],
+    );
+    const activeThreats = threatState?.connected ? threatState.threats.filter((t) => t.status === "active") : [];
+    const rank: Record<Grade, number> = { critical: 3, high: 2, elevated: 1, low: 0 };
+    return features
+      .flatMap((feature): FacilityImpact[] => {
+        const p = feature.properties;
+        if (!(["warehouse", "logistics", "supply"] as Category[]).includes(p.c)) return [];
+        const coordinates = feature.geometry.coordinates;
+        const frontKm = Math.round(Math.min(...fronts.map((line) => distanceToLineKm(coordinates[1], coordinates[0], line)), 999) * 10) / 10;
+        let nearest = null as (typeof activeThreats)[number] | null;
+        let threatKm = Infinity;
+        for (const threat of activeThreats) {
+          const km = distanceKm(coordinates, [threat.lon, threat.lat]);
+          if (km < threatKm) { nearest = threat; threatKm = km; }
+        }
+        if (frontKm > 120 && threatKm > 150) return [];
+        const grade: Grade = frontKm <= 25 || threatKm <= 50 ? "critical" : frontKm <= 65 || threatKm <= 100 ? "high" : "elevated";
+        const reason = threatKm <= 150 && nearest
+          ? `Active ${nearest.kind.replaceAll("_", " " )} report ${threatKm} km away`
+          : `${frontKm} km from the mapped front line`;
+        const recommendation = grade === "critical"
+          ? "Pause dispatches, account for staff, use shelter protocol, reroute through an alternate hub and notify carriers."
+          : grade === "high"
+            ? "Hold non-essential movements, confirm the driver route and shelter plan, and move urgent stock through an alternate hub."
+            : "Increase safety stock, confirm a backup carrier and route, and check live warnings before dispatch.";
+        return [{
+          id: p.id,
+          name: p.n ?? p.o ?? CATEGORIES[p.c].one,
+          category: CATEGORIES[p.c].one,
+          address: p.a ?? "",
+          coordinates,
+          frontKm,
+          threatKm: threatKm <= 150 ? threatKm : null,
+          threatTitle: threatKm <= 150 && nearest ? nearest.title : null,
+          grade,
+          reason,
+          recommendation,
+        }];
+      })
+      .sort((a, b) => rank[b.grade] - rank[a.grade] || (a.threatKm ?? a.frontKm) - (b.threatKm ?? b.frontKm));
+  }, [features, war, threatState]);
+  const selectedFacility = facilityImpacts?.find((f) => f.id === facilityId) ?? null;
 
   // data
   useEffect(() => {
@@ -316,6 +381,8 @@ export function NetworkMap() {
         // war-time layers, hidden until that mode is chosen
         map.addSource("war-lines", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         map.addSource("war-stores", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        map.addSource("war-facilities", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        map.addSource("war-threats", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
         // distance bands, precomputed buffers around the sketched line, drawn under the map's labels
         const beforeLabels = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
         for (const z of ["yellow", "orange", "red"] as const) {
@@ -345,6 +412,32 @@ export function NetworkMap() {
           },
         });
         map.addLayer({
+          id: "war-facilities",
+          type: "circle",
+          source: "war-facilities",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-color": ["get", "color"],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 12, 7],
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+        map.addLayer({
+          id: "war-threat-halo",
+          type: "circle",
+          source: "war-threats",
+          layout: { visibility: "none" },
+          paint: { "circle-color": "#af52de", "circle-radius": 18, "circle-opacity": 0.16 },
+        });
+        map.addLayer({
+          id: "war-threats",
+          type: "circle",
+          source: "war-threats",
+          layout: { visibility: "none" },
+          paint: { "circle-color": "#af52de", "circle-radius": 6, "circle-stroke-width": 2, "circle-stroke-color": "#ffffff" },
+        });
+        map.addLayer({
           id: "war-halo",
           type: "circle",
           source: "war-stores",
@@ -366,7 +459,19 @@ export function NetworkMap() {
         });
         map.on("click", "war-stores", (e: MapLayerMouseEvent) => {
           const id = e.features?.[0]?.properties.id;
-          if (typeof id === "string") setWarId(id);
+          if (typeof id === "string") { setFacilityId(null); setWarId(id); }
+        });
+        map.on("click", "war-facilities", (e: MapLayerMouseEvent) => {
+          const id = e.features?.[0]?.properties.id;
+          if (typeof id === "string") { setWarId(null); setFacilityId(id); }
+        });
+        map.on("click", "war-threats", (e: MapLayerMouseEvent) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
+          const coordinates = (feature.geometry as unknown as { coordinates: [number, number] }).coordinates;
+          const title = String(feature.properties.title ?? "Active aerial threat").replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+          const kind = String(feature.properties.kind ?? "unknown").replaceAll("_", " ");
+          popupRef.current?.setLngLat(coordinates).setHTML(`<div class="nm-kind" style="color:#af52de">Active aerial threat</div><div class="nm-name">${title}</div><div class="nm-row">${kind} · public monitoring report, not a confirmed strike</div>`).addTo(map);
         });
 
         const open = (e: MapLayerMouseEvent) => {
@@ -392,8 +497,10 @@ export function NetworkMap() {
             map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
           }
         }
-        map.on("mouseenter", "war-stores", () => (map.getCanvas().style.cursor = "pointer"));
-        map.on("mouseleave", "war-stores", () => (map.getCanvas().style.cursor = ""));
+        for (const layer of ["war-stores", "war-facilities", "war-threats"]) {
+          map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+          map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+        }
         setReady(true);
       });
     })();
@@ -441,6 +548,28 @@ export function NetworkMap() {
     });
   }, [ready, war, rated, warId]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    (map.getSource("war-facilities") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: (facilityImpacts ?? []).map((f) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: f.coordinates },
+        properties: { id: f.id, color: GRADES[f.grade].color },
+      })),
+    });
+    const active = threatState?.connected ? threatState.threats.filter((t) => t.status === "active") : [];
+    (map.getSource("war-threats") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: active.map((t) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [t.lon, t.lat] },
+        properties: { id: t.id, title: t.title, kind: t.kind, amount: t.amount },
+      })),
+    });
+  }, [ready, facilityImpacts, threatState]);
+
   // highlight and fly to the chosen war-time store
   useEffect(() => {
     const map = mapRef.current;
@@ -451,6 +580,12 @@ export function NetworkMap() {
       map.flyTo({ center: [s.lon, s.lat], zoom: 9, duration: 1200, essential: true, offset: cardOffset(container.current, card.current) }),
     );
   }, [ready, war, warId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !selectedFacility) return;
+    map.flyTo({ center: selectedFacility.coordinates, zoom: 10, duration: 1000, essential: true, offset: cardOffset(container.current, card.current) });
+  }, [ready, selectedFacility]);
 
   const focus = (f: Feature) => {
     const map = mapRef.current;
@@ -506,7 +641,17 @@ export function NetworkMap() {
         {mode === "war" ? (
           <>
             {!selectedWar && <h1 className="t-headline px-1">War-time risk</h1>}
-            <WartimePanel rated={rated} alerts={alertState} failed={warFailed} selected={selectedWar} onSelect={setWarId} />
+            <WartimePanel
+              rated={rated}
+              alerts={alertState}
+              failed={warFailed}
+              selected={selectedWar}
+              onSelect={setWarId}
+              facilityImpacts={facilityImpacts}
+              selectedFacility={selectedFacility}
+              onSelectFacility={setFacilityId}
+              threats={threatState}
+            />
           </>
         ) : (
           <>
