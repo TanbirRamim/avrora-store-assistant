@@ -3,18 +3,18 @@
 A daily action list for retail store managers: what to reorder, discount, move or follow up today, and why.
 Built for the BIP 2026 "Problem Solving Through Generative AI" challenge set by Avrora.
 
-The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine network map uses public OpenStreetMap data and is labelled accordingly.
+The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine map combines Avrora's public store locator, public company sources and OpenStreetMap data, and is labelled accordingly.
 
 ## Structure
 
 - `backend/` – Python: synthetic dataset, analytics, action engine, AI layer, API
-- `frontend/` – Next.js web app for store managers, including the Ukraine commercial network map
+- `frontend/` – Next.js web app for store managers, including the Avrora stores and supply network map
 - `docs/ukraine-commercial-map.md` – map implementation, data files, sources, methodology and licence
 - `cloudflare/` – Worker that hosts the app on Cloudflare, with decisions in D1
 
-## Ukraine commercial network map
+## Avrora stores and Ukraine supply network
 
-Open **Map** in the app to explore 6,211 public OpenStreetMap locations: 883 department stores, 5,320 warehouses and 8 logistics/distribution centres. The map is a MapLibre component (`frontend/src/components/NetworkMap.tsx`) with category filters, search and clustering. The full export is in `frontend/public/map/` as CSV and GeoJSON. Its dated data snapshot and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
+Open **Map** in the app to explore 7,561 points in Ukraine: 1,935 official Avrora stores, 17 Avrora logistics sites, partners and manufacturers, and from OpenStreetMap 5,320 warehouses, 8 logistics/distribution centres and 281 food-production, beverage and grain sites. No other retail chains are shown. The map is a MapLibre component (`frontend/src/components/NetworkMap.tsx`) with filters, search and clustering. The data files are in `frontend/public/map/`. Sources, data dates and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
 
 ## Backend quick start
 
@@ -94,3 +94,20 @@ A simulated event is pushed to subscribed phones straight away and marked "Simul
 4. **The manager decides:** approve, adjust or dismiss. Every decision is logged.
 
 The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
+The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
+
+
+## Real-Time War Threat & Logistics Monitor (war-map-monitor/)
+
+Real-time situational intelligence and dual-mode data sheet system for Avrora store managers and supply chain dispatchers across Ukraine.
+
+- **War Map Ingestion**: Reads frontline geometry from DeepStateMap OSINT telemetry and community siren alerts from lerts.in.ua.
+- **Life Safety View**: Air raid alerts, nuanced manager action directives, exact walking distance to verified bunkers, and store manager evacuation acknowledgment loop.
+- **Logistics & Supply View**: Crisis surge demand forecasting (batteries, powerbanks, water), truck delivery ETAs & route safety, and generator fuel runtime tracking.
+- **Multi-Format Exports**: Real-time synchronized multi-tab Excel (vrora_war_threat_sheet.xlsx), UTF-8-BOM CSV, and REST API.
+
+`ash
+cd war-map-monitor
+python server.py       # Web Dashboard at http://localhost:8000
+python monitor.py      # Real-time console monitor
+`

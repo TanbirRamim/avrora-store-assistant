@@ -190,25 +190,48 @@ test("Decisions log lists decisions and supports undo", async ({ page }) => {
   await expect(page.getByText("No decisions yet.", { exact: false })).toBeVisible();
 });
 
-test("Map shows the OpenStreetMap network with filters and search", async ({ page }, info) => {
+test("Map shows Avrora stores, supply partners and OpenStreetMap infrastructure", async ({ page }, info) => {
   const errors = watchConsole(page);
   await openNav(page, "Map");
   await expect(page.getByRole("heading", { name: "Supply network" })).toBeVisible();
-  await expect(page.getByText("6,211 places in Ukraine from OpenStreetMap")).toBeVisible();
-  await expect(page.getByText("6,211 shown")).toBeVisible();
+  await expect(page.getByText("7,561 places in Ukraine from Avrora and OpenStreetMap")).toBeVisible();
+  await expect(page.getByText("7,561 shown")).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await expect(page.getByLabel("Avrora Store #417, Vinnytsia")).toBeVisible();
 
-  await page.getByRole("tab", { name: "Stores" }).click();
-  await expect(page.getByText("883 shown")).toBeVisible();
-  await page.getByRole("tab", { name: "Logistics" }).click();
-  await expect(page.getByText("8 shown")).toBeVisible();
+  await page.getByRole("tab", { name: "Avrora" }).click();
+  await expect(page.getByText("1,935 shown")).toBeVisible();
+  await page.getByRole("tab", { name: "Supply" }).click();
+  await expect(page.getByText("17 shown")).toBeVisible();
+  await page.getByRole("tab", { name: "Storage" }).click();
+  await expect(page.getByText("5,328 shown")).toBeVisible();
+  await page.getByRole("tab", { name: "Food" }).click();
+  await expect(page.getByText("281 shown")).toBeVisible();
 
+  // an official Avrora store links back to the store locator
   await page.getByRole("tab", { name: "All" }).click();
+  const results = page.getByRole("list", { name: "Search results" }).getByRole("button");
+  await page.getByLabel("Search places").fill("Метрологічна 14");
+  await results.first().click();
+  await expect(page.locator(".nm-popup")).toContainText("Avrora #3371", { timeout: 8000 });
+  await expect(page.locator(".nm-popup")).toContainText("Open Mon–Sun 8:00–21:00");
+  await expect(page.locator(".nm-popup").getByRole("link", { name: "View on avrora.ua" })).toHaveAttribute(
+    "href",
+    "https://avrora.ua/index.php?dispatch=store_locator.view&store_location_id=3371",
+  );
+
+  // a supply partner shows its status and cites its source
+  await page.getByLabel("Search places").fill("Poltava");
+  await results.filter({ hasText: "Avrora distribution centre — Poltava" }).first().click();
+  await expect(page.locator(".nm-popup .nm-kind")).toHaveText("Avrora logistics", { timeout: 8000 });
+  await expect(page.locator(".nm-popup")).toContainText("Damaged");
+  await expect(page.locator(".nm-popup").getByRole("link", { name: "Source: Suspilne Poltava" })).toBeVisible();
+  await page.waitForTimeout(2500);
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-map-supply.png` });
+
   await page.getByLabel("Search places").fill("Ungurian");
-  const hits = page.getByRole("list", { name: "Search results" }).getByRole("button");
-  await expect(hits.first()).toBeVisible();
-  await hits.first().click();
+  await expect(results.first()).toBeVisible();
+  await results.first().click();
   await expect(page.locator(".nm-popup")).toContainText("Ungurian Trans", { timeout: 8000 });
   await expect(page.locator(".nm-popup").getByRole("link", { name: "View on OpenStreetMap" })).toBeVisible();
   await page.waitForTimeout(2500); // let the flight land and the street tiles load
