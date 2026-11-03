@@ -96,18 +96,30 @@ A simulated event is pushed to subscribed phones straight away and marked "Simul
 The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
 The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
 
+## War-time map
 
-## Real-Time War Threat & Logistics Monitor (war-map-monitor/)
+**Map → War-time** rates 13 sample Avrora stores by distance to the front line and, when connected, live
+air-raid alerts: a risk grade, what the manager should do now, shelter, generator runtime, next delivery and the
+goods people will ask for. The logic is ported from `war-map-monitor/` into `frontend/src/lib/wartime.ts` and drawn
+as a mode of the same MapLibre map.
 
-Real-time situational intelligence and dual-mode data sheet system for Avrora store managers and supply chain dispatchers across Ukraine.
+- The stores (`frontend/public/map/wartime-stores.json`) are illustrative, not real Avrora data.
+- The front line (`frontend/public/map/wartime-lines.geojson`) is a hand-drawn sketch with 25/65/120 km bands,
+  not a live or current map. The app says so on screen.
+- Air-raid alerts come from [alerts.in.ua](https://alerts.in.ua) through `GET /api/wartime/alerts` (Worker and
+  FastAPI) only when `ALERTS_IN_UA_TOKEN` is set (`wrangler secret put ALERTS_IN_UA_TOKEN`, or `backend/.env`).
+  Without it the app says alerts are not connected and rates stores by distance only. Nothing is simulated.
 
-- **War Map Ingestion**: Reads frontline geometry from DeepStateMap OSINT telemetry and community siren alerts from lerts.in.ua.
-- **Life Safety View**: Air raid alerts, nuanced manager action directives, exact walking distance to verified bunkers, and store manager evacuation acknowledgment loop.
-- **Logistics & Supply View**: Crisis surge demand forecasting (batteries, powerbanks, water), truck delivery ETAs & route safety, and generator fuel runtime tracking.
-- **Multi-Format Exports**: Real-time synchronized multi-tab Excel (vrora_war_threat_sheet.xlsx), UTF-8-BOM CSV, and REST API.
+### Standalone monitor prototype (war-map-monitor/)
 
-`ash
+The original Python prototype: a FastAPI dashboard, a console monitor and CSV/JSON/Excel threat sheets.
+
+- Reads front-line geometry from a community mirror of DeepStateMap data and alerts from alerts.in.ua.
+- Without `ALERTS_IN_UA_TOKEN` it **simulates** random alerts; its output files are from such a simulated run.
+
+```bash
 cd war-map-monitor
-python server.py       # Web Dashboard at http://localhost:8000
-python monitor.py      # Real-time console monitor
-`
+pip install -r requirements.txt
+python server.py       # dashboard at http://localhost:8000
+python monitor.py      # console monitor
+```

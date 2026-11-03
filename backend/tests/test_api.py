@@ -12,6 +12,22 @@ def client(tmp_path, monkeypatch):
     return TestClient(main.app)
 
 
+def test_wartime_alerts_without_token(client, monkeypatch):
+    monkeypatch.delenv("ALERTS_IN_UA_TOKEN", raising=False)
+    assert client.get("/api/wartime/alerts").json() == {"connected": False, "reason": "no_token"}
+
+
+def test_wartime_alerts_summary():
+    out = main.summarise_alerts([
+        {"location_title": "Харківська область", "location_type": "oblast"},
+        {"location_title": "м. Київ", "location_type": "city"},
+        {"location_title": "Нікопольська міська громада", "location_type": "hromada"},
+        {"location_title": "Покровський район", "location_type": "raion"},
+    ], "t")
+    assert out["oblasts"] == ["Харківська область", "м. Київ"]
+    assert out["hromadas"] == ["Нікопольська міська громада"]
+
+
 def test_overview(client):
     o = client.get("/api/overview").json()
     assert o["products"] == 200 and o["stockout_risks"] == 8
