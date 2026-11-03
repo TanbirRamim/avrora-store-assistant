@@ -62,6 +62,28 @@ from the university network, so this needs campus Wi-Fi or the OTH VPN; without 
 
 To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright test`.
 
+## Live conditions
+
+`GET /api/signals` reports scheduled power cuts, air-raid alerts and notable weather (frost, heat, storm) for the
+store; Today shows them above the store note, and **Re-plan for this** reorders the day's five priorities around a
+power cut or an alert (OTH model with a key, rules without). The cron job pushes power cuts from 2 hours ahead.
+
+- Power: `cloudflare/src/outages.json`, copied by hand from the Vinnytsiaoblenergo schedule (its site blocks
+  requests from outside Ukraine). While `"example": true` the windows are placeholders and are labelled as such.
+- Air-raid alerts: alerts.in.ua when `ALERTS_IN_UA_TOKEN` is set (`wrangler secret put ALERTS_IN_UA_TOKEN`);
+  otherwise only simulated alerts.
+- Weather: Open-Meteo, CC BY 4.0.
+
+Demo simulation (needs the `DEMO_KEY` secret; locally it is in `cloudflare/.dev.vars`):
+
+```bash
+curl -X POST https://…/api/signals/simulate -H "X-Demo-Key: $DEMO_KEY" -d '{"kind":"power","minutes":240,"starts_in":90}'
+curl -X POST https://…/api/signals/simulate -H "X-Demo-Key: $DEMO_KEY" -d '{"kind":"air_alert","minutes":45}'
+curl -X DELETE https://…/api/signals/simulate -H "X-Demo-Key: $DEMO_KEY"
+```
+
+A simulated event is pushed to subscribed phones straight away and marked "Simulated" in the app.
+
 ## How it decides
 
 1. **Analytics (deterministic):** a 28-day forecast per product, adjusted for weekday, promotions and disrupted days;

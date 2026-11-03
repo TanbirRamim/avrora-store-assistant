@@ -17,6 +17,7 @@ from avrora.actions.engine import Plan, build_plan
 from avrora.actions.models import Action, ActionType
 from avrora.ai.briefing import Briefing, build_briefing
 from avrora.analytics.forecast import sales_history
+from avrora.api.signals import router as signals_router
 from avrora.config import SETTINGS
 from avrora.data.loader import StoreData, load
 from avrora.evaluation import evaluate
@@ -28,6 +29,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+app.include_router(signals_router)
 
 DB_PATH = SETTINGS.data_dir / "decisions.sqlite"
 

@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { GeoJSONSource, Map as MapLibre, MapLayerMouseEvent, Popup } from "maplibre-gl";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BoxIcon, CloseIcon } from "./icons";
+import { CloseIcon } from "./icons";
 
 /**
  * Ukraine supply network: public OpenStreetMap department stores, warehouses and logistics
@@ -168,7 +168,7 @@ export function NetworkMap() {
       const el = document.createElement("div");
       el.className = "nm-store";
       el.setAttribute("aria-label", "Avrora Store #417, Vinnytsia");
-      el.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg>`;
+      el.innerHTML = `<img src="/avrora-mark.svg" alt="" width="28" height="28">`;
       new maplibre.Marker({ element: el }).setLngLat(STORE).addTo(map);
 
       popupRef.current = new maplibre.Popup({ closeButton: false, maxWidth: "280px", offset: 10, className: "nm-popup" });
@@ -359,9 +359,8 @@ export function NetworkMap() {
         onClick={toStore}
         className="t-subhead absolute bottom-[44px] right-[10px] md:bottom-[124px] z-10 flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.9)] py-1.5 pl-1.5 pr-3 font-medium shadow-[0_4px_14px_rgba(0,0,0,0.14),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl"
       >
-        <span className="icon-tile size-6 rounded-full" style={{ background: "var(--order)" }}>
-          <BoxIcon size={13} />
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
+        <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-6" />
         Your store
       </button>
     </div>

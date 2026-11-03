@@ -7,11 +7,13 @@ import { ActionRow } from "@/components/ActionRow";
 import { AiSheet } from "@/components/AiSheet";
 import { DetailPanel } from "@/components/DetailPanel";
 import { NotificationsSheet } from "@/components/NotificationsSheet";
+import { LiveConditions } from "@/components/LiveConditions";
 import { NetworkMap } from "@/components/NetworkMap";
-import { BellIcon, BoltIcon, BoxIcon, ChevronIcon, ClockIcon, ListIcon, MapIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
+import { BellIcon, BoltIcon, ChevronIcon, ClockIcon, ListIcon, MapIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
 import { Ring } from "@/components/Ring";
-import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview } from "@/lib/api";
-import { useAi } from "@/lib/ai";
+import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview, Signal, Signals } from "@/lib/api";
+import { savedKey, useAi } from "@/lib/ai";
+import { applyOrder, type Replan, replanByRules, replanWithModel } from "@/lib/replan";
 import { api, fetcher } from "@/lib/api";
 import { longDate, money, TYPE_META } from "@/lib/format";
 
@@ -59,6 +61,11 @@ export default function Home() {
     return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
   }, []);
   const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
+  // Outside conditions; if the route is missing or fails, the card simply stays hidden.
+  const { data: signals } = useSWR<Signals>("/api/signals", fetcher, { refreshInterval: 60_000, shouldRetryOnError: false });
+  const [replanState, setReplan] = useState<Replan | null>(null);
+  const [replanBusy, setReplanBusy] = useState(false);
+  const [replanError, setReplanError] = useState<string | null>(null);
   const { data: decisions, mutate: mutateDecisions } = useSWR<Decision[]>("/api/decisions", fetcher);
 
   const decided = useMemo(() => new Map((decisions ?? []).map((d) => [d.action_id, d])), [decisions]);
@@ -83,6 +90,19 @@ export default function Home() {
     },
     [mutateDecisions],
   );
+  const runReplan = async (s: Signal) => {
+    const base = briefing?.priorities ?? [];
+    setReplanError(null);
+    if (!ai.hasKey) return setReplan(replanByRules(s, base, ai.lang));
+    setReplanBusy(true);
+    try {
+      setReplan(await replanWithModel(savedKey(), s, base, ai.lang));
+    } catch (err) {
+      setReplanError(err instanceof Error ? err.message : "The re-plan could not be written.");
+    } finally {
+      setReplanBusy(false);
+    }
+  };
   const toggle = (a: Action) => (decided.has(a.id) ? undo(a.id) : decide(a.id, "approve"));
 
   if (overviewError && view !== "map") {
@@ -96,7 +116,11 @@ export default function Home() {
     );
   }
 
-  const priorities = briefing?.priorities ?? [];
+  // a re-plan only holds while its signal is still current
+  const replan = replanState && signals?.signals.some((s) => s.id === replanState.signalId) ? replanState : null;
+  const basePriorities = briefing?.priorities ?? [];
+  const priorities = replan ? applyOrder(basePriorities, replan.order) : basePriorities;
+  const movedUp = (a: Action) => replan !== null && priorities.indexOf(a) < basePriorities.indexOf(a);
   const open = priorities.filter((a) => !decided.has(a.id));
   const handled = priorities.filter((a) => decided.has(a.id));
   const list = (actions ?? []).filter((a) => filter === "ALL" || a.type === filter);
@@ -119,9 +143,8 @@ export default function Home() {
         className="hidden w-[240px] shrink-0 flex-col border-r border-separator bg-[var(--sidebar)] px-2.5 pb-4 pt-5 backdrop-blur-2xl md:flex"
       >
         <div className="flex items-center gap-2.5 px-2 pb-6">
-          <span className="icon-tile size-8 rounded-[8px]" style={{ background: "var(--order)" }}>
-            <BoxIcon size={17} />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
+          <img src="/avrora-mark.svg" alt="Avrora" width={32} height={32} className="size-8 shrink-0" />
           <div className="min-w-0">
             <div className="t-footnote truncate font-semibold">{overview?.store_name.split(", ")[0] ?? " "}</div>
             <div className="t-caption truncate text-label-2">
@@ -168,7 +191,7 @@ export default function Home() {
                 overview ? longDate(overview.today) : " ",
                 priorities.length > 0 ? <Ring done={handled.length} total={priorities.length} /> : null,
               )}
-              <p className="t-body mt-2 px-1 text-label-2">{briefing?.summary ?? "Preparing today's priorities…"}</p>
+              <p className="t-body mt-2 px-1 text-label-2" lang={briefing?.lang} data-testid="summary">{briefing?.summary ?? "Preparing today's priorities…"}</p>
               {briefing && (
                 <p className="t-footnote mt-2 flex flex-wrap items-center gap-x-1.5 px-1 text-label-2">
                   <SparkleIcon size={13} className={briefing.source === "model" ? "text-tint" : ""} />
@@ -177,6 +200,19 @@ export default function Home() {
                     {briefing.source === "model" ? "AI settings" : "Write with AI"}
                   </button>
                 </p>
+              )}
+
+              {signals && (
+                <LiveConditions
+                  data={signals}
+                  replan={replan}
+                  busy={replanBusy}
+                  error={replanError}
+                  hasKey={ai.hasKey}
+                  lang={ai.lang}
+                  onReplan={runReplan}
+                  onRevert={() => setReplan(null)}
+                />
               )}
 
               {briefing?.notices.map((n) => (
@@ -203,6 +239,7 @@ export default function Home() {
                           selected={a.id === selectedId}
                           onOpen={() => setSelectedId(a.id)}
                           onToggle={() => toggle(a)}
+                          movedUp={movedUp(a)}
                         />
                       ))}
                     </AnimatePresence>

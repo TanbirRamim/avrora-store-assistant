@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { forgetKey, writeBriefing } from "@/lib/ai";
+import { forgetKey, setLang, useAi, writeBriefing } from "@/lib/ai";
 import type { Action } from "@/lib/api";
 import { CloseIcon, SparkleIcon } from "./icons";
 
@@ -18,6 +18,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { lang } = useAi();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busy && onClose();
@@ -30,7 +31,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await writeBriefing(actions, notices, key || undefined);
+      await writeBriefing(actions, notices, key || undefined, lang);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "The AI briefing could not be written.");
@@ -100,6 +101,29 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
               Create one in Open WebUI under Settings, Account, API keys. It stays in this browser and goes only to the
               OTH server, which answers on the university network or VPN.
             </p>
+
+            <h3 className="group-header mt-5">Language</h3>
+            <div className="group-list">
+              <div className="cell flex items-center gap-3 px-4 py-[9px]">
+                <span className="t-body flex-1">Briefing and re-plan</span>
+                <div role="radiogroup" aria-label="Briefing language" className="flex rounded-[9px] bg-fill p-[2px]">
+                  {(["uk", "en"] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      role="radio"
+                      aria-checked={lang === l}
+                      disabled={busy}
+                      onClick={() => setLang(l)}
+                      className={`rounded-[7px] px-3 py-1 text-[13px] font-medium ${lang === l ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-label-2"}`}
+                    >
+                      {l === "uk" ? "Українська" : "English"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="group-footer">The model writes in this language. Numbers are checked either way.</p>
 
             {error && (
               <p role="alert" className="t-subhead mt-4 px-1" style={{ color: "var(--order-text)" }}>

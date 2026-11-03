@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import type { Action, Decision } from "@/lib/api";
 import { money, TYPE_META } from "@/lib/format";
-import { CheckIcon, ChevronIcon, TypeIcon } from "./icons";
+import { ArrowUpIcon, CheckIcon, ChevronIcon, TypeIcon } from "./icons";
 
 interface Props {
   action: Action;
@@ -11,6 +11,8 @@ interface Props {
   selected: boolean;
   onOpen: () => void;
   onToggle: () => void;
+  /** Set after a re-plan moved this row higher. */
+  movedUp?: boolean;
 }
 
 const decisionLabel = (d: Decision) =>
@@ -24,7 +26,7 @@ const decisionLabel = (d: Decision) =>
  * Reminders-style row. The circle approves in one tap and sits on the title's line;
  * the rest of the row opens the detail inspector.
  */
-export function ActionRow({ action, decision, selected, onOpen, onToggle }: Props) {
+export function ActionRow({ action, decision, selected, onOpen, onToggle, movedUp }: Props) {
   const meta = TYPE_META[action.type];
   const done = Boolean(decision);
   return (
@@ -74,6 +76,12 @@ export function ActionRow({ action, decision, selected, onOpen, onToggle }: Prop
           <span className="t-footnote mt-[3px] flex items-center gap-1 font-medium" style={{ color: meta.text }}>
             <TypeIcon type={action.type} size={13} />
             {meta.label}
+            {movedUp && (
+              <span className="ml-1.5 inline-flex items-center gap-0.5 text-tint" data-testid="moved-up">
+                <ArrowUpIcon size={11} />
+                Moved up
+              </span>
+            )}
           </span>
           <span className="t-subhead mt-[2px] line-clamp-2 block text-label-2">
             {decision ? decisionLabel(decision) : action.reason}

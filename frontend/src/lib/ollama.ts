@@ -49,11 +49,33 @@ export function allowedNumbers(values: unknown[]): Set<number> {
   return nums;
 }
 
-/** True when every number in the text comes from the data (small counts up to 7 are fine) and it fits the word limit. */
-export function grounded(text: string, allowed: Set<number>, maxWords = 40): boolean {
-  for (const m of text.replace(/[  ]/g, "").match(NUM) ?? []) {
-    const x = Number(m.replace(",", "."));
-    if (!allowed.has(x) && !allowed.has(Math.round(x)) && !(x <= 7 && Number.isInteger(x))) return false;
+/** Digit groups split by spaces ("6 041", Ukrainian style) or plain numbers with . or , separators. */
+const TOKEN = /\d{1,3}(?:[ \u00A0\u202F]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*/g;
+
+/** Every way a written number can be read: "6,041" is 6041 in English and 6.041 in Ukrainian. */
+function readings(token: string): number[] {
+  const t = token.replace(/[ \u00A0\u202F]/g, "");
+  const seps = t.match(/[.,]/g) ?? [];
+  if (seps.length === 0) return [Number(t)];
+  if (new Set(seps).size === 2) {
+    const dec = t.lastIndexOf(".") > t.lastIndexOf(",") ? "." : ",";
+    return [Number(t.replace(dec === "." ? /,/g : /\./g, "").replace(",", "."))];
   }
-  return text.split(/\s+/).length <= maxWords;
+  const grouped = /^\d{1,3}([.,]\d{3})+$/.test(t) ? [Number(t.replace(/[.,]/g, ""))] : [];
+  return seps.length === 1 ? [Number(t.replace(",", ".")), ...grouped] : grouped;
+}
+
+/**
+ * True when every number in the text comes from the data (small counts up to 7 are fine) and it fits
+ * the word limit. Accepts English (6,041.5) and Ukrainian (6 041,5) number formatting.
+ */
+export function grounded(text: string, allowed: Set<number>, maxWords = 40): boolean {
+  const ok = (x: number) => allowed.has(x) || allowed.has(Math.round(x)) || allowed.has(round1(x)) || (x <= 7 && Number.isInteger(x));
+  for (const m of text.match(TOKEN) ?? []) {
+    const whole = readings(m).some(ok);
+    // "з 7 120 штук" may be two numbers, not one grouped number
+    const parts = /\s/.test(m) && m.split(/[ \u00A0\u202F]/).every((p) => readings(p).some(ok));
+    if (!whole && !parts) return false;
+  }
+  return text.split(/\s+/).filter(Boolean).length <= maxWords;
 }

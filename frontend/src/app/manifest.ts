@@ -4,8 +4,8 @@ export const dynamic = "force-static";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Store Assistant",
-    short_name: "Store",
+    name: "Avrora Store Assistant",
+    short_name: "Avrora",
     description: "Today's priorities for your store",
     id: "/",
     start_url: "/",

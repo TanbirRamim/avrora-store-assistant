@@ -124,3 +124,29 @@ export const BellIcon = ({ size = 18, className }: P) => (
     <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
   </svg>
 );
+
+export const AlertIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9.5v4.5M12 17.2v.1" />
+  </svg>
+);
+
+export const CloudIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z" />
+  </svg>
+);
+
+export const ArrowUpIcon = ({ size = 12, className }: P) => (
+  <svg {...base(size)} strokeWidth={2.4} className={className}>
+    <path d="M12 19V5M6 11l6-6 6 6" />
+  </svg>
+);
+
+export const CheckCircleIcon = ({ size = 15, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8 12.3 2.7 2.7L16 9.7" />
+  </svg>
+);

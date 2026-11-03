@@ -5,6 +5,7 @@
  * write a SignalSource and append it to SOURCES. A signal's `key` must be stable for the same
  * event, because the cron job sends each key to each phone only once.
  */
+import { externalSignals, type ExternalSignal } from "./external";
 import snapshot from "./snapshot.json";
 
 export interface Signal {
@@ -21,6 +22,8 @@ export interface Signal {
 export interface SignalContext {
   db: D1Database;
   now: Date;
+  /** Live air-raid alerts need an alerts.in.ua token. */
+  alertsToken?: string;
 }
 
 export type SignalSource = (ctx: SignalContext) => Promise<Signal[]> | Signal[];
@@ -73,8 +76,29 @@ export const briefingNotices: SignalSource = () =>
     priority: 0,
   }));
 
+/** Push power cuts from 2 hours before they start; alerts and notable weather once each. */
+const PUSH_AHEAD_MS = 2 * 3_600_000;
+
+function externalPush(e: ExternalSignal, now: Date): Signal | null {
+  const demo = e.simulated ? "Demo: " : "";
+  if (e.kind === "power") {
+    if (Date.parse(e.starts_at) - now.getTime() > PUSH_AHEAD_MS) return null;
+    return { key: e.id, title: `${demo}${e.title}`, body: `${e.detail} Open the app to re-plan today.`, url: "/", priority: 1e9 };
+  }
+  if (e.kind === "air_alert") {
+    return { key: e.id, title: `${demo}${e.title}`, body: e.detail, url: "/", priority: 2e9 };
+  }
+  return { key: e.id, title: e.title, body: e.detail, url: "/", priority: 0 };
+}
+
+/** Scheduled power cuts, air-raid alerts and notable weather (see external.ts). */
+export const externalConditions: SignalSource = async ({ db, now, alertsToken }) => {
+  const { signals } = await externalSignals(db, now, { ALERTS_IN_UA_TOKEN: alertsToken });
+  return signals.map((e) => externalPush(e, now)).filter((s): s is Signal => s !== null);
+};
+
 // briefingNotices is left out: the snapshot note is a past outage that needs no action.
-export const SOURCES: SignalSource[] = [storeActions];
+export const SOURCES: SignalSource[] = [externalConditions, storeActions];
 
 /** Runs every source; one failing feed does not block the others. */
 export async function collectSignals(ctx: SignalContext, sources = SOURCES): Promise<Signal[]> {

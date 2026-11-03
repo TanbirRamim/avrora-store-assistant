@@ -26,6 +26,8 @@ export interface Overview {
 export interface Briefing {
   summary: string;
   source: "model" | "rules";
+  /** Language of a model-written briefing. */
+  lang?: "uk" | "en";
   priorities: Action[];
   notices: Action[];
 }
@@ -47,6 +49,27 @@ export interface ProductDetail {
   daily_forecast: number;
   days_cover: number | null;
   history: Point[];
+}
+
+export type SignalKind = "power" | "air_alert" | "weather";
+
+/** A current outside condition: power cut, air-raid alert or notable weather. */
+export interface Signal {
+  id: string;
+  kind: SignalKind;
+  severity: "high" | "medium" | "low";
+  title: string;
+  detail: string;
+  starts_at: string;
+  ends_at: string | null;
+  source: string;
+  simulated: boolean;
+}
+
+export interface Signals {
+  updated_at: string;
+  signals: Signal[];
+  feeds: { kind: SignalKind; source: string; live: boolean }[];
 }
 
 export type DecisionKind = "approve" | "reject" | "change";

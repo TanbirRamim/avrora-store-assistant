@@ -6,6 +6,7 @@
  * not in that action's data falls back to the engine's text.
  */
 import type { Action, Briefing } from "./api";
+import type { Lang } from "./assist";
 import { allowedNumbers, chatJson, grounded, ModelError } from "./ollama";
 
 export { ModelError };
@@ -21,7 +22,7 @@ Choose the five actions the manager should handle today and order them by urgenc
 but an item that will run out before a delivery can arrive is more urgent than slow stock that can wait a few
 days. Write one short reason per action for a busy store manager: at most 25 words, plain language, no jargon.
 Use only numbers that appear in that action's data. Write a one-sentence summary of the day.
-Return exactly the JSON requested.`;
+Write the reasons and the summary in the language given in the request. Return exactly the JSON requested.`;
 
 const SCHEMA = {
   type: "object",
@@ -41,13 +42,14 @@ const SCHEMA = {
 
 const valuesOf = (a: Action): unknown[] => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah];
 
-export async function draftBriefing(key: string, actions: Action[], notices: Action[]): Promise<Briefing> {
+export async function draftBriefing(key: string, actions: Action[], notices: Action[], lang: Lang = "en"): Promise<Briefing> {
   const cands = actions.slice(0, CANDIDATES);
   const payload = JSON.stringify({
     candidates: cands.map((a) => ({
       id: a.id, type: a.type, product: a.product_name, risk_uah: a.risk_uah, facts: a.facts, proposal: a.proposal,
     })),
     store_notes: notices.map((n) => n.reason),
+    language: lang === "uk" ? "Ukrainian" : "English",
   });
 
   const draft = await chatJson<{ summary: string; priorities: { action_id: string; reason: string }[] }>(
@@ -69,12 +71,16 @@ export async function draftBriefing(key: string, actions: Action[], notices: Act
   }
 
   const total = chosen.reduce((s, a) => s + a.risk_uah, 0);
-  const fallback = `${chosen.length} priorities today, about ₴${Math.round(total).toLocaleString("en-US")} at stake.`;
+  const fallback =
+    lang === "uk"
+      ? `Сьогодні ${chosen.length} пріоритетів, під загрозою близько ₴${Math.round(total).toLocaleString("uk-UA")}.`
+      : `${chosen.length} priorities today, about ₴${Math.round(total).toLocaleString("en-US")} at stake.`;
   const summary = typeof draft.summary === "string" ? draft.summary.trim() : "";
   const allowed = allowedNumbers(chosen.flatMap(valuesOf));
   return {
     summary: summary && grounded(summary, allowed) ? summary : fallback,
     source: "model",
+    lang,
     priorities: chosen,
     notices,
   };

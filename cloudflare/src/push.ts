@@ -7,6 +7,7 @@ export interface PushEnv {
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT: string;
+  ALERTS_IN_UA_TOKEN?: string;
 }
 
 /** Most notifications one cron run sends to a phone; the rest are folded into a summary. */
@@ -122,7 +123,7 @@ export async function sendUrgent(env: PushEnv, now = new Date()): Promise<{ sign
     console.error("VAPID_PRIVATE_KEY is not set; skipping push");
     return { signals: 0, sent: 0 };
   }
-  const signals = await collectSignals({ db: env.DB, now });
+  const signals = await collectSignals({ db: env.DB, now, alertsToken: env.ALERTS_IN_UA_TOKEN });
   if (signals.length === 0) return { signals: 0, sent: 0 };
 
   const { results: subs } = await env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subscriptions").all<PushSubscriptionRow>();
