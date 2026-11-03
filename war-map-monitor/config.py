@@ -19,9 +19,10 @@ ALERTS_API_URL = "https://api.alerts.in.ua/v1/alerts/active.json"
 
 # DeepStateMap data sources (mirrors + fallback)
 DEEPSTATE_GEOJSON_MIRRORS = [
-    # Primary community mirror with daily parsed frontline MultiPolygons
-    "https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/data/geojson/latest.geojson",
-    "https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/data/geojson/history/last.geojson",
+    # Daily contact-line GeoJSON with source timestamp and explicit contact_line geometry.
+    "https://longlinecode.github.io/russo-ukrainian-front-daily/data/latest.geojson",
+    # UN OCHA/ISW front-line feature service as an independent fallback.
+    "https://gis.unocha.org/server/rest/services/Hosted/UKR_Front_Line/FeatureServer/0/query?where=1%3D1&outFields=*&f=geojson&outSR=4326",
 ]
 
 # Danger Zone Distance Thresholds (Kilometers)
