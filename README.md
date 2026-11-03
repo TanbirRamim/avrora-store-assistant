@@ -24,7 +24,7 @@ uv run pytest
 ```bash
 # terminal 1 – API on :8000
 cd backend
-cp .env.example .env            # add an API key, or set AVRORA_LLM=none
+cp .env.example .env            # add your Open WebUI key, or set AVRORA_LLM=none
 uv run --env-file .env uvicorn avrora.api.main:app --port 8000
 
 # terminal 2 – web app on :3000
