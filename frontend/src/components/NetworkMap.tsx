@@ -1,15 +1,22 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { GeoJSONSource, Map as MapLibre, MapLayerMouseEvent, Popup } from "maplibre-gl";
+import type { FilterSpecification, GeoJSONSource, Map as MapLibre, MapLayerMouseEvent, Popup } from "maplibre-gl";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import useSWR from "swr";
 import { BoxIcon, CloseIcon } from "./icons";
+import { type Rated, WartimePanel } from "./WartimePanel";
+import { fetcher } from "@/lib/api";
+import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, STORES_URL, type WarStore, ZONES } from "@/lib/wartime";
 
 /**
  * Ukraine supply network: public OpenStreetMap department stores, warehouses and logistics
  * centres around the store. MapLibre draws everything on the GPU, so 6,000 points and their
  * clusters stay smooth while zooming. Tiles: OpenFreeMap (free, no key).
+ *
+ * War-time mode swaps those layers for sample Avrora stores rated by distance to the front line
+ * and, when the server is connected to alerts.in.ua, live air-raid alerts (see lib/wartime.ts).
  */
 
 type Category = "store" | "warehouse" | "logistics";
@@ -47,6 +54,10 @@ const STATUS: Record<string, string> = { disused: "Disused", abandoned: "Abandon
 
 type Filter = Category | "all";
 const FILTERS: Filter[] = ["all", "store", "warehouse", "logistics"];
+
+type Mode = "network" | "war";
+const NETWORK_LAYERS = ["clusters", "cluster-count", "points"];
+const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-halo", "war-stores"];
 
 const fmt = new Intl.NumberFormat("en-US");
 
@@ -102,6 +113,39 @@ export function NetworkMap() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [failed, setFailed] = useState(false);
+  const [mode, setMode] = useState<Mode>("network");
+  const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
+  const [warFailed, setWarFailed] = useState(false);
+  const [warId, setWarId] = useState<string | null>(null);
+  const { data: alerts, error: alertsError } = useSWR<Alerts>(mode === "war" ? ALERTS_URL : null, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const alertState = useMemo<Alerts | undefined>(
+    () => (alertsError ? { connected: false, reason: "unavailable" } : alerts),
+    [alerts, alertsError],
+  );
+
+  // war-time data, loaded the first time the mode is opened
+  useEffect(() => {
+    if (mode !== "war" || war) return;
+    let live = true;
+    Promise.all([fetch(STORES_URL).then((r) => r.json()), fetch(LINES_URL).then((r) => r.json())])
+      .then(([s, l]: [{ stores: WarStore[] }, { features: LineFeature[] }]) => live && setWar({ stores: s.stores, lines: l.features }))
+      .catch(() => live && setWarFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [mode, war]);
+
+  const rated = useMemo<Rated[] | null>(
+    () =>
+      war &&
+      war.stores
+        .map((store) => ({ store, a: assess(store, war.lines, alertState) }))
+        .sort((x, y) => y.a.score - x.a.score || x.a.km - y.a.km),
+    [war, alertState],
+  );
+  const selectedWar = rated?.find((r) => r.store.id === warId) ?? null;
 
   // data
   useEffect(() => {
@@ -224,6 +268,62 @@ export function NetworkMap() {
           },
         });
 
+        // war-time layers, hidden until that mode is chosen
+        map.addSource("war-lines", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+        map.addSource("war-stores", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        // distance bands, precomputed buffers around the sketched line, drawn under the map's labels
+        const beforeLabels = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
+        for (const z of ["yellow", "orange", "red"] as const) {
+          const band: FilterSpecification = ["all", ["==", ["get", "kind"], "band"], ["==", ["get", "zone"], z]];
+          map.addLayer(
+            {
+              id: `war-${z}`,
+              type: "fill",
+              source: "war-lines",
+              filter: band,
+              layout: { visibility: "none" },
+              paint: { "fill-color": ZONES[z].fill },
+            },
+            beforeLabels,
+          );
+        }
+        map.addLayer({
+          id: "war-line",
+          type: "line",
+          source: "war-lines",
+          filter: ["!=", ["get", "kind"], "band"],
+          layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+          paint: {
+            "line-color": "#d70015",
+            "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 10, 3],
+            "line-dasharray": ["case", ["==", ["get", "kind"], "front"], ["literal", [1, 0]], ["literal", [2, 1.5]]],
+          },
+        });
+        map.addLayer({
+          id: "war-halo",
+          type: "circle",
+          source: "war-stores",
+          filter: ["==", ["get", "selected"], true],
+          layout: { visibility: "none" },
+          paint: { "circle-color": "rgba(0,113,227,0.22)", "circle-radius": 17 },
+        });
+        map.addLayer({
+          id: "war-stores",
+          type: "circle",
+          source: "war-stores",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-color": ["get", "color"],
+            "circle-radius": ["case", ["get", "selected"], 9, 7],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+        map.on("click", "war-stores", (e: MapLayerMouseEvent) => {
+          const id = e.features?.[0]?.properties.id;
+          if (typeof id === "string") setWarId(id);
+        });
+
         map.on("click", "clusters", async (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
@@ -237,7 +337,7 @@ export function NetworkMap() {
           popupCat.current = (f.properties as Props).c;
           popupRef.current?.setLngLat(coords).setHTML(popupHtml(f.properties as Props)).addTo(map);
         });
-        for (const layer of ["clusters", "points"]) {
+        for (const layer of ["clusters", "points", "war-stores"]) {
           map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
           map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
         }
@@ -259,6 +359,39 @@ export function NetworkMap() {
     // close the popup only if its place has just been filtered out
     if (popupCat.current && filter !== "all" && popupCat.current !== filter) popupRef.current?.remove();
   }, [ready, visible, filter]);
+
+  // switch layer sets with the mode
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    for (const id of NETWORK_LAYERS) map.setLayoutProperty(id, "visibility", mode === "network" ? "visible" : "none");
+    for (const id of WAR_LAYERS) map.setLayoutProperty(id, "visibility", mode === "war" ? "visible" : "none");
+  }, [ready, mode]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !war || !rated) return;
+    (map.getSource("war-lines") as GeoJSONSource).setData({ type: "FeatureCollection", features: war.lines });
+    (map.getSource("war-stores") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: rated.map(({ store: s, a }) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [s.lon, s.lat] },
+        properties: { id: s.id, city: s.city, color: GRADES[a.grade].color, selected: s.id === warId },
+      })),
+    });
+  }, [ready, war, rated, warId]);
+
+  // highlight and fly to the chosen war-time store
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !war) return;
+    const s = war.stores.find((x) => x.id === warId);
+    if (!s) return;
+    requestAnimationFrame(() =>
+      map.flyTo({ center: [s.lon, s.lat], zoom: 9, duration: 1200, essential: true, offset: cardOffset(container.current, card.current) }),
+    );
+  }, [ready, war, warId]);
 
   const focus = (f: Feature) => {
     const map = mapRef.current;
@@ -288,6 +421,36 @@ export function NetworkMap() {
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
         className="absolute left-3 right-3 top-3 z-10 rounded-[14px] bg-[rgba(255,255,255,0.92)] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl md:left-4 md:right-auto md:top-4 md:w-[380px]"
       >
+        <div aria-label="Map mode" role="group" className="mb-3 flex rounded-[9px] bg-fill p-[2px]">
+          {(["network", "war"] as const).map((m) => (
+            <button
+              key={m}
+              aria-pressed={mode === m}
+              onClick={() => {
+                if (m !== mode) popupRef.current?.remove();
+                setMode(m);
+              }}
+              className="t-footnote relative flex-1 rounded-[7px] px-1 py-[5px] font-medium"
+            >
+              {mode === m && (
+                <motion.span
+                  layoutId="map-mode"
+                  className="absolute inset-0 rounded-[7px] bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)]"
+                  transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                />
+              )}
+              <span className="relative">{m === "network" ? "Network" : "War-time"}</span>
+            </button>
+          ))}
+        </div>
+
+        {mode === "war" ? (
+          <>
+            {!selectedWar && <h1 className="t-headline px-1">War-time risk</h1>}
+            <WartimePanel rated={rated} alerts={alertState} failed={warFailed} selected={selectedWar} onSelect={setWarId} />
+          </>
+        ) : (
+          <>
         <h1 className="t-headline px-1">Supply network</h1>
         <p className="t-footnote px-1 text-label-2">
           {features ? `${fmt.format(counts.all)} places in Ukraine from OpenStreetMap` : failed ? "The map data could not be loaded." : "Loading places…"}
@@ -352,6 +515,8 @@ export function NetworkMap() {
               </li>
             ))}
           </ul>
+        )}
+          </>
         )}
       </motion.div>
 
