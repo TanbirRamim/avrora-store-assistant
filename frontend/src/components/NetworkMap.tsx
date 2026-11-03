@@ -6,9 +6,9 @@ import { motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { CheckIcon, CloseIcon } from "./icons";
-import { type Rated, WartimePanel } from "./WartimePanel";
+import { type FacilityImpact, type Rated, WartimePanel } from "./WartimePanel";
 import { fetcher } from "@/lib/api";
-import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, STORES_URL, type WarStore, ZONES } from "@/lib/wartime";
+import { ALERTS_URL, type Alerts, assess, distanceToLineKm, type Grade, GRADES, LINES_URL, type LineFeature, STORES_URL, THREATS_URL, type ThreatFeed, type WarStore, ZONES } from "@/lib/wartime";
 
 /**
  * Ukraine supply network: official Avrora stores, Avrora distribution centres, partners and
@@ -77,10 +77,32 @@ const FILTERS: { id: Filter; label: string; cats: Category[] }[] = [
 const inFilter = (filter: Filter, c: Category) => FILTERS.find((f) => f.id === filter)!.cats.includes(c);
 
 type Mode = "network" | "war";
-const NETWORK_LAYERS = ["clusters", "cluster-count", "points", "key-points"];
-const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-halo", "war-stores"];
+type NetworkGroup = "avrora" | "supply" | "storage" | "food";
+const NETWORK_GROUPS: NetworkGroup[] = ["avrora", "supply", "storage", "food"];
+const NETWORK_GROUP_CONFIG: Record<NetworkGroup, { letter: string; color: string; cats: Category[] }> = {
+  avrora: { letter: "A", color: CATEGORIES.avrora.color, cats: ["avrora"] },
+  supply: { letter: "S", color: CATEGORIES.supply.color, cats: ["supply"] },
+  storage: { letter: "S", color: CATEGORIES.warehouse.color, cats: ["warehouse", "logistics"] },
+  food: { letter: "F", color: CATEGORIES.food.color, cats: ["food"] },
+};
+const NETWORK_LAYERS = NETWORK_GROUPS.flatMap((group) => [
+  `${group}-clusters`,
+  `${group}-cluster-letter`,
+  `${group}-points`,
+]);
+const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-facilities", "war-threat-halo", "war-threats", "war-halo", "war-stores"];
 
 const fmt = new Intl.NumberFormat("en-US");
+
+function distanceKm(a: [number, number], b: [number, number]) {
+  const rad = Math.PI / 180;
+  const dLat = (b[1] - a[1]) * rad;
+  const dLon = (b[0] - a[0]) * rad;
+  const lat1 = a[1] * rad;
+  const lat2 = b[1] * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return Math.round(6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 10) / 10;
+}
 
 /** Kind line above the name: the role for supply nodes and food sites, else the category. */
 const kind = (p: Props) => p.r ?? CATEGORIES[p.c].one;
@@ -155,12 +177,20 @@ export function NetworkMap() {
   const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
   const [warFailed, setWarFailed] = useState(false);
   const [warId, setWarId] = useState<string | null>(null);
+  const [facilityId, setFacilityId] = useState<string | null>(null);
   const { data: alerts, error: alertsError } = useSWR<Alerts>(show.war ? ALERTS_URL : null, fetcher, {
     refreshInterval: 60_000,
   });
   const alertState = useMemo<Alerts | undefined>(
     () => (alertsError ? { connected: false, reason: "unavailable" } : alerts),
     [alerts, alertsError],
+  );
+  const { data: threats, error: threatsError } = useSWR<ThreatFeed>(mode === "war" ? THREATS_URL : null, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const threatState = useMemo<ThreatFeed | undefined>(
+    () => (threatsError ? { connected: false, reason: "unavailable" } : threats),
+    [threats, threatsError],
   );
 
   // war-time data, loaded the first time that layer is shown
@@ -184,6 +214,53 @@ export function NetworkMap() {
     [war, alertState],
   );
   const selectedWar = rated?.find((r) => r.store.id === warId) ?? null;
+
+  const facilityImpacts = useMemo<FacilityImpact[] | null>(() => {
+    if (!features || !war) return null;
+    const fronts = war.lines.flatMap((line) =>
+      line.properties.kind === "front" && line.geometry.type === "LineString" ? [line.geometry.coordinates] : [],
+    );
+    const activeThreats = threatState?.connected ? threatState.threats.filter((t) => t.status === "active") : [];
+    const rank: Record<Grade, number> = { critical: 3, high: 2, elevated: 1, low: 0 };
+    return features
+      .flatMap((feature): FacilityImpact[] => {
+        const p = feature.properties;
+        if (!(["warehouse", "logistics", "supply"] as Category[]).includes(p.c)) return [];
+        const coordinates = feature.geometry.coordinates;
+        const frontKm = Math.round(Math.min(...fronts.map((line) => distanceToLineKm(coordinates[1], coordinates[0], line)), 999) * 10) / 10;
+        let nearest = null as (typeof activeThreats)[number] | null;
+        let threatKm = Infinity;
+        for (const threat of activeThreats) {
+          const km = distanceKm(coordinates, [threat.lon, threat.lat]);
+          if (km < threatKm) { nearest = threat; threatKm = km; }
+        }
+        if (frontKm > 120 && threatKm > 150) return [];
+        const grade: Grade = frontKm <= 25 || threatKm <= 50 ? "critical" : frontKm <= 65 || threatKm <= 100 ? "high" : "elevated";
+        const reason = threatKm <= 150 && nearest
+          ? `Active ${nearest.kind.replaceAll("_", " " )} report ${threatKm} km away`
+          : `${frontKm} km from the mapped front line`;
+        const recommendation = grade === "critical"
+          ? "Pause dispatches, account for staff, use shelter protocol, reroute through an alternate hub and notify carriers."
+          : grade === "high"
+            ? "Hold non-essential movements, confirm the driver route and shelter plan, and move urgent stock through an alternate hub."
+            : "Increase safety stock, confirm a backup carrier and route, and check live warnings before dispatch.";
+        return [{
+          id: p.id,
+          name: p.n ?? p.o ?? CATEGORIES[p.c].one,
+          category: CATEGORIES[p.c].one,
+          address: p.a ?? "",
+          coordinates,
+          frontKm,
+          threatKm: threatKm <= 150 ? threatKm : null,
+          threatTitle: threatKm <= 150 && nearest ? nearest.title : null,
+          grade,
+          reason,
+          recommendation,
+        }];
+      })
+      .sort((a, b) => rank[b.grade] - rank[a.grade] || (a.threatKm ?? a.frontKm) - (b.threatKm ?? b.frontKm));
+  }, [features, war, threatState]);
+  const selectedFacility = facilityImpacts?.find((f) => f.id === facilityId) ?? null;
 
   // data
   useEffect(() => {
@@ -247,82 +324,67 @@ export function NetworkMap() {
 
       map.on("error", (e) => console.error("map:", e.error?.message));
       map.on("load", () => {
-        map.addSource("places", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: [] },
-          cluster: true,
-          clusterRadius: 44,
-          clusterMaxZoom: 13,
-          promoteId: "id",
-        });
-        // supply partners are few and the reason to open the map, so they are never folded into clusters
-        map.addSource("key", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
-        map.addLayer({
-          id: "clusters",
-          type: "circle",
-          source: "places",
-          filter: ["has", "point_count"],
-          paint: {
-            "circle-color": "rgba(28,28,30,0.86)",
-            "circle-radius": ["step", ["get", "point_count"], 13, 25, 16, 150, 19, 600, 23],
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#ffffff",
-            "circle-radius-transition": { duration: 300 },
-          },
-        });
-        map.addLayer({
-          id: "cluster-count",
-          type: "symbol",
-          source: "places",
-          filter: ["has", "point_count"],
-          layout: {
-            "text-field": ["get", "point_count_abbreviated"],
-            "text-font": ["Noto Sans Bold"],
-            "text-size": ["step", ["get", "point_count"], 11, 150, 12],
-            "text-allow-overlap": true,
-          },
-          paint: { "text-color": "#ffffff" },
-        });
-        map.addLayer({
-          id: "points",
-          type: "circle",
-          source: "places",
-          filter: ["!", ["has", "point_count"]],
-          paint: {
-            "circle-color": [
-              "match",
-              ["get", "c"],
-              "avrora",
-              CATEGORIES.avrora.color,
-              "logistics",
-              CATEGORIES.logistics.color,
-              "food",
-              CATEGORIES.food.color,
-              CATEGORIES.warehouse.color,
-            ],
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8],
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#ffffff",
-            "circle-opacity": ["case", ["has", "s"], 0.45, 1],
-            "circle-stroke-opacity": ["case", ["has", "s"], 0.45, 1],
-          },
-        });
-        map.addLayer({
-          id: "key-points",
-          type: "circle",
-          source: "key",
-          paint: {
-            "circle-color": CATEGORIES.supply.color,
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 5.5, 12, 8, 16, 10],
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#ffffff",
-            "circle-opacity": ["case", ["has", "s"], 0.6, 1],
-          },
-        });
+        for (const group of NETWORK_GROUPS) {
+          const config = NETWORK_GROUP_CONFIG[group];
+          const sourceId = `network-${group}`;
+          map.addSource(sourceId, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+            cluster: true,
+            clusterRadius: 44,
+            clusterMaxZoom: 13,
+            promoteId: "id",
+          });
+          map.addLayer({
+            id: `${group}-clusters`,
+            type: "circle",
+            source: sourceId,
+            filter: ["has", "point_count"],
+            paint: {
+              "circle-color": config.color,
+              "circle-radius": ["step", ["get", "point_count"], 13, 25, 16, 150, 19, 600, 23],
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#ffffff",
+              "circle-radius-transition": { duration: 300 },
+            },
+          });
+          map.addLayer({
+            id: `${group}-cluster-letter`,
+            type: "symbol",
+            source: sourceId,
+            filter: ["has", "point_count"],
+            layout: {
+              "text-field": config.letter,
+              "text-font": ["Noto Sans Bold"],
+              "text-size": 13,
+              "text-allow-overlap": true,
+            },
+            paint: { "text-color": "#ffffff" },
+          });
+          map.addLayer({
+            id: `${group}-points`,
+            type: "circle",
+            source: sourceId,
+            filter: ["!", ["has", "point_count"]],
+            paint: {
+              "circle-color":
+                group === "storage"
+                  ? ["match", ["get", "c"], "logistics", CATEGORIES.logistics.color, CATEGORIES.warehouse.color]
+                  : config.color,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8],
+              "circle-stroke-width": 1.5,
+              "circle-stroke-color": "#ffffff",
+              "circle-opacity": ["case", ["has", "s"], 0.45, 1],
+              "circle-stroke-opacity": ["case", ["has", "s"], 0.45, 1],
+            },
+          });
+        }
 
         // war-time layers; visibility follows the checkmarks
         map.addSource("war-lines", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         map.addSource("war-stores", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        map.addSource("war-facilities", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        map.addSource("war-threats", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
         // distance bands, precomputed buffers around the sketched line, drawn under the map's labels
         const beforeLabels = map.getStyle().layers.find((l) => l.type === "symbol")?.id;
         for (const z of ["yellow", "orange", "red"] as const) {
@@ -352,6 +414,32 @@ export function NetworkMap() {
           },
         });
         map.addLayer({
+          id: "war-facilities",
+          type: "circle",
+          source: "war-facilities",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-color": ["get", "color"],
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 12, 7],
+            "circle-stroke-width": 1.5,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+        map.addLayer({
+          id: "war-threat-halo",
+          type: "circle",
+          source: "war-threats",
+          layout: { visibility: "none" },
+          paint: { "circle-color": "#af52de", "circle-radius": 18, "circle-opacity": 0.16 },
+        });
+        map.addLayer({
+          id: "war-threats",
+          type: "circle",
+          source: "war-threats",
+          layout: { visibility: "none" },
+          paint: { "circle-color": "#af52de", "circle-radius": 6, "circle-stroke-width": 2, "circle-stroke-color": "#ffffff" },
+        });
+        map.addLayer({
           id: "war-halo",
           type: "circle",
           source: "war-stores",
@@ -373,15 +461,21 @@ export function NetworkMap() {
         });
         map.on("click", "war-stores", (e: MapLayerMouseEvent) => {
           const id = e.features?.[0]?.properties.id;
-          if (typeof id === "string") setWarId(id);
+          if (typeof id === "string") { setFacilityId(null); setWarId(id); }
+        });
+        map.on("click", "war-facilities", (e: MapLayerMouseEvent) => {
+          const id = e.features?.[0]?.properties.id;
+          if (typeof id === "string") { setWarId(null); setFacilityId(id); }
+        });
+        map.on("click", "war-threats", (e: MapLayerMouseEvent) => {
+          const feature = e.features?.[0];
+          if (!feature) return;
+          const coordinates = (feature.geometry as unknown as { coordinates: [number, number] }).coordinates;
+          const title = String(feature.properties.title ?? "Active aerial threat").replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+          const kind = String(feature.properties.kind ?? "unknown").replaceAll("_", " ");
+          popupRef.current?.setLngLat(coordinates).setHTML(`<div class="nm-kind" style="color:#af52de">Active aerial threat</div><div class="nm-name">${title}</div><div class="nm-row">${kind} · public monitoring report, not a confirmed strike</div>`).addTo(map);
         });
 
-        map.on("click", "clusters", async (e: MapLayerMouseEvent) => {
-          const f = e.features?.[0];
-          if (!f) return;
-          const zoom = await (map.getSource("places") as GeoJSONSource).getClusterExpansionZoom(f.properties.cluster_id);
-          map.easeTo({ center: (f.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: zoom + 0.3, duration: 600 });
-        });
         const open = (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
@@ -389,12 +483,23 @@ export function NetworkMap() {
           popupCat.current = (f.properties as Props).c;
           popupRef.current?.setLngLat(coords).setHTML(popupHtml(f.properties as Props)).addTo(map);
         };
-        map.on("click", "points", (e: MapLayerMouseEvent) => {
-          // a supply partner drawn on top of a point wins the click
-          if (!map.queryRenderedFeatures(e.point, { layers: ["key-points"] }).length) open(e);
-        });
-        map.on("click", "key-points", open);
-        for (const layer of ["clusters", "points", "key-points", "war-stores"]) {
+        for (const group of NETWORK_GROUPS) {
+          const sourceId = `network-${group}`;
+          const clusterLayer = `${group}-clusters`;
+          const pointLayer = `${group}-points`;
+          map.on("click", clusterLayer, async (e: MapLayerMouseEvent) => {
+            const f = e.features?.[0];
+            if (!f) return;
+            const zoom = await (map.getSource(sourceId) as GeoJSONSource).getClusterExpansionZoom(f.properties.cluster_id);
+            map.easeTo({ center: (f.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: zoom + 0.3, duration: 600 });
+          });
+          map.on("click", pointLayer, open);
+          for (const layer of [clusterLayer, pointLayer]) {
+            map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+            map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+          }
+        }
+        for (const layer of ["war-stores", "war-facilities", "war-threats"]) {
           map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
           map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
         }
@@ -412,9 +517,13 @@ export function NetworkMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    const key = (f: Feature) => f.properties.c === "supply";
-    (map.getSource("places") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible.filter((f) => !key(f)) });
-    (map.getSource("key") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible.filter(key) });
+    for (const group of NETWORK_GROUPS) {
+      const categories = NETWORK_GROUP_CONFIG[group].cats;
+      (map.getSource(`network-${group}`) as GeoJSONSource).setData({
+        type: "FeatureCollection",
+        features: visible.filter((f) => categories.includes(f.properties.c)),
+      });
+    }
     // close the popup only if its place has just been filtered out
     if (popupCat.current && !inFilter(filter, popupCat.current)) popupRef.current?.remove();
   }, [ready, visible, filter]);
@@ -441,6 +550,28 @@ export function NetworkMap() {
     });
   }, [ready, war, rated, warId]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    (map.getSource("war-facilities") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: (facilityImpacts ?? []).map((f) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: f.coordinates },
+        properties: { id: f.id, color: GRADES[f.grade].color },
+      })),
+    });
+    const active = threatState?.connected ? threatState.threats.filter((t) => t.status === "active") : [];
+    (map.getSource("war-threats") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: active.map((t) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [t.lon, t.lat] },
+        properties: { id: t.id, title: t.title, kind: t.kind, amount: t.amount },
+      })),
+    });
+  }, [ready, facilityImpacts, threatState]);
+
   // highlight and fly to the chosen war-time store
   useEffect(() => {
     const map = mapRef.current;
@@ -451,6 +582,12 @@ export function NetworkMap() {
       map.flyTo({ center: [s.lon, s.lat], zoom: 9, duration: 1200, essential: true, offset: cardOffset(container.current, card.current) }),
     );
   }, [ready, war, warId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !selectedFacility) return;
+    map.flyTo({ center: selectedFacility.coordinates, zoom: 10, duration: 1000, essential: true, offset: cardOffset(container.current, card.current) });
+  }, [ready, selectedFacility]);
 
   const focus = (f: Feature) => {
     const map = mapRef.current;
@@ -585,7 +722,17 @@ export function NetworkMap() {
         {show.war && (
           <div className={show.network ? "mt-3 border-t border-separator pt-3" : ""}>
             {!selectedWar && (show.network ? <h2 className="t-headline px-1">War-time risk</h2> : <h1 className="t-headline px-1">War-time risk</h1>)}
-            <WartimePanel rated={rated} alerts={alertState} failed={warFailed} selected={selectedWar} onSelect={setWarId} />
+            <WartimePanel
+              rated={rated}
+              alerts={alertState}
+              failed={warFailed}
+              selected={selectedWar}
+              onSelect={setWarId}
+              facilityImpacts={facilityImpacts}
+              selectedFacility={selectedFacility}
+              onSelectFacility={setFacilityId}
+              threats={threatState}
+            />
           </div>
         )}
       </motion.div>
