@@ -190,6 +190,14 @@ test("Decisions log lists decisions and supports undo", async ({ page }) => {
   await expect(page.getByText("No decisions yet.", { exact: false })).toBeVisible();
 });
 
+test("Map embeds the public Ukraine location dataset", async ({ page }) => {
+  await openNav(page, "Map");
+  await expect(page.getByRole("heading", { name: "Ukraine commercial network" })).toBeVisible();
+  const map = page.getByTitle("Ukraine department stores, warehouses and logistics centres");
+  await expect(map).toBeVisible();
+  await expect(map).toHaveAttribute("src", "/network-map/index.html");
+});
+
 test("switching sections starts at the top", async ({ page }) => {
   await page.locator("main").evaluate((m) => m.scrollTo({ top: 600 }));
   await openNav(page, "All suggestions");
@@ -197,7 +205,7 @@ test("switching sections starts at the top", async ({ page }) => {
 });
 
 test("layout never scrolls sideways", async ({ page }) => {
-  for (const view of ["Today", "All suggestions", "Decisions"]) {
+  for (const view of ["Today", "All suggestions", "Decisions", "Map"]) {
     await openNav(page, view);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow, view).toBeLessThanOrEqual(0);

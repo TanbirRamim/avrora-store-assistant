@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-11-03T08:44:09.027860+00:00",
+  "source": "OpenStreetMap / Geofabrik Ukraine extract",
+  "source_file": "ukraine-2026-11-02.osm.pbf",
+  "source_sha256": "5b3e09c08ee819aa0b9047179c510aaab027eb477e3b2370e3ceba13d195fe35",
+  "license": "Open Database License (ODbL); © OpenStreetMap contributors",
+  "scope": "All matching OSM features in Ukraine; explicitly military/sensitive-tagged features excluded",
+  "total": 6211,
+  "counts_by_category": {
+    "department_store": 883,
+    "logistics_center": 8,
+    "warehouse": 5320
+  },
+  "counts_by_status": {
+    "active_or_unknown": 6187,
+    "disused": 9,
+    "abandoned": 12,
+    "ruins": 3
+  },
+  "before_deduplication": 6212,
+  "duplicates_removed": 1,
+  "outside_ukraine_boundary_removed": 49,
+  "explicitly_sensitive_features_excluded": 0,
+  "boundary_found": true,
+  "matched_tags": [
+    "shop=department_store",
+    "building=warehouse",
+    "building:use=warehouse",
+    "industrial=warehouse",
+    "industrial=logistics",
+    "industrial=distribution"
+  ]
+}
