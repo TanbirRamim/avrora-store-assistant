@@ -11,6 +11,7 @@
 export const STORES_URL = "/map/wartime-stores.json";
 export const LINES_URL = "/map/wartime-lines.geojson";
 export const ALERTS_URL = "/api/wartime/alerts";
+export const THREATS_URL = "/api/wartime/threats";
 
 export interface WarStore {
   id: string;
@@ -45,6 +46,20 @@ export type LineFeature =
 
 export type Alerts =
   | { connected: true; source: string; fetched_at: string; oblasts: string[]; hromadas: string[] }
+  | { connected: false; reason: string };
+
+export interface AerialThreat {
+  id: string;
+  kind: string;
+  title: string;
+  lat: number;
+  lon: number;
+  amount: number;
+  status: string;
+}
+
+export type ThreatFeed =
+  | { connected: true; source: string; fetched_at: string; threats: AerialThreat[] }
   | { connected: false; reason: string };
 
 export type Zone = "red" | "orange" | "yellow" | "rear";
