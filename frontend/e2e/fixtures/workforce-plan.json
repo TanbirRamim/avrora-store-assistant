@@ -1,0 +1,555 @@
+{
+ "date": "2026-11-02",
+ "generated_at": "2026-11-02T06:30:00+02:00",
+ "status": "draft",
+ "version": "base",
+ "opening": {
+  "open": "08:00",
+  "close": "21:00"
+ },
+ "conditions": [
+  {
+   "kind": "delivery",
+   "label": "Delivery from Kyiv DC",
+   "from": "08:00",
+   "to": "11:00"
+  },
+  {
+   "kind": "promotion",
+   "label": "Autumn promo: household",
+   "from": "08:00",
+   "to": "21:00"
+  },
+  {
+   "kind": "power",
+   "label": "Scheduled power cut (group 3)",
+   "from": "14:00",
+   "to": "16:00"
+  }
+ ],
+ "hours": [
+  {
+   "hour": "08:00",
+   "customers": 60,
+   "transactions": 49,
+   "required": 2,
+   "scheduled": 2,
+   "workload": {
+    "checkout": 1.17,
+    "receiving": 1.2,
+    "replenishment": 0.38,
+    "merchandising": 0.0,
+    "customer_service": 0.15
+   }
+  },
+  {
+   "hour": "09:00",
+   "customers": 85,
+   "transactions": 69,
+   "required": 3,
+   "scheduled": 3,
+   "workload": {
+    "checkout": 1.64,
+    "receiving": 1.2,
+    "replenishment": 0.53,
+    "merchandising": 0.5,
+    "customer_service": 0.21
+   }
+  },
+  {
+   "hour": "10:00",
+   "customers": 95,
+   "transactions": 77,
+   "required": 3,
+   "scheduled": 3,
+   "workload": {
+    "checkout": 1.83,
+    "receiving": 1.2,
+    "replenishment": 0.59,
+    "merchandising": 0.5,
+    "customer_service": 0.24
+   }
+  },
+  {
+   "hour": "11:00",
+   "customers": 90,
+   "transactions": 73,
+   "required": 3,
+   "scheduled": 3,
+   "workload": {
+    "checkout": 1.74,
+    "receiving": 0.0,
+    "replenishment": 0.56,
+    "merchandising": 0.0,
+    "customer_service": 0.23
+   }
+  },
+  {
+   "hour": "12:00",
+   "customers": 110,
+   "transactions": 90,
+   "required": 4,
+   "scheduled": 4,
+   "workload": {
+    "checkout": 2.14,
+    "receiving": 0.0,
+    "replenishment": 0.69,
+    "merchandising": 0.0,
+    "customer_service": 0.28
+   }
+  },
+  {
+   "hour": "13:00",
+   "customers": 120,
+   "transactions": 98,
+   "required": 4,
+   "scheduled": 4,
+   "workload": {
+    "checkout": 2.33,
+    "receiving": 0.0,
+    "replenishment": 0.75,
+    "merchandising": 0.0,
+    "customer_service": 0.3
+   }
+  },
+  {
+   "hour": "14:00",
+   "customers": 105,
+   "transactions": 86,
+   "required": 4,
+   "scheduled": 3,
+   "workload": {
+    "checkout": 2.05,
+    "receiving": 0.0,
+    "replenishment": 0.66,
+    "merchandising": 0.5,
+    "customer_service": 0.26
+   }
+  },
+  {
+   "hour": "15:00",
+   "customers": 95,
+   "transactions": 77,
+   "required": 3,
+   "scheduled": 3,
+   "workload": {
+    "checkout": 1.83,
+    "receiving": 0.0,
+    "replenishment": 0.59,
+    "merchandising": 0.0,
+    "customer_service": 0.24
+   }
+  },
+  {
+   "hour": "16:00",
+   "customers": 110,
+   "transactions": 90,
+   "required": 4,
+   "scheduled": 4,
+   "workload": {
+    "checkout": 2.14,
+    "receiving": 0.0,
+    "replenishment": 0.69,
+    "merchandising": 0.0,
+    "customer_service": 0.28
+   }
+  },
+  {
+   "hour": "17:00",
+   "customers": 140,
+   "transactions": 114,
+   "required": 5,
+   "scheduled": 5,
+   "workload": {
+    "checkout": 2.71,
+    "receiving": 0.0,
+    "replenishment": 0.88,
+    "merchandising": 0.0,
+    "customer_service": 0.35
+   }
+  },
+  {
+   "hour": "18:00",
+   "customers": 155,
+   "transactions": 127,
+   "required": 5,
+   "scheduled": 4,
+   "workload": {
+    "checkout": 3.02,
+    "receiving": 0.0,
+    "replenishment": 0.97,
+    "merchandising": 0.0,
+    "customer_service": 0.39
+   }
+  },
+  {
+   "hour": "19:00",
+   "customers": 130,
+   "transactions": 106,
+   "required": 4,
+   "scheduled": 4,
+   "workload": {
+    "checkout": 2.52,
+    "receiving": 0.0,
+    "replenishment": 0.81,
+    "merchandising": 0.0,
+    "customer_service": 0.33
+   }
+  },
+  {
+   "hour": "20:00",
+   "customers": 80,
+   "transactions": 65,
+   "required": 3,
+   "scheduled": 3,
+   "workload": {
+    "checkout": 1.55,
+    "receiving": 0.0,
+    "replenishment": 0.5,
+    "merchandising": 0.0,
+    "customer_service": 0.2
+   }
+  }
+ ],
+ "blocks": [
+  {
+   "from": "08:00",
+   "to": "09:00",
+   "required": 2,
+   "scheduled": 2
+  },
+  {
+   "from": "09:00",
+   "to": "12:00",
+   "required": 3,
+   "scheduled": 3
+  },
+  {
+   "from": "12:00",
+   "to": "14:00",
+   "required": 4,
+   "scheduled": 4
+  },
+  {
+   "from": "14:00",
+   "to": "15:00",
+   "required": 4,
+   "scheduled": 3
+  },
+  {
+   "from": "15:00",
+   "to": "16:00",
+   "required": 3,
+   "scheduled": 3
+  },
+  {
+   "from": "16:00",
+   "to": "17:00",
+   "required": 4,
+   "scheduled": 4
+  },
+  {
+   "from": "17:00",
+   "to": "18:00",
+   "required": 5,
+   "scheduled": 5
+  },
+  {
+   "from": "18:00",
+   "to": "19:00",
+   "required": 5,
+   "scheduled": 4
+  },
+  {
+   "from": "19:00",
+   "to": "20:00",
+   "required": 4,
+   "scheduled": 4
+  },
+  {
+   "from": "20:00",
+   "to": "21:00",
+   "required": 3,
+   "scheduled": 3
+  }
+ ],
+ "shifts": [
+  {
+   "employee_id": "E12",
+   "name": "Yurii T.",
+   "role": "shift_lead",
+   "start": "08:00",
+   "end": "16:00",
+   "break_at": "12:00",
+   "hours": 7.5,
+   "tasks": [
+    {
+     "from": "08:00",
+     "to": "10:00",
+     "task": "receiving",
+     "reason": "Delivery from Kyiv DC, 42 cases expected 08:00-10:00. Yurii T. receives 46 cases/h vs store avg 38.",
+     "station": "Receiving dock",
+     "priority": "Critical",
+     "match": 83
+    },
+    {
+     "from": "10:00",
+     "to": "12:00",
+     "task": "checkout",
+     "reason": "Late-morning queue. Yurii T. scans 512 items/h vs store avg 455.",
+     "station": "Shift lead",
+     "priority": "Critical",
+     "match": 92
+    },
+    {
+     "from": "12:30",
+     "to": "16:00",
+     "task": "inventory",
+     "reason": "Weekly count, shift lead on site. Yurii T. 0.4% scan errors vs store avg 0.9%.",
+     "station": "Inventory count",
+     "priority": "Standard",
+     "match": 97
+    }
+   ],
+   "strength": "Receiving lead"
+  },
+  {
+   "employee_id": "E04",
+   "name": "Andrii P.",
+   "role": "stocker",
+   "start": "08:00",
+   "end": "15:00",
+   "break_at": "11:30",
+   "hours": 6.5,
+   "tasks": [
+    {
+     "from": "08:00",
+     "to": "11:00",
+     "task": "receiving",
+     "reason": "Delivery window. Andrii P. receives 46 cases/h vs store avg 38.",
+     "station": "Receiving dock",
+     "priority": "Critical",
+     "match": 80
+    },
+    {
+     "from": "11:00",
+     "to": "15:00",
+     "task": "replenishment",
+     "reason": "Restock fast movers after the delivery. Andrii P. restocks 31 shelves/h vs store avg 26.",
+     "station": "Priority restock",
+     "priority": "High",
+     "match": 81
+    }
+   ],
+   "strength": "Receiving lead"
+  },
+  {
+   "employee_id": "E02",
+   "name": "Taras M.",
+   "role": "senior_cashier",
+   "start": "08:00",
+   "end": "16:00",
+   "break_at": "12:30",
+   "hours": 7.5,
+   "tasks": [
+    {
+     "from": "08:00",
+     "to": "12:30",
+     "task": "checkout",
+     "reason": "Opening till. Taras M. scans 512 items/h vs store avg 455.",
+     "station": "Lead checkout",
+     "priority": "Critical",
+     "match": 97
+    },
+    {
+     "from": "13:00",
+     "to": "16:00",
+     "task": "checkout",
+     "reason": "Lunch peak. Taras M. scans 512 items/h vs store avg 455.",
+     "station": "Lead checkout",
+     "priority": "Critical",
+     "match": 82
+    }
+   ],
+   "strength": "Fast checkout"
+  },
+  {
+   "employee_id": "E05",
+   "name": "Oksana D.",
+   "role": "merchandiser",
+   "start": "09:00",
+   "end": "15:00",
+   "break_at": null,
+   "hours": 6,
+   "tasks": [
+    {
+     "from": "09:00",
+     "to": "11:00",
+     "task": "merchandising",
+     "reason": "Set up promotion end-cap. Oksana D. set up 6 promos this month.",
+     "station": "Promo & facing",
+     "priority": "Standard",
+     "match": 98
+    },
+    {
+     "from": "11:00",
+     "to": "15:00",
+     "task": "replenishment",
+     "reason": "Move-to-front actions from Today. Oksana D. restocks 31 shelves/h vs store avg 26.",
+     "station": "Priority restock",
+     "priority": "High",
+     "match": 86
+    }
+   ],
+   "strength": "Promo setup"
+  },
+  {
+   "employee_id": "E03",
+   "name": "Iryna S.",
+   "role": "cashier",
+   "start": "12:00",
+   "end": "20:00",
+   "break_at": "16:00",
+   "hours": 7.5,
+   "tasks": [
+    {
+     "from": "12:00",
+     "to": "16:00",
+     "task": "checkout",
+     "reason": "Lunch peak. Iryna S. scans 512 items/h vs store avg 455.",
+     "station": "Lead checkout",
+     "priority": "Critical",
+     "match": 93
+    },
+    {
+     "from": "16:30",
+     "to": "20:00",
+     "task": "checkout",
+     "reason": "Evening peak. Iryna S. scans 512 items/h vs store avg 455.",
+     "station": "Lead checkout",
+     "priority": "Critical",
+     "match": 91
+    }
+   ],
+   "strength": "Fast checkout"
+  },
+  {
+   "employee_id": "E08",
+   "name": "Dmytro L.",
+   "role": "senior_cashier",
+   "start": "13:00",
+   "end": "21:00",
+   "break_at": "17:00",
+   "hours": 7.5,
+   "tasks": [
+    {
+     "from": "13:00",
+     "to": "17:00",
+     "task": "customer_service",
+     "reason": "Floor help, returns. Dmytro L. rating 4.8 vs store avg 4.4.",
+     "station": "Checkout 2 & returns",
+     "priority": "High",
+     "match": 96
+    },
+    {
+     "from": "17:30",
+     "to": "21:00",
+     "task": "checkout",
+     "reason": "Evening peak and close. Dmytro L. scans 512 items/h vs store avg 455.",
+     "station": "Lead checkout",
+     "priority": "Critical",
+     "match": 96
+    }
+   ],
+   "strength": "Customer favourite"
+  },
+  {
+   "employee_id": "E10",
+   "name": "Bohdan R.",
+   "role": "stocker",
+   "start": "14:00",
+   "end": "21:00",
+   "break_at": "17:30",
+   "hours": 6.5,
+   "tasks": [
+    {
+     "from": "14:00",
+     "to": "18:00",
+     "task": "replenishment",
+     "reason": "Restock for the evening. Bohdan R. restocks 31 shelves/h vs store avg 26.",
+     "station": "Priority restock",
+     "priority": "High",
+     "match": 88
+    },
+    {
+     "from": "18:00",
+     "to": "21:00",
+     "task": "inventory",
+     "reason": "Close-down count. Bohdan R. 0.4% scan errors vs store avg 0.9%.",
+     "station": "Inventory count",
+     "priority": "Standard",
+     "match": 88
+    }
+   ],
+   "strength": "Fast restock"
+  },
+  {
+   "employee_id": "E07",
+   "name": "Natalia V.",
+   "role": "cashier",
+   "start": "16:00",
+   "end": "20:00",
+   "break_at": null,
+   "hours": 4,
+   "tasks": [
+    {
+     "from": "16:00",
+     "to": "20:00",
+     "task": "checkout",
+     "reason": "Evening peak. Natalia V. scans 512 items/h vs store avg 455.",
+     "station": "Lead checkout",
+     "priority": "Critical",
+     "match": 86
+    }
+   ],
+   "strength": "Steady checkout"
+  }
+ ],
+ "gaps": [
+  {
+   "from": "14:00",
+   "to": "15:00",
+   "missing": 1,
+   "reason": "Lunch breaks overlap with the delivery restock"
+  },
+  {
+   "from": "18:00",
+   "to": "19:00",
+   "missing": 1,
+   "reason": "Evening peak needs 5; Sofiia B. is off today"
+  }
+ ],
+ "kpis": {
+  "labour_hours": 53.0,
+  "labour_cost_uah": 6290,
+  "coverage_pct": 95.7,
+  "sales_per_labour_hour_uah": 2480,
+  "overtime_hours": 0,
+  "rule_violations": 0
+ },
+ "explain": [
+  "Traffic peaks 17:00-19:00, so most hours sit in the afternoon and evening.",
+  "Andrii P. and Yurii T. take the morning delivery: both are the fastest at receiving.",
+  "Yurii T. opens and Dmytro L. closes, so a lead or senior cashier is on site all day.",
+  "The 14:00-16:00 power cut lowers checkout speed; one extra person would cover it.",
+  "Two hours stay short because Sofiia B. is off and nobody else is under their contract cap."
+ ],
+ "changes": [
+  {
+   "at": "2026-11-02T06:30:00+02:00",
+   "by": "agent",
+   "summary": "Draft plan created from forecast, availability and today's delivery."
+  }
+ ],
+ "demo_data": true
+}

@@ -256,6 +256,9 @@ def generate(settings: Settings = SETTINGS, out_dir: Path | None = None) -> Path
     deliveries.to_csv(out / "deliveries.csv", index=False)
     pd.DataFrame(events).sort_values(["date", "type"]).to_csv(out / "events.csv", index=False)
     pd.DataFrame(key_rows).to_csv(out / "answer_key.csv", index=False)
+    from avrora.data.workforce_gen import generate_workforce  # separate random stream
+
+    generate_workforce(settings, out)
     return out
 
 

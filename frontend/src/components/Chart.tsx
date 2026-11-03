@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { shortDate } from "@/lib/format";
 
@@ -21,7 +20,7 @@ interface Props {
   height?: number;
 }
 
-const PAD = { top: 12, right: 12, bottom: 22, left: 34 };
+const PAD = { top: 18, right: 4, bottom: 22, left: 30 };
 
 function niceMax(v: number) {
   if (v <= 0) return 1;
@@ -65,11 +64,11 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
 
   return (
     <figure>
-      <figcaption className="mb-1 flex items-baseline justify-between text-[13px]">
-        <span className="font-semibold text-label">{title}</span>
-        <span className="num text-label-2" aria-live="polite">
+      <figcaption className="mb-2 flex items-baseline justify-between gap-3 text-[13px]">
+        <span className="text-[15px] font-semibold tracking-[-0.015em] text-label">{title}</span>
+        <span className="num text-muted" aria-live="polite">
           {h && h.value !== null
-            ? `${shortDate(h.date)} · ${Math.round(h.value * 10) / 10} ${unit}${h.projected ? " expected" : ""}`
+            ? `${shortDate(h.date)}: ${Math.round(h.value * 10) / 10} ${unit}${h.projected ? " expected" : ""}`
             : unit}
         </span>
       </figcaption>
@@ -89,21 +88,39 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
         >
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} stroke="var(--chart-grid)" />
-              <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--label-2)" className="num">
+              <line
+                x1={PAD.left}
+                x2={width - PAD.right}
+                y1={y(t)}
+                y2={y(t)}
+                stroke={t === 0 ? "var(--separator)" : "var(--chart-grid)"}
+                strokeDasharray={t === 0 ? undefined : "2 4"}
+              />
+              <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)" className="num">
                 {Math.round(t)}
               </text>
             </g>
           ))}
           {firstProjected !== undefined && (
-            <rect
-              x={x(firstProjected) - step / 2}
-              y={PAD.top}
-              width={width - PAD.right - (x(firstProjected) - step / 2)}
-              height={height - PAD.top - PAD.bottom}
-              fill="var(--fill)"
-              opacity={0.5}
-            />
+            <g>
+              <rect
+                x={x(firstProjected) - step / 2}
+                y={PAD.top - 14}
+                width={width - PAD.right - (x(firstProjected) - step / 2)}
+                height={height - PAD.top - PAD.bottom + 14}
+                rx={6}
+                fill="rgba(0,0,0,0.05)"
+              />
+              <text
+                x={x(firstProjected) - step / 2 + 6}
+                y={PAD.top - 3}
+                fontSize={10}
+                fontWeight={600}
+                fill="var(--muted)"
+              >
+                Forecast
+              </text>
+            </g>
           )}
           {reference && (
             <g>
@@ -115,7 +132,7 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
                 stroke="var(--label-2)"
                 strokeDasharray="3 3"
               />
-              <text x={width - PAD.right} y={y(reference.value) - 4} textAnchor="end" fontSize={11} fill="var(--label-2)">
+              <text x={width - PAD.right} y={y(reference.value) - 4} textAnchor="end" fontSize={11} fill="var(--muted)">
                 {reference.label}
               </text>
             </g>
@@ -127,38 +144,34 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
               const top = y(d.value as number);
               const base = y(0);
               return (
-                <motion.rect
+                <rect
                   key={d.date}
                   x={x(d.i) - bw / 2}
+                  y={top}
+                  height={Math.max(0, base - top)}
                   width={bw}
-                  rx={Math.min(3, bw / 2)}
-                  initial={{ y: base, height: 0 }}
-                  animate={{ y: top, height: Math.max(0, base - top) }}
-                  transition={{ type: "spring", stiffness: 260, damping: 30, delay: d.i * 0.008 }}
+                  rx={Math.min(2, bw / 2)}
                   fill={color}
-                  opacity={hover === null || hover === d.i ? 1 : 0.45}
+                  opacity={hover === null || hover === d.i ? 0.9 : 0.35}
                 />
               );
             })}
 
           {kind === "line" && actual.length > 1 && (
-            <motion.path
-              d={linePath(actual)}
-              fill="none"
-              stroke={color}
-              strokeWidth={2}
-              strokeLinejoin="round"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            />
+            <path d={linePath(actual)} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
           )}
+
+          {/* shortfall: days the shelf was empty are marked red */}
+          {kind === "line" &&
+            actual
+              .filter((d) => d.value === 0)
+              .map((d) => <circle key={`z${d.date}`} cx={x(d.i)} cy={y(0)} r={3.5} fill="var(--red)" />)}
 
           {projected.length > 0 && (
             <path
               d={linePath(actual.length && kind === "line" ? [actual[actual.length - 1], ...projected] : projected)}
               fill="none"
-              stroke={color}
+              stroke="var(--muted)"
               strokeWidth={2}
               strokeDasharray="4 4"
             />
@@ -166,7 +179,7 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
 
           {data.map((d, i) =>
             i % labelEvery === 0 ? (
-              <text key={d.date} x={x(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--label-2)">
+              <text key={d.date} x={x(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--muted)">
                 {shortDate(d.date)}
               </text>
             ) : null,
@@ -179,7 +192,7 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
                 x2={x(hover!)}
                 y1={PAD.top}
                 y2={height - PAD.bottom}
-                stroke="var(--label-3)"
+                stroke="var(--muted)"
                 strokeWidth={1}
               />
               <circle cx={x(hover!)} cy={y(h.value)} r={4.5} fill={color} stroke="var(--surface)" strokeWidth={2} />

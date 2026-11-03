@@ -18,10 +18,13 @@ const inline = (iso: string, today: string) => {
   return /^\d/.test(label) ? label : label.toLowerCase();
 };
 
+const DOT = { received: "var(--green)", on_the_way: "#8a8a83", late: "var(--orange)" } as const;
+const CARD = "rounded-[14px] bg-paper";
+
 const CHIP = {
-  received: { text: "#1f7a37", tint: "rgba(52, 199, 89, 0.14)" },
-  on_the_way: { text: "var(--note-text)", tint: "var(--fill)" },
-  late: { text: "var(--delivery-text)", tint: "rgba(175, 82, 222, 0.12)" },
+  received: { text: "var(--green)" },
+  on_the_way: { text: "var(--muted)" },
+  late: { text: "var(--orange)" },
 } as const;
 
 function chipLabel(p: Purchase): string {
@@ -30,27 +33,26 @@ function chipLabel(p: Purchase): string {
   return p.received ? `${days(p.days_late)} late` : `Late by ${days(p.days_late)}`;
 }
 
-function Row({ p, today }: { p: Purchase; today: string }) {
+function Row({ p, today, last }: { p: Purchase; today: string; last: boolean }) {
   const c = CHIP[p.status];
   // the arrow ends at the arrival date; an order still out ends at its due date
   const end = p.received ? shortDate(p.received) : `due ${inline(p.expected, today)}`;
   const detail = p.received ? `took ${days(between(p.ordered, p.received))}` : p.status === "late" ? "not arrived yet" : null;
   return (
-    <li className="cell flex items-center gap-3 px-4 py-[10px]">
+    <li className="relative flex items-center gap-3 py-2.5 pl-4 pr-4">
+      {!last && <span className="absolute bottom-[-12px] left-[20px] top-[30px] w-[1.5px] bg-[var(--rule)]" aria-hidden />}
+      <span className="mt-[2px] size-[9px] shrink-0 self-start rounded-full translate-y-[6px]" style={{ background: DOT[p.status] }} aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="t-body num block truncate">
+        <span className="t-subhead num block font-medium">
           {shortDate(p.ordered)} <span aria-hidden>→</span>
           <span className="sr-only">to</span> {end}
         </span>
-        <span className="t-footnote num block truncate text-label-2">
+        <span className="t-footnote num block text-muted">
           {units(p.qty)}
-          {detail && ` · ${detail}`}
+          {detail && `, ${detail}`}
         </span>
       </span>
-      <span
-        className="inline-flex shrink-0 items-center rounded-full px-[7px] py-px text-[12px] font-semibold leading-[16px]"
-        style={{ color: c.text, background: c.tint }}
-      >
+      <span className="shrink-0 whitespace-nowrap text-[13px] font-semibold leading-[18px]" style={{ color: c.text }}>
         {chipLabel(p)}
       </span>
     </li>
@@ -73,32 +75,32 @@ export function ProductPurchases({ purchases, summary, today }: { purchases?: Pu
 
   return (
     <section aria-busy={loading}>
-      <h3 className="group-header flex items-baseline justify-between">
+      <h3 className="t-headline mb-2 flex min-h-[24px] items-center justify-between px-1">
         <span>Purchase history</span>
         {list.length > PREVIEW && (
-          <button type="button" onClick={() => setAll((v) => !v)} className="t-footnote font-medium normal-case text-tint">
+          <button type="button" onClick={() => setAll((v) => !v)} className="t-subhead -my-3 min-h-[44px] px-1 font-semibold underline underline-offset-4">
             {all ? "Show less" : `Show all ${list.length}`}
           </button>
         )}
       </h3>
       {loading ? (
-        <div className="group-list h-[180px] animate-pulse" />
+        <div className={`${CARD} h-[180px] animate-pulse`} />
       ) : list.length === 0 ? (
-        <div className="group-list t-subhead px-4 py-3 text-label-2">No orders in the last 90 days.</div>
+        <div className={`${CARD} t-subhead px-4 py-4 text-muted`}>No orders in the last 90 days.</div>
       ) : (
-        <ul className="group-list" aria-label="Purchase history">
+        <ul className={`${CARD} overflow-hidden pb-1.5`} aria-label="Purchase history">
           {s && (
-            <li className="cell px-4 py-[10px]">
-              <span className="t-body num block">
-                {s.orders} {s.orders === 1 ? "order" : "orders"} · {units(s.units)}
+            <li className="mb-1.5 border-b border-[var(--rule)] px-4 py-3">
+              <span className="t-body num block font-semibold">
+                {s.orders} {s.orders === 1 ? "order" : "orders"}, {units(s.units)}
               </span>
               {(facts.length > 0 || s.last_received) && (
-                <span className="t-footnote num block text-label-2">
+                <span className="t-footnote num block text-muted">
                   {[...facts, s.last_received && `last arrived ${inline(s.last_received, today)}`]
                     .filter((f): f is string => Boolean(f))
                     .map((f, i) => (
                       <Fragment key={i}>
-                        {i > 0 && " · "}
+                        {i > 0 && ", "}
                         <span className="whitespace-nowrap">{i === 0 ? f.replace(/^./, (ch) => ch.toUpperCase()) : f}</span>
                       </Fragment>
                     ))}
@@ -106,8 +108,8 @@ export function ProductPurchases({ purchases, summary, today }: { purchases?: Pu
               )}
             </li>
           )}
-          {shown.map((p) => (
-            <Row key={p.id} p={p} today={today} />
+          {shown.map((p, i) => (
+            <Row key={p.id} p={p} today={today} last={i === shown.length - 1} />
           ))}
         </ul>
       )}

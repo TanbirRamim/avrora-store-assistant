@@ -1,45 +1,50 @@
 @import "tailwindcss";
 
-/* Apple system colours, light appearance (Human Interface Guidelines). */
+/* "Shop floor" palette, see docs/design-system.md. Old token names map onto it. */
 :root {
   color-scheme: light;
-  --bg: #f2f2f7; /* systemGroupedBackground */
-  --surface: #ffffff; /* secondarySystemGroupedBackground */
-  --surface-2: #f2f2f7; /* tertiary fill inside cells */
-  --sidebar: rgba(246, 246, 248, 0.82);
-  --label: #000000;
-  --label-2: #636366; /* secondaryLabel, accessible-contrast variant (>=4.5:1 on every surface used) */
-  --label-3: rgba(60, 60, 67, 0.3); /* tertiaryLabel */
-  --separator: rgba(60, 60, 67, 0.18);
-  --fill: rgba(120, 120, 128, 0.12); /* tertiarySystemFill */
-  --fill-2: #e9e9ee;
-  --selected: #eaf2fc; /* selected cell, light tint keeps all text >=4.5:1 */
-  --tint: #0066cc; /* link blue for text and glyphs (apple.com) */
-  --tint-fill: #0071e3; /* filled button blue */
-  --done: #34c759; /* systemGreen */
-  /* icon tiles: white glyph on system colour, as in Settings */
-  --order: #ff3b30; /* systemRed */
-  --discount: #ff9500; /* systemOrange */
-  --move: #007aff; /* systemBlue */
-  --delivery: #af52de; /* systemPurple */
-  --note: #8e8e93; /* systemGray */
-  /* same hues darkened for text on white (>=4.5:1) */
-  --order-text: #d70015;
-  --discount-text: #b25000;
-  --move-text: #0066cc;
-  --delivery-text: #8944ab;
-  --note-text: #636366;
-  --chart-mark: #0066cc; /* accessible systemBlue for marks on white */
-  --chart-grid: rgba(60, 60, 67, 0.12);
-  /* bar material (tab bar, navigation bar, sheet footers): translucent over content */
-  --bar: rgba(249, 249, 249, 0.94);
-  --bar-on-bg: rgba(242, 242, 247, 0.94);
-  --badge: #ff3b30;
-  /* floating tab bar: pill height, gap to the screen bottom (above the home indicator), and the room content leaves for it */
+  --yellow: #ffde00; /* Avrora fascia: hero tag, active tab. Never text. */
+  --ink: #000000;
+  --red: #d9140e; /* urgency only */
+  --green: #0a7a3a;
+  --orange: #b54708;
+  --floor: #f2f2ee;
+  --paper: #ffffff;
+  --rule: #e2e2dc;
+  --muted: #5c5c57;
+
+  --bg: var(--floor);
+  --surface: var(--paper);
+  --surface-2: var(--floor);
+  --sidebar: var(--floor);
+  --label: var(--ink);
+  --label-2: var(--muted);
+  --label-3: rgba(0, 0, 0, 0.28);
+  --separator: var(--rule);
+  --fill: rgba(0, 0, 0, 0.06);
+  --fill-2: #e8e8e2;
+  --selected: #fff6b8; /* pale yellow: ink stays far above 4.5:1 */
+  --tint: var(--ink); /* links and glyphs are ink, underlined where needed */
+  --tint-fill: var(--ink); /* primary buttons: black */
+  --done: var(--green);
+  --order: var(--red);
+  --discount: var(--orange);
+  --move: var(--ink);
+  --delivery: #3d3d39;
+  --note: #8a8a83;
+  --order-text: var(--red);
+  --discount-text: var(--orange);
+  --move-text: var(--ink);
+  --delivery-text: #3d3d39;
+  --note-text: var(--muted);
+  --chart-mark: var(--ink);
+  --chart-grid: rgba(0, 0, 0, 0.08);
+  --bar: rgba(242, 242, 238, 0.94);
+  --bar-on-bg: rgba(242, 242, 238, 0.94);
+  --badge: var(--red);
   --dock-h: 60px;
   --dock-bottom: max(env(safe-area-inset-bottom), 12px);
   --nav-clear: calc(var(--dock-h) + var(--dock-bottom));
-  /* height of the on-screen keyboard where the browser doesn't resize the page (iOS); set from visualViewport */
   --kb: 0px;
 }
 
@@ -56,8 +61,17 @@
   --color-tint: var(--tint);
   --color-tint-fill: var(--tint-fill);
   --color-done: var(--done);
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --color-yellow: var(--yellow);
+  --color-ink: var(--ink);
+  --color-red: var(--red);
+  --color-green: var(--green);
+  --color-orange: var(--orange);
+  --color-floor: var(--floor);
+  --color-paper: var(--paper);
+  --color-rule: var(--rule);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-onest), -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-unbounded), var(--font-onest), sans-serif;
 }
 
 html {
@@ -65,11 +79,12 @@ html {
   color: var(--label);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 /* HIG text styles (macOS/iPadOS sizes) */
-.t-large-title { font-size: 34px; line-height: 41px; font-weight: 700; letter-spacing: 0.012em; }
+.t-large-title { font-family: var(--font-display); font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+@media (min-width: 768px) { .t-large-title { font-size: 34px; line-height: 40px; } }
 .t-title2 { font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.02em; }
 .t-title3 { font-size: 20px; line-height: 25px; font-weight: 600; letter-spacing: -0.02em; }
 .t-headline { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.025em; }
@@ -79,11 +94,43 @@ html {
 .t-footnote { font-size: 13px; line-height: 18px; letter-spacing: -0.005em; }
 .t-caption { font-size: 12px; line-height: 16px; }
 
-.num { font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: lining-nums proportional-nums; }
+.num-col { font-variant-numeric: lining-nums tabular-nums; }
 
 /* Inset grouped list */
-.group-list { background: var(--surface); border-radius: 10px; overflow: hidden; }
-.group-header { padding: 0 16px 6px; font-size: 13px; line-height: 18px; color: var(--label-2); text-transform: uppercase; letter-spacing: 0.01em; }
+/* Elevation shared with the map's floating cards */
+:root {
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 1px 2px rgba(0, 0, 0, 0.05), 0 12px 32px rgba(0, 0, 0, 0.09);
+}
+.group-list { background: var(--surface); border-radius: 14px; overflow: hidden; }
+.group-header { padding: 0 4px 8px; font-size: 15px; line-height: 20px; font-weight: 600; color: var(--label); letter-spacing: -0.015em; }
+
+/* Floating white card (Map style): one surface per idea */
+.card { background: var(--surface); border-radius: 14px; }
+.card-pad { padding: 16px; }
+@media (min-width: 768px) { .card-pad { padding: 20px; } }
+
+/* Section title with an optional trailing count or link */
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px 8px; }
+.section-head > h2 { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.02em; }
+
+/* Small stat: big tabular figure over a quiet label */
+.stat-value { font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: lining-nums proportional-nums; }
+.stat-label { font-size: 13px; line-height: 18px; color: var(--label-2); }
+
+/* Segmented control (Map filters): white thumb on a grey track */
+.segmented { display: flex; border-radius: 10px; background: var(--fill-2); padding: 2px; }
+.segmented-thumb { position: absolute; inset: 0; border-radius: 8px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 3px 8px rgba(0, 0, 0, 0.1); }
+
+/* Disclosure without the default marker */
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] > summary .disclose { transform: rotate(90deg); }
+.disclose { transition: transform 0.2s ease; }
+
+.pressable { transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, background-color 0.15s ease; }
+.pressable:active { transform: scale(0.985); }
 .group-footer { padding: 6px 16px 0; font-size: 13px; line-height: 18px; color: var(--label-2); }
 
 /* hairline between cells, inset to the text like UITableView */
@@ -106,8 +153,8 @@ html {
 /* floating tab bar: white pill with a soft shadow */
 .dock {
   border-radius: 999px;
-  background: #fff; /* solid, as in the reference: list text must never show through */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05), 0 0 0 0.5px rgba(0, 0, 0, 0.07);
+  background: var(--ink); /* black pill, yellow active tab: the app's mark in daily use */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.22);
 }
 .dock-item:focus-visible { border-radius: 999px; outline-offset: -3px; }
 
@@ -115,7 +162,9 @@ html, body { overscroll-behavior-y: none; }
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 :focus-visible {
-  outline: 3px solid rgba(0, 113, 227, 0.5);
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--yellow);
   outline-offset: 1px;
   border-radius: 8px;
 }
@@ -149,3 +198,69 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 /* the map runs under the floating tab bar: its bottom controls sit above it */
 .maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: calc(var(--nav-clear) + 2px) !important; }
 .maplibregl-popup.nm-popup { z-index: 2; }
+
+/* ---- Shop floor primitives (docs/design-system.md) ---- */
+.font-display { font-family: var(--font-display); }
+/* the yellow price tag that opens each main screen */
+.price-tag { position: relative; background: var(--yellow); color: var(--ink); border-radius: 14px; padding: 20px 20px 18px 20px; }
+.price-tag::before { content: ""; position: absolute; top: 14px; left: 14px; width: 8px; height: 8px; border-radius: 999px; background: var(--floor); }
+.tag-figure { font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: lining-nums proportional-nums; }
+@media (min-width: 768px) { .tag-figure { font-size: 56px; } }
+.btn-ink { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 22px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; font-size: 17px; }
+.btn-ink:active { transform: scale(0.98); }
+.btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 20px; border-radius: 999px; background: transparent; color: var(--ink); font-weight: 600; font-size: 17px; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.btn-ghost:active { background: var(--fill); }
+/* floating things only */
+.float { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.14); }
+
+/* ---- Shared shop-floor pieces (owned by the app shell; see docs/design-system.md) ---- */
+/* flat paper list: rows split by hairlines, no shadow, no border */
+.flat-list { background: var(--paper); border-radius: 14px; overflow: hidden; }
+/* small, quiet section title: sentence case, ink, never tracked out */
+.list-title { font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.02em; }
+/* text button in ink, underlined on hover; 44 px target */
+.btn-text { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; color: var(--ink); font-weight: 600; font-size: 15px; text-underline-offset: 3px; }
+.btn-text:hover { text-decoration: underline; }
+.btn-text:active { opacity: 0.6; }
+/* small ink pill inside the yellow tag */
+.btn-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap; }
+.btn-tag.hit::after { inset: -4px; }
+/* action-type glyph: a small coloured square, not an app-icon tile */
+.type-glyph { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.type-glyph[data-outline] { background: transparent !important; box-shadow: inset 0 0 0 1.5px var(--ink); }
+/* slim ink progress bar on the tag */
+.tag-bar { height: 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.14); overflow: hidden; }
+.tag-bar > span { display: block; height: 100%; background: var(--ink); border-radius: 999px; transition: width 0.3s ease; }
+
+/* Bottom zone: a screen-level action bar docked directly above the tab bar.
+   Width follows the dock: full width minus 12 px sides on phones (max 400), auto on >= 768. */
+.action-zone {
+  position: fixed; z-index: 11;
+  left: 12px; right: 12px; margin: 0 auto; max-width: 400px;
+  bottom: calc(var(--nav-clear) + 8px);
+  display: flex; align-items: center; gap: 8px;
+  min-height: 60px; padding: 6px 6px 6px 16px;
+  background: var(--paper); border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.14);
+  padding-left: max(16px, env(safe-area-inset-left));
+}
+@media (min-width: 768px) { .action-zone { max-width: 520px; } }
+/* content padding when an action zone is shown: dock + action zone + 24 px */
+.pb-action { padding-bottom: calc(var(--nav-clear) + 8px + 60px + 24px) !important; }
+
+/* requested by Products; documented in docs/design-system.md */
+.list-paper { background: var(--paper); border-radius: 14px; overflow: hidden; }
+.chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; background: var(--paper); color: var(--ink); font-weight: 600; font-size: 15px; white-space: nowrap; flex-shrink: 0; box-shadow: inset 0 0 0 1.5px var(--ink); }
+.chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); color: #fff; }
+.text-filter { min-height: 44px; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.text-filter[aria-pressed="true"], .text-filter[aria-selected="true"], .text-filter[aria-current] { color: var(--ink); text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.timeline { position: relative; padding-left: 24px; }
+.timeline::before { content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 1.5px; background: var(--rule); }
+.timeline > * { position: relative; }
+.timeline > *::before { content: ""; position: absolute; left: -23px; top: 7px; width: 10px; height: 10px; border-radius: 999px; background: var(--ink); box-shadow: 0 0 0 3px var(--floor); }
+.edge-yellow { border-left: 6px solid var(--yellow); }
+/* horizontal chip rows: snap, hidden scrollbar, right-edge fade so cut-off items read as scrollable */
+.scroll-row { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent); padding-right: 32px; }
+.scroll-row::-webkit-scrollbar { display: none; }
+.scroll-row > * { scroll-snap-align: start; }
+@media (min-width: 768px) { .scroll-row { -webkit-mask-image: none; mask-image: none; padding-right: 0; } }

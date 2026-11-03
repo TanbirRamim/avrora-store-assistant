@@ -23,6 +23,8 @@ from avrora.analytics.forecast import sales_history
 from avrora.analytics.products import ProductFacts, build_products, store_feed
 from avrora.analytics.purchases import purchase_history
 from avrora.api.signals import router as signals_router
+from avrora.api.wartime import router as wartime_router
+from avrora.api.workforce import router as workforce_router
 from avrora.config import SETTINGS
 from avrora.data.loader import StoreData, load
 from avrora.evaluation import evaluate
@@ -35,6 +37,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(signals_router)
+app.include_router(workforce_router)
+app.include_router(wartime_router)
 
 DB_PATH = SETTINGS.data_dir / "decisions.sqlite"
 

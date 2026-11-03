@@ -45,3 +45,66 @@ export async function wartimeAlerts(token: string | undefined): Promise<WartimeA
     return { connected: false, reason: "unavailable" };
   }
 }
+
+/**
+ * Aerial threats (drones, missiles, guided bombs) from mapa.ua's public feed. Positions are
+ * unofficial estimates the site derives from public monitoring channels, so the app labels them
+ * that way and never treats them as confirmed. Only "active" objects are passed on; lost or
+ * eliminated tracks are dropped. Mirrors GET /api/wartime/threats in backend/src/avrora/api/wartime.py.
+ */
+const THREATS_URL = "https://mapa.ua/api/v1/current";
+
+export interface AerialThreat {
+  id: string;
+  kind: string;
+  lat: number;
+  lon: number;
+  amount: number;
+  seen_at: string | null;
+}
+
+export type WartimeThreats =
+  | { connected: true; source: "mapa.ua"; fetched_at: string; threats: AerialThreat[] }
+  | { connected: false; reason: "unavailable" };
+
+interface RawThreat {
+  id?: unknown;
+  kind?: unknown;
+  status?: unknown;
+  lat?: unknown;
+  lon?: unknown;
+  amount?: unknown;
+  last_seen?: unknown;
+}
+
+export function summariseThreats(objects: RawThreat[], ts: number | undefined): WartimeThreats {
+  const threats = objects.flatMap((o): AerialThreat[] =>
+    o.status === "active" && typeof o.lat === "number" && typeof o.lon === "number" && (typeof o.id === "string" || typeof o.id === "number")
+      ? [{
+          id: String(o.id),
+          kind: typeof o.kind === "string" ? o.kind : "unknown",
+          lat: o.lat,
+          lon: o.lon,
+          amount: typeof o.amount === "number" && o.amount > 0 ? o.amount : 1,
+          seen_at: typeof o.last_seen === "string" ? o.last_seen : null,
+        }]
+      : [],
+  );
+  const fetched = new Date(typeof ts === "number" ? ts * 1000 : Date.now()).toISOString();
+  return { connected: true, source: "mapa.ua", fetched_at: fetched, threats };
+}
+
+export async function wartimeThreats(): Promise<WartimeThreats> {
+  try {
+    const res = await fetch(THREATS_URL, {
+      headers: { "User-Agent": "avrora-store-assistant" },
+      cf: { cacheTtl: 30, cacheEverything: true },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return { connected: false, reason: "unavailable" };
+    const body = (await res.json()) as { objects?: RawThreat[]; ts?: number };
+    return summariseThreats(Array.isArray(body.objects) ? body.objects : [], body.ts);
+  } catch {
+    return { connected: false, reason: "unavailable" };
+  }
+}

@@ -27,7 +27,7 @@ async function openNav(page: Page, name: string) {
   const re = new RegExp(`^${name}( \\d+ to decide)?$`);
   const target = page.getByRole("button", { name: re }).filter({ visible: true });
   // All suggestions and the settings sit under More in the tab bar
-  if (["All suggestions", "Notifications", "AI briefing"].includes(name) && !(await target.count()))
+  if (["All suggestions", "Decisions", "Notifications", "AI briefing"].includes(name) && !(await target.count()))
     await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "More", exact: true }).click();
   await target.first().click();
 }
@@ -76,7 +76,7 @@ test("AI briefing: add a key, see the model's text, remove the key", async ({ pa
     await route.fulfill({ json: { message: { content } } });
   });
 
-  await expect(page.getByText("Sorted by fixed rules, not AI.")).toBeVisible();
+  await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
   await page.getByRole("button", { name: "Write with AI" }).click();
   const dialog = page.getByRole("dialog", { name: "AI briefing" });
   const submit = dialog.getByRole("button", { name: "Save and write briefing" });
@@ -100,13 +100,13 @@ test("AI briefing: add a key, see the model's text, remove the key", async ({ pa
   await page.getByRole("button", { name: "AI settings" }).click();
   await expect(dialog.getByLabel("Open WebUI key")).toHaveAttribute("placeholder", "Saved in this browser");
   await dialog.getByRole("button", { name: "Remove key and stop using AI" }).click();
-  await expect(page.getByText("Sorted by fixed rules, not AI.")).toBeVisible();
+  await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
   expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("avrora.")))).toEqual([]);
 });
 
-test("light appearance uses Apple grouped background", async ({ page }) => {
+test("light appearance uses the shop-floor background", async ({ page }) => {
   const bg = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
-  expect(bg).toBe("rgb(242, 242, 247)");
+  expect(bg).toBe("rgb(242, 242, 238)");
   const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
   expect(scheme).toBe("light");
 });
@@ -185,11 +185,12 @@ test("All suggestions filters by type", async ({ page }) => {
   }
   expect(sum).toBe(all);
   const vw = page.viewportSize()!.width;
-  for (const tab of await page.getByRole("tab").all()) {
-    const b = (await tab.boundingBox())!;
-    expect(b.x).toBeGreaterThanOrEqual(0);
-    expect(b.x + b.width).toBeLessThanOrEqual(vw);
-  }
+  // the chip row may scroll sideways on its own, the page never does
+  const row = (await page.getByRole("tablist", { name: "Filter by type" }).boundingBox())!;
+  expect(row.x).toBeGreaterThanOrEqual(0);
+  expect(row.x + row.width).toBeLessThanOrEqual(vw);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  for (const tab of await page.getByRole("tab").all()) expect(await tab.evaluate((e) => e.scrollHeight <= 48)).toBe(true);
 });
 
 test("Decisions log lists decisions and supports undo", async ({ page }) => {
@@ -347,7 +348,7 @@ async function clearsBar(page: Page, last: ReturnType<Page["locator"]>, what: st
 async function checkBar(page: Page) {
   const bar = tabBar(page);
   await expect(bar).toBeVisible();
-  for (const name of ["Products", "Map", "Decisions", "More"]) await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
+  for (const name of ["Team", "Products", "Map", "More"]) await expect(bar.getByRole("button", { name, exact: true })).toBeVisible();
   await expect(bar.getByRole("button", { name: /^Today \d+ to decide$/ })).toHaveAttribute("aria-current", "page");
   const vp = page.viewportSize()!;
   const pill = (await bar.locator("ul").boundingBox())!;
@@ -363,8 +364,9 @@ async function checkBar(page: Page) {
   // nothing ends behind the bar
   await clearsBar(page, page.getByText("Value in slow stock"), "Today");
   await bar.getByRole("button", { name: "Products", exact: true }).click();
-  await clearsBar(page, page.getByText(/^Lasts: days the stock covers/), "Products");
-  await bar.getByRole("button", { name: "Decisions", exact: true }).click();
+  await clearsBar(page, page.getByTestId("product-list").last(), "Products");
+  await bar.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("button", { name: "Decisions", exact: true }).click();
   await clearsBar(page, page.getByText(/No decisions yet|Undo$/).last(), "Decisions");
   await bar.getByRole("button", { name: "More", exact: true }).click();
   await clearsBar(page, page.getByText(/^Store data is made up/), "More");
@@ -432,7 +434,7 @@ test("desktop: an open panel keeps the list and the tab bar clear", async ({ pag
     await tabBar(page).getByRole("button", { name: "Products", exact: true }).click();
     await page.getByRole("main").getByRole("listitem").first().getByRole("button").click();
     const pp = (await page.getByRole("complementary", { name: /^Product / }).boundingBox())!;
-    const list = (await page.locator("main ul.group-list").first().boundingBox())!;
+    const list = (await page.getByTestId("product-list").first().boundingBox())!;
     expect(list.x + list.width, `${width} products`).toBeLessThanOrEqual(pp.x);
     const pill2 = (await tabBar(page).locator("ul").boundingBox())!;
     expect(pill2.x + pill2.width, `${width} product bar`).toBeLessThanOrEqual(pp.x);

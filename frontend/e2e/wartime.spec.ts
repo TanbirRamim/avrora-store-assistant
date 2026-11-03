@@ -1,7 +1,19 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
-async function openWartime(page: Page) {
+const THREATS = {
+  connected: true,
+  source: "mapa.ua",
+  fetched_at: "2026-11-03T10:05:00Z",
+  // one drone next to Zaporizhzhia, one over the Black Sea far from any site
+  threats: [
+    { id: "t1", kind: "drone_piston", lat: 47.84, lon: 35.14, amount: 2, seen_at: "2026-11-03T10:03:00Z" },
+    { id: "t2", kind: "drone_jet", lat: 44.9, lon: 31.5, amount: 1, seen_at: null },
+  ],
+};
+
+async function openWartime(page: Page, threats: object = { connected: false, reason: "unavailable" }) {
+  await page.route("**/api/wartime/threats", (r) => r.fulfill({ json: threats }));
   await page.goto("/");
   await page.getByRole("button", { name: /^Map$/ }).filter({ visible: true }).first().click();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
@@ -83,4 +95,35 @@ test("war-time mode has no accessibility violations", async ({ page }) => {
   await page.waitForTimeout(900);
   const r = await new AxeBuilder({ page }).include("main").exclude(".maplibregl-canvas-container").withTags(["wcag2a", "wcag2aa"]).analyze();
   expect(r.violations.map((v) => `${v.id} (${v.nodes.length}) ${v.nodes[0]?.target}`)).toEqual([]);
+});
+
+test("aerial threats and supply sites at risk are shown and labelled as estimates", async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/api/wartime/alerts", (r) => r.fulfill({ json: { connected: false, reason: "no_token" } }));
+  await openWartime(page, THREATS);
+
+  await expect(page.getByText(/2 aerial threats reported, mapa\.ua .*Unofficial estimates\./)).toBeVisible();
+  const section = page.getByRole("region", { name: "Supply sites at risk" });
+  await expect(section).toContainText(/near threats/);
+  const sites = page.getByRole("list", { name: "Supply sites by risk" }).getByRole("button");
+  await expect(sites).toHaveCount(5);
+  await expect(sites.first()).toContainText("Critical");
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-wartime-threats.png` });
+
+  await sites.first().click();
+  const popup = page.locator(".nm-popup");
+  await expect(popup).toContainText("risk");
+  await expect(popup).toContainText(/Hold shipments|Expect delays|Deliveries usually run/);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-wartime-site.png` });
+  expect(errors).toEqual([]);
+});
+
+test("without the threat feed the panel says so", async ({ page }) => {
+  await page.route("**/api/wartime/alerts", (r) => r.fulfill({ json: { connected: false, reason: "no_token" } }));
+  await openWartime(page);
+  await expect(page.getByText("Aerial threat feed not connected.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Supply sites at risk" })).not.toContainText("near threats");
 });

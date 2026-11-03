@@ -8,13 +8,18 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from avrora.analytics.purchases import order_row
+from avrora.api import main as api_main
 from avrora.api.main import app
+from avrora.api.workforce import kpi_base
+from avrora.workforce.people import employee_list, employee_profile
+from avrora.workforce.plan import all_events, base_plan, plan_dates, replan
 
 # Product detail fields that the list row already carries; the Worker copies them back.
 FROM_ROW = ("product_id", "name", "category", "price", "supplier", "days_cover", "status", "stock", "on_order",
@@ -79,6 +84,67 @@ def expand_detail(row: dict, compact: dict, today: str) -> dict:
             "purchases": purchases, "purchase_summary": summary}
 
 
+# --------------------------------------------------------------------------- workforce
+# Plans for today..+6 and every replan the planner offers (sick x employee, and air_alert /
+# power / traffic_spike x start hour) are precomputed: the scheduler stays in one place
+# (Python) and the Worker serves byte-identical documents. A replan is stored as the keys
+# that differ from the day's base plan; inside it, hours equal to the base are null and
+# shifts equal to a base shift are that shift's index. Status and changes come from the
+# audit table at request time, as in the API.
+
+
+def compact_replan(base: dict, doc: dict) -> dict:
+    out = {k: v for k, v in doc.items() if k not in base or base[k] != v}
+    if "hours" in out:
+        out["hours"] = [None if h == b else h for h, b in zip(out["hours"], base["hours"], strict=True)]
+    if "shifts" in out:
+        out["shifts"] = [base["shifts"].index(s) if s in base["shifts"] else s for s in out["shifts"]]
+    return out
+
+
+def expand_replan(base: dict, compact: dict) -> dict:
+    out = {**base, **compact}
+    if "hours" in compact:
+        out["hours"] = [b if h is None else h for h, b in zip(compact["hours"], base["hours"], strict=True)]
+    if "shifts" in compact:
+        out["shifts"] = [base["shifts"][s] if isinstance(s, int) else s for s in compact["shifts"]]
+    return out
+
+
+PROFILE_FROM_ROW = ("employee_id", "name", "role", "skills", "contract_hours_week", "hours_this_week",
+                    "status_today", "next_shift", "score", "trend", "strength")
+
+
+def workforce_snapshot() -> dict:
+    plans, replans = {}, {}
+    for d in plan_dates():
+        base = base_plan(d)
+        plans[d.isoformat()] = base
+        replans[d.isoformat()] = {e.key: compact_replan(base, replan(d, e)) for e in all_events(d)}
+    rows = employee_list()
+    profiles = {r["employee_id"]: {k: v for k, v in employee_profile(r["employee_id"]).items() if k not in PROFILE_FROM_ROW}
+                for r in rows["employees"]}
+    return {"plans": plans, "replans": replans, "employees": rows, "profiles": profiles, "kpis": kpi_base()}
+
+
+def verify_workforce(client: TestClient, wf: dict) -> None:
+    """Every workforce response the Worker can give, rebuilt from the snapshot, equals the API's."""
+    strip = lambda doc: {k: v for k, v in doc.items() if k not in ("changes", "status")}
+    get = lambda path: client.get(path).raise_for_status().json()
+    for day, base in wf["plans"].items():
+        assert strip(get(f"/api/workforce/plan?date={day}")) == strip(base), day
+        for key, compact in wf["replans"][day].items():
+            kind, _, arg = key.rpartition("-")
+            event = {"kind": kind, "employee_id": arg} if kind == "sick" else {"kind": kind, "from": f"{arg}:00"}
+            got = client.post("/api/workforce/replan", json={"date": day, "event": event}).raise_for_status().json()
+            assert strip(got) == strip(expand_replan(base, compact)), (day, key)
+    assert get("/api/workforce/employees") == wf["employees"]
+    assert {k: v for k, v in get("/api/workforce/kpis").items() if k != "decisions"} == wf["kpis"]
+    for r in wf["employees"]["employees"]:
+        full = get(f"/api/workforce/employees/{r['employee_id']}")
+        assert full == {**{k: r[k] for k in PROFILE_FROM_ROW}, **wf["profiles"][r["employee_id"]]}, r["employee_id"]
+
+
 def main(out: Path) -> None:
     client = TestClient(app)
     get = lambda path: client.get(path).raise_for_status().json()
@@ -95,10 +161,18 @@ def main(out: Path) -> None:
         "evaluation": get("/api/evaluation"),
         "product_list": product_list,
         "product_details": details,
+        "workforce": workforce_snapshot(),
     }
+    with tempfile.TemporaryDirectory() as tmp:  # replans write audit rows; keep them out of the real database
+        real, api_main.DB_PATH = api_main.DB_PATH, Path(tmp) / "verify.sqlite"
+        try:
+            verify_workforce(client, snapshot["workforce"])
+        finally:
+            api_main.DB_PATH = real
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")))
-    print(f"Wrote {out} ({out.stat().st_size // 1024} KB, {len(details)} products)")
+    print(f"Wrote {out} ({out.stat().st_size // 1024} KB, {len(details)} products, "
+          f"{sum(len(r) for r in snapshot['workforce']['replans'].values())} workforce replans)")
 
 
 if __name__ == "__main__":

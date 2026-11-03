@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { forgetKey, setLang, useAi, writeBriefing } from "@/lib/ai";
 import type { Action } from "@/lib/api";
 import { ModelError } from "@/lib/ollama";
-import { CloseIcon, SparkleIcon } from "./icons";
+import { CloseIcon } from "./icons";
 
 interface Props {
   hasKey: boolean;
@@ -60,54 +60,55 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
           transition={{ type: "spring", stiffness: 420, damping: 38 }}
-          className="pointer-events-auto max-h-full w-full max-w-[460px] overflow-y-auto overscroll-contain rounded-t-[12px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] md:rounded-[14px] md:pb-4 md:shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
+          className="float pointer-events-auto relative max-h-full w-full max-w-[440px] overflow-y-auto overscroll-contain rounded-t-[20px] bg-floor pb-[max(env(safe-area-inset-bottom),20px)] md:rounded-[20px] md:pb-6"
         >
-          <header className="flex items-center gap-3 border-b border-separator px-4 py-3">
-            <span className="icon-tile size-[30px]" style={{ background: "var(--move)" }}>
-              <SparkleIcon size={17} />
-            </span>
-            <h2 id="ai-title" className="t-headline flex-1">AI briefing</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              aria-label="Close AI briefing"
-              className="hit grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
-            >
+          <div className="flex justify-center pt-2 md:hidden" aria-hidden>
+            <span className="h-[5px] w-9 rounded-full bg-[rgba(0,0,0,0.2)]" />
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            aria-label="Close AI briefing"
+            className="absolute right-2 top-2 grid size-[44px] place-items-center"
+          >
+            <span className="grid size-[32px] place-items-center rounded-full bg-fill text-ink hover:bg-fill-2">
               <CloseIcon />
-            </button>
+            </span>
+          </button>
+
+          <header className="px-5 pr-14 pt-4 md:pt-6">
+            <h2 id="ai-title" className="t-title2 font-display">AI briefing</h2>
+            <p className="t-subhead mt-1.5 text-muted">
+              Picks today&apos;s five priorities and explains them in plain words. Every number is checked against the
+              store data.
+            </p>
+            <span className="t-subhead mt-3 flex items-center gap-2 font-medium">
+              <span className="size-2 rounded-full" style={{ background: hasKey ? "var(--green)" : "var(--muted)" }} aria-hidden />
+              {hasKey ? "Key saved in this browser" : "No key yet"}
+            </span>
           </header>
 
-          <div className="px-4 pt-4">
-            <p className="t-subhead text-label-2">
-              AI picks today&apos;s five priorities and explains them in plain words. Every number it writes is checked
-              against the store data.
-            </p>
-
-            <h3 className="group-header mt-5">Open WebUI key</h3>
-            <div className="group-list">
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                aria-label="Open WebUI key"
-                placeholder={hasKey ? "Saved in this browser" : "sk-…"}
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                autoFocus
-                className="t-body w-full bg-transparent px-4 py-[11px] outline-none placeholder:text-label-3"
-              />
-            </div>
-            <p className="group-footer">
-              In Open WebUI, open Settings, then Account, and copy your API key. It is saved only in this browser.
-              AI works only on the OTH university network (on campus or through the university VPN).
-            </p>
-
-            <h3 className="group-header mt-5">Language</h3>
-            <div className="group-list">
-              <div className="cell flex items-center gap-3 px-4 py-[9px]">
+          <div className="px-4 pt-6">
+            <div className="rounded-[14px] bg-paper">
+              <label className="block px-4 pb-1 pt-3">
+                <span className="t-footnote font-semibold text-muted">Open WebUI key</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-label="Open WebUI key"
+                  placeholder={hasKey ? "Saved in this browser" : "sk-…"}
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  autoFocus
+                  className="t-body block min-h-[40px] w-full bg-transparent outline-none placeholder:text-muted"
+                />
+              </label>
+              <div className="mx-4 h-[0.5px] bg-separator" />
+              <div className="flex min-h-[52px] items-center gap-3 px-4 py-2">
                 <span className="t-body min-w-0 flex-1">Writes in</span>
-                <div role="radiogroup" aria-label="Briefing language" className="flex rounded-[9px] bg-fill p-[2px]">
+                <div role="radiogroup" aria-label="Briefing language" className="flex gap-1.5">
                   {(["uk", "en"] as const).map((l) => (
                     <button
                       key={l}
@@ -116,7 +117,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
                       aria-checked={lang === l}
                       disabled={busy}
                       onClick={() => setLang(l)}
-                      className={`rounded-[7px] px-3 py-1 text-[13px] font-medium ${lang === l ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-label-2"}`}
+                      className={`min-h-[44px] whitespace-nowrap rounded-full px-4 text-[15px] font-medium transition-colors ${lang === l ? "bg-ink text-white" : "text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]"}`}
                     >
                       {l === "uk" ? "Українська" : "English"}
                     </button>
@@ -124,17 +125,20 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
                 </div>
               </div>
             </div>
-            <p className="group-footer">AI writes in this language. Numbers are checked either way.</p>
+            <p className="t-footnote px-4 pt-2 text-muted">
+              In Open WebUI, open Settings, then Account, and copy your API key. It stays in this browser. AI works
+              only on the OTH university network (on campus or through the university VPN).
+            </p>
 
             {error && (
-              <p role="alert" className="t-subhead mt-4 px-1" style={{ color: "var(--order-text)" }}>
+              <p role="alert" className="t-subhead mt-4 rounded-[14px] border-l-[4px] border-red bg-paper px-4 py-3 font-medium text-red">
                 {error}
               </p>
             )}
 
             <button
               disabled={busy || (!key.trim() && !hasKey)}
-              className="mt-5 w-full rounded-[12px] bg-tint-fill py-3 text-[17px] font-semibold text-white active:opacity-80 disabled:opacity-40"
+              className="btn-ink mt-6 min-h-[52px] w-full disabled:opacity-40"
             >
               {busy ? "Writing, about 20 seconds…" : hasKey && !key ? "Write again" : "Save and write briefing"}
             </button>
@@ -146,8 +150,8 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
                   forgetKey();
                   onClose();
                 }}
-                className="t-body mt-2 w-full py-2.5"
-                style={{ color: "var(--order-text)" }}
+                className="t-body mt-2 min-h-[44px] w-full"
+                style={{ color: "var(--red)" }}
               >
                 Remove key and stop using AI
               </button>

@@ -41,7 +41,9 @@ test("lists every product, problems first, with status chips", async ({ page }, 
   const errors = watchConsole(page);
   await openProducts(page);
   const need = rows.filter((r) => r.attention);
-  await expect(page.getByText(`${rows.length} products · ${need.length} need attention`)).toBeVisible();
+  const tag = page.getByRole("region", { name: "Stock health" });
+  await expect(tag).toContainText(new RegExp(`${need.length}\\s*need attention`));
+  await expect(tag).toContainText(`${rows.length} products`);
   const attention = section(page, /Needs attention/);
   await expect(attention.getByRole("listitem")).toHaveCount(need.length);
   await expect(section(page, /Everything else/).getByRole("listitem")).toHaveCount(rows.length - need.length);
@@ -78,6 +80,20 @@ test("search, category filter and sort", async ({ page }) => {
   await expect(section(page, /^Products/).getByRole("listitem").first()).toContainText(byName[0].name);
 });
 
+test("stock health tiles filter the list", async ({ page }) => {
+  await openProducts(page);
+  const tiles = page.getByRole("group", { name: "Filter by status" });
+  const late = rows.filter((r) => r.status === "late").length;
+  const tile = tiles.getByRole("button", { name: /Late delivery/ });
+  await expect(tile).toContainText(String(late));
+  await tile.click();
+  await expect(tile).toHaveAttribute("aria-pressed", "true");
+  await expect(section(page, /^Late delivery/).getByRole("listitem")).toHaveCount(late);
+  await expect(section(page, /^Updates/)).toHaveCount(0);
+  await page.getByRole("button", { name: "Show all", exact: true }).click();
+  await expect(section(page, /Needs attention/)).toBeVisible();
+});
+
 test("product detail shows facts and opens its suggestion", async ({ page }, info) => {
   const errors = watchConsole(page);
   await openProducts(page);
@@ -92,7 +108,7 @@ test("product detail shows facts and opens its suggestion", async ({ page }, inf
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${SHOTS}/product-detail-${info.project.name}.png` });
   }
-  await panel.getByRole("button", { name: "Review suggestion" }).click();
+  await panel.getByRole("button", { name: "Review suggestion" }).first().click();
   await expect(productPanel(page)).toHaveCount(0);
   await expect(page.getByRole("complementary", { name: `Details for ${top.name}` })).toBeVisible();
   expect(errors).toEqual([]);
@@ -157,7 +173,7 @@ test("purchase history matches the API and expands to every order", async ({ pag
   const history = await openProduct(page, row!);
   const s = d!.purchase_summary;
   const items = history.getByRole("listitem");
-  await expect(items.first()).toContainText(`${s.orders} orders · ${s.units.toLocaleString("en-GB")} units`);
+  await expect(items.first()).toContainText(`${s.orders} orders, ${s.units.toLocaleString("en-GB")} units`);
   if (s.on_time_pct !== null) await expect(items.first()).toContainText(`${s.on_time_pct}% on time`);
   await expect(items).toHaveCount(1 + 5);
   await expect(items.nth(1)).toContainText(`${d!.purchases[0].qty} units`);

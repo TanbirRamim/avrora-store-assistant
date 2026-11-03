@@ -5,7 +5,7 @@ import type { Signal, Signals } from "@/lib/api";
 import type { Lang } from "@/lib/assist";
 import type { Replan } from "@/lib/replan";
 import { replannable } from "@/lib/replan";
-import { AlertIcon, BoltIcon, CheckCircleIcon, CloudIcon, SparkleIcon } from "./icons";
+import { AlertIcon, BoltIcon, CheckCircleIcon, ChevronIcon, CloudIcon, SparkleIcon } from "./icons";
 
 interface Props {
   data: Signals;
@@ -40,13 +40,27 @@ const span = (ms: number) => {
 
 function look(s: Signal, now: number) {
   const active = Date.parse(s.starts_at) <= now;
-  if (s.kind === "weather") return { Icon: CloudIcon, tile: "var(--move)", text: "var(--move-text)", timing: null };
+  if (s.kind === "weather") return { Icon: CloudIcon, tile: "var(--ink)", text: "var(--ink)", timing: null };
   const ends = s.ends_at ? ` · ends in ${span(Date.parse(s.ends_at) - now)}` : "";
   if (s.kind === "air_alert") return { Icon: AlertIcon, tile: "var(--order)", text: "var(--order-text)", timing: `Now${ends}` };
   return active
     ? { Icon: BoltIcon, tile: "var(--order)", text: "var(--order-text)", timing: `Now${ends}` }
     : { Icon: BoltIcon, tile: "var(--discount)", text: "var(--discount-text)", timing: `Starts in ${span(Date.parse(s.starts_at) - now)}` };
 }
+
+/** Repeated power cuts read as one row with their times; everything else keeps its own row. */
+function group(signals: Signal[]) {
+  const power = signals.filter((s) => s.kind === "power");
+  const out: Signal[][] = [];
+  for (const s of signals) {
+    if (s.kind !== "power") out.push([s]);
+    else if (power.length < 2) out.push([s]);
+    else if (s === power[0]) out.push(power);
+  }
+  return out;
+}
+
+const badge = (s: Signal) => (s.source.includes("example") ? "Example" : "Simulated, not real");
 
 /** Power cuts, air-raid alerts and notable weather near the store, with a re-plan for the first two. */
 export function LiveConditions({ data, replan, busy, error, hasKey, lang, onReplan, onRevert }: Props) {
@@ -56,8 +70,8 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
 
   if (signals.length === 0) {
     return (
-      <p className="t-footnote mt-4 flex items-start gap-1.5 px-1 text-label-2" data-testid="all-clear">
-        <CheckCircleIcon size={15} className="mt-[1.5px] shrink-0 text-[var(--done)]" />
+      <p className="t-subhead flex items-start gap-2.5 border-y border-rule px-1 py-3 text-muted" data-testid="all-clear">
+        <CheckCircleIcon size={17} className="mt-[1.5px] shrink-0 text-green" />
         <span>
           All clear: no power cuts or severe weather ahead.
           {!alertsLive && nb(" Air-raid alerts are not connected.")}
@@ -68,85 +82,110 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
 
   const target = signals.find(replannable);
   return (
-    <section className="mt-6" aria-labelledby="live-title">
-      <h2 id="live-title" className="group-header">Live conditions</h2>
-      <ul className="group-list">
-        {signals.map((s) => {
-          const { Icon, tile, text, timing } = look(s, now);
-          return (
-            <li key={s.id} className="cell flex items-start gap-3 px-4 py-3 [--inset:58px]" data-testid="signal">
-              <span className="icon-tile size-[30px]" style={{ background: tile }}>
-                <Icon size={17} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="t-body">{s.title}</span>
-                  {s.simulated && (
-                    <span className="t-caption mt-[3px] shrink-0 rounded-full bg-fill px-2 py-px font-medium text-label-2">
-                      {s.source.includes("example") ? "Example" : "Simulated, not real"}
-                    </span>
+    <section aria-labelledby="live-title">
+      <div className="section-head">
+        <h2 id="live-title" className="list-title">Live conditions</h2>
+      </div>
+      <div className="flat-list">
+        <ul>
+          {group(signals).map((items) => {
+            const s = items[0];
+            const { Icon, tile, text, timing } = look(s, now);
+            const many = items.length > 1;
+            return (
+              <li key={s.id} className="cell flex items-start gap-3 px-4 py-3.5 [--inset:48px]" data-testid="signal">
+                <span className="mt-[2px] shrink-0" style={{ color: tile }} aria-hidden>
+                  <Icon size={20} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="t-headline">{many ? `${items.length} power cuts` : s.title}</span>
+                    {s.simulated && (
+                      <span className="t-caption mt-[2px] shrink-0 whitespace-nowrap rounded-[6px] bg-fill px-1.5 py-px font-medium text-muted">
+                        {badge(s)}
+                      </span>
+                    )}
+                  </div>
+                  {!many && timing && (
+                    <p className="t-footnote num mt-[2px] font-semibold" style={{ color: text }}>
+                      {timing}
+                    </p>
                   )}
+                  {many && (
+                    <ul className="mt-1.5 space-y-1">
+                      {items.map((p) => {
+                        const l = look(p, now);
+                        return (
+                          <li key={p.id} className="t-footnote num flex flex-wrap items-baseline gap-x-2">
+                            <span className="font-semibold" style={{ color: l.text }}>{l.timing}</span>
+                            <span className="text-muted">{p.title.replace(/^Power cut\s*/, "").replace(/^./, (c) => c.toUpperCase())}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <p className="t-subhead mt-1 text-muted">{s.detail}</p>
                 </div>
-                <p className="t-subhead mt-0.5 text-label-2">{s.detail}</p>
-                {timing && (
-                  <p className="t-footnote num mt-[3px] font-medium" style={{ color: text }}>
-                    {timing}
+              </li>
+            );
+          })}
+
+          {target && !replan && (
+            <li className="cell [--inset:0px]">
+              <button
+                type="button"
+                onClick={() => onReplan(target)}
+                disabled={busy}
+                className="flex min-h-[48px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[rgba(0,0,0,0.02)] active:bg-fill disabled:opacity-60"
+              >
+                <span className="shrink-0 text-ink" aria-hidden>
+                  <SparkleIcon size={20} />
+                </span>
+                <span className="t-body flex-1 font-semibold text-ink underline-offset-4 hover:underline">{busy ? "Re-planning, about 20 seconds…" : "Re-plan for this"}</span>
+                <span className="t-footnote whitespace-nowrap text-muted">{hasKey ? "With AI" : "Fixed rules"}</span>
+              </button>
+              {error && (
+                <p role="alert" className="t-footnote px-4 pb-3 pl-[48px]" style={{ color: "var(--order-text)" }}>
+                  {error}
+                </p>
+              )}
+            </li>
+          )}
+
+          {replan && (
+            <li className="cell border-l-4 border-ink bg-floor px-4 py-3.5 [--inset:0px]" data-testid="replan">
+              <div className="flex items-start gap-3">
+                <span className="mt-[1px] shrink-0 text-ink" aria-hidden>
+                  <SparkleIcon size={20} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="t-headline">What changes</span>
+                    <button type="button" onClick={onRevert} className="hit t-subhead shrink-0 font-semibold text-ink underline underline-offset-4">
+                      Revert
+                    </button>
+                  </div>
+                  <p className="t-subhead mt-0.5 whitespace-pre-line text-ink" lang={lang} data-testid="replan-note">
+                    {replan.note}
                   </p>
-                )}
+                  <p className="t-footnote mt-1.5 text-muted">
+                    {replan.source === "model" ? "Reordered by AI. Numbers checked against store data." : "Sorted by fixed rules, not AI."}
+                  </p>
+                </div>
               </div>
             </li>
-          );
-        })}
-
-        {target && !replan && (
-          <li className="cell [--inset:58px]">
-            <button
-              type="button"
-              onClick={() => onReplan(target)}
-              disabled={busy}
-              className="flex w-full items-center gap-3 px-4 py-[11px] text-left active:bg-fill disabled:opacity-60"
-            >
-              <span className="grid size-[30px] shrink-0 place-items-center text-tint">
-                <SparkleIcon size={19} />
-              </span>
-              <span className="t-body flex-1 text-tint">{busy ? "Re-planning, about 20 seconds…" : "Re-plan for this"}</span>
-              <span className="t-footnote text-label-2">{hasKey ? "With AI" : "Fixed rules"}</span>
-            </button>
-            {error && (
-              <p role="alert" className="t-footnote px-4 pb-3 pl-[58px]" style={{ color: "var(--order-text)" }}>
-                {error}
-              </p>
-            )}
-          </li>
-        )}
-
-        {replan && (
-          <li className="cell px-4 py-3 [--inset:58px]" data-testid="replan">
-            <div className="flex items-start gap-3">
-              <span className="grid size-[30px] shrink-0 place-items-center text-tint">
-                <SparkleIcon size={19} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="t-body font-semibold">What changes</span>
-                  <button type="button" onClick={onRevert} className="t-subhead shrink-0 text-tint">
-                    Revert
-                  </button>
-                </div>
-                <p className="t-subhead mt-0.5 whitespace-pre-line text-label-2" lang={lang} data-testid="replan-note">
-                  {replan.note}
-                </p>
-                <p className="t-footnote mt-1.5 text-label-2">
-                  {replan.source === "model" ? "Reordered by AI. Numbers checked against store data." : "Sorted by fixed rules, not AI."}
-                </p>
-              </div>
-            </div>
-          </li>
-        )}
-      </ul>
-      <p className="group-footer">
-        {nb(`Sources. ${feeds.map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" ")}`)}
-      </p>
+          )}
+        </ul>
+        <details className="border-t border-rule">
+          <summary className="t-footnote flex min-h-[44px] items-center gap-1.5 px-4 text-muted hover:text-ink">
+            <ChevronIcon size={11} className="disclose shrink-0" />
+            Sources
+          </summary>
+          <p className="t-footnote px-4 pb-3 text-muted">
+            {nb(feeds.map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" "))}
+          </p>
+        </details>
+      </div>
     </section>
   );
 }

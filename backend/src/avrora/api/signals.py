@@ -217,3 +217,124 @@ def clear_simulated(x_demo_key: str | None = Header(default=None)) -> Response:
     _check_key(x_demo_key)
     _SIMULATED.clear()
     return Response(status_code=204)
+
+
+# ----------------------------------------------------------------------------- staffing (push)
+# Same rules as `staffing` in cloudflare/src/signals.ts. Plans run on the demo calendar: when the
+# Kyiv date has no plan, "today" is the first plan date and only the clock time is real.
+
+STAFFING_PRIORITY = {"high": 1_500_000_000, "medium": 500_000_000, "low": 0}
+APPROVE_FROM_HOUR = 7
+
+
+class StaffingSignal(BaseModel):
+    key: str
+    kind: Literal["unapproved", "gap", "sick", "no_lead"]
+    severity: Literal["high", "medium", "low"]
+    title: str
+    body: str
+    url: str
+    priority: int
+
+
+class StaffingOut(BaseModel):
+    updated_at: str
+    date: str
+    signals: list[StaffingSignal]
+
+
+def team_url(day: str) -> str:
+    return f"/?view=team&date={day}"
+
+
+def _people(n: int) -> str:
+    return f"{n} person" if n == 1 else f"{n} people"
+
+
+def staffing_signals(now: datetime, plans: dict[str, dict], approved: dict[str, bool],
+                     sick: dict[str, list[tuple[str, str, bool]]]) -> list[StaffingSignal]:
+    """plans: effective plan per date (approved version, else the base draft); approved: per date;
+    sick: per date, (employee_id, name, reported_today) where reported_today means a sick replan was drafted."""
+    dates = sorted(plans)
+    if not dates:
+        return []
+    local = now.astimezone(KYIV)
+    today = local.date().isoformat()
+    if today not in plans:
+        today = dates[0]
+    later = [d for d in dates if d > today]
+    hour = local.hour + local.minute / 60
+    close = int(plans[today]["opening"]["close"][:2])
+    out: list[StaffingSignal] = []
+
+    def add(key: str, kind: str, severity: str, title: str, body: str, day: str) -> None:
+        out.append(StaffingSignal(key=key, kind=kind, severity=severity, title=title, body=body, url=team_url(day),
+                                  priority=STAFFING_PRIORITY[severity]))
+
+    open_today = hour < close
+    if open_today and hour >= APPROVE_FROM_HOUR and not approved.get(today):
+        opens = plans[today]["opening"]["open"]
+        add(f"staffing:unapproved:{today}", "unapproved", "high", "Today's staff plan is not approved",
+            f"The store opens at {opens}. Review the agent's plan and approve it, or ask for a re-plan.", today)
+    for day in [today, *later[:1]]:
+        p = plans[day]
+        is_today = day == today
+        for g in p["gaps"]:
+            start, end = int(g["from"][:2]), int(g["to"][:2])
+            if is_today and end <= hour:
+                continue
+            severity = "high" if is_today and start - hour <= 2 else "medium"
+            short = "Short" if is_today else "Tomorrow: short"
+            add(f"staffing:gap:{day}:{g['from']}-{g['to']}:{g['missing']}", "gap", severity,
+                f"{short} {_people(g['missing'])} {g['from']}-{g['to']}",
+                f"{g['reason']}. Open the team plan to find cover.", day)
+        if (open_today or not is_today) and not any(s["role"] == "shift_lead" for s in p["shifts"]):
+            when = "today" if is_today else "tomorrow"
+            add(f"staffing:no_lead:{day}", "no_lead", "medium", f"No shift lead {when}",
+                "A senior cashier leads the floor. Make sure they know who handles refunds and the cash office.", day)
+    if open_today:
+        first = next((g for g in plans[today]["gaps"] if int(g["to"][:2]) > hour), None)
+        still = f" Still short {_people(first['missing'])} {first['from']}-{first['to']}." if first else ""
+        for eid, name, reported in sick.get(today, []):
+            if reported:
+                add(f"staffing:sick:{today}:{eid}", "sick", "high", f"{name} called in sick",
+                    f"The agent drafted a re-plan for today.{still} Review and approve it.", today)
+            else:
+                add(f"staffing:sick:{today}:{eid}", "sick", "medium", f"{name} is off sick today",
+                    f"Today's plan already works without them.{still}", today)
+    return sorted(out, key=lambda s: (-s.priority, s.key))
+
+
+def staffing_inputs() -> tuple[dict[str, dict], dict[str, bool], dict[str, list[tuple[str, str, bool]]]]:
+    from avrora.api.workforce import _audit, approved_version
+    from avrora.workforce.data import staff
+    from avrora.workforce.plan import plan_dates, plan_for
+
+    sd = staff()
+    plans, approved, sick = {}, {}, {}
+    for d in plan_dates():
+        rows = _audit(d)
+        v = approved_version(rows)
+        day = d.isoformat()
+        plans[day] = plan_for(d, v or "base")
+        approved[day] = v is not None
+        av = sd.availability
+        ill = [(r.employee_id, sd.employee(r.employee_id).name, False)
+               for r in av[(av["date"] == day) & (av["status"] == "sick")].itertuples()]
+        known = {e for e, _, _ in ill}
+        for version, action, *_ in rows:
+            eid = version.removeprefix("sick-")
+            if action == "drafted" and version.startswith("sick-") and eid not in known:
+                ill.append((eid, sd.employee(eid).name, True))
+                known.add(eid)
+        sick[day] = ill
+    return plans, approved, sick
+
+
+@router.get("/api/signals/staffing", response_model=StaffingOut)
+def staffing() -> StaffingOut:
+    now = datetime.now(UTC)
+    plans, approved, sick = staffing_inputs()
+    out = staffing_signals(now, plans, approved, sick)
+    local = now.astimezone(KYIV).date().isoformat()
+    return StaffingOut(updated_at=_iso(now), date=local if local in plans else min(plans), signals=out)

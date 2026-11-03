@@ -5,12 +5,15 @@
  * `python -m avrora.export` writes at build time. Decisions are the only runtime state
  * and live in D1. Routes and payloads match the FastAPI backend. Push notifications
  * (/api/push/* and the cron trigger) exist only here. /api/signals reports power cuts,
- * air-raid alerts and notable weather (see external.ts).
+ * air-raid alerts and notable weather (see external.ts). /api/workforce/* is the staffing
+ * agent (see workforce.ts); its plan approvals and audit trail also live in D1.
  */
 import { externalSignals, simulatedSignal, type SimRow } from "./external";
 import { handlePush, sendUrgent, type PushEnv } from "./push";
+import { kyivClock, staffingFromDb } from "./signals";
 import snapshot from "./snapshot.json";
-import { wartimeAlerts } from "./wartime";
+import { wartimeAlerts, wartimeThreats } from "./wartime";
+import { handleWorkforce } from "./workforce";
 
 interface Env extends PushEnv {
   /** Guards the demo simulation routes; requests send it as X-Demo-Key. */
@@ -189,6 +192,15 @@ export default {
           const now = new Date();
           return json({ updated_at: now.toISOString(), ...(await externalSignals(env.DB, now, env)) });
         }
+        case "/api/signals/staffing": {
+          const now = new Date();
+          const k = kyivClock(now);
+          const dates = Object.keys(snapshot.workforce.plans).sort();
+          return json({ updated_at: now.toISOString().replace(/\.\d{3}Z$/, "Z"), date: dates.includes(k.date) ? k.date : dates[0],
+            signals: await staffingFromDb(env.DB, now) });
+        }
+        case "/api/wartime/threats":
+          return json(await wartimeThreats());
         case "/api/wartime/alerts":
           return json(await wartimeAlerts(env.ALERTS_IN_UA_TOKEN));
         case "/api/decisions": {
@@ -205,6 +217,8 @@ export default {
         return detail ? json(detail) : fail(404, `Unknown product ${id}`);
       }
     }
+
+    if (pathname.startsWith("/api/workforce/")) return (await handleWorkforce(req, env.DB, pathname)) ?? fail(404, "Not found");
 
     if (pathname.startsWith("/api/push/")) return (await handlePush(req, env, pathname)) ?? fail(404, "Not found");
 

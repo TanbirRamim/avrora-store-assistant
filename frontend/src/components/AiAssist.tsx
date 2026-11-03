@@ -5,24 +5,44 @@ import { savedKey, useAi } from "@/lib/ai";
 import type { Action, ProductDetail } from "@/lib/api";
 import { askAboutAction, draftSupplierMessage, FALLBACK, type Lang, QUESTIONS } from "@/lib/assist";
 import { ModelError } from "@/lib/ollama";
-import { SparkleIcon } from "./icons";
+import { ArrowUpIcon, SparkleIcon } from "./icons";
 
 interface QA { q: string; a: string | null; error?: boolean }
+
+/** Flat paper section shared by the detail sheet (no shadow: it does not float). */
+export const CARD = "rounded-[14px] bg-paper";
+
+const HEADING = "t-headline mb-2 px-1";
+const SEG = (on: boolean) =>
+  `min-h-[44px] whitespace-nowrap rounded-full px-4 text-[15px] font-medium transition-colors ${on ? "bg-ink text-white" : "text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]"}`;
 
 const errorText = (e: unknown) => (e instanceof ModelError ? e.message : FALLBACK);
 
 function NoKey({ onAddKey }: { onAddKey?: () => void }) {
   return (
-    <div className="group-list flex items-start gap-3 px-4 py-3">
-      <SparkleIcon size={18} className="mt-[1px] shrink-0 text-tint" />
-      <p className="t-subhead text-label-2">
-        Add your Open WebUI key to ask questions and draft messages.{" "}
-        {onAddKey ? (
-          <button type="button" onClick={onAddKey} className="font-medium text-tint">Add key</button>
-        ) : (
-          <>Use <span className="font-medium text-label">Write with AI</span> on the Today screen.</>
+    <div className={`${CARD} flex items-start gap-3 p-4`}>
+      <span className="mt-0.5 shrink-0 text-ink">
+        <SparkleIcon size={20} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="t-subhead text-muted">
+          Add your Open WebUI key to ask questions and draft messages.
+          {!onAddKey && (
+            <>
+              {" "}Use <span className="font-medium text-label">Write with AI</span> on the Today screen.
+            </>
+          )}
+        </p>
+        {onAddKey && (
+          <button
+            type="button"
+            onClick={onAddKey}
+            className="btn-ink mt-3 min-h-[44px] px-5 text-[15px]"
+          >
+            Add key
+          </button>
         )}
-      </p>
+      </div>
     </div>
   );
 }
@@ -54,36 +74,54 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
 
   return (
     <section aria-label="Ask about this">
-      <h3 className="group-header">Ask</h3>
+      <h3 className={HEADING}>Ask</h3>
       {!hasKey ? (
         <NoKey onAddKey={onAddKey} />
       ) : (
-        <div className="group-list">
-          {items.map((it, i) => (
-            <div key={i} className="cell px-4 py-3">
-              <div className="t-subhead font-semibold">{it.q}</div>
-              {it.a === null ? (
-                <p className="t-subhead mt-1 animate-pulse text-label-2" role="status">Thinking…</p>
-              ) : (
-                <p className={`t-subhead mt-1 ${it.error ? "text-label-2" : ""}`} data-testid="ask-answer">{it.a}</p>
-              )}
-            </div>
-          ))}
-          <div className="cell flex flex-wrap gap-2 px-4 pb-1 pt-3">
+        <div className={`${CARD} p-4`}>
+          {items.length === 0 && (
+            <p className="t-subhead mb-3 text-muted">Ask anything about this item. Answers use only the store data.</p>
+          )}
+          {items.length > 0 && (
+            <ol className="mb-4 space-y-3" aria-label="Answers">
+              {items.map((it, i) => (
+                <li key={i} className="space-y-1.5">
+                  <div className="flex justify-end">
+                    <p className="t-subhead max-w-[85%] rounded-[18px] rounded-br-[6px] bg-ink px-3.5 py-2 text-white">{it.q}</p>
+                  </div>
+                  <div className="flex">
+                    {it.a === null ? (
+                      <p className="t-subhead animate-pulse rounded-[18px] rounded-bl-[6px] bg-fill px-3.5 py-2 text-muted" role="status">
+                        Thinking…
+                      </p>
+                    ) : (
+                      <p
+                        className={`t-subhead max-w-[90%] rounded-[18px] rounded-bl-[6px] bg-floor px-3.5 py-2 ${it.error ? "text-muted" : "text-label"}`}
+                        data-testid="ask-answer"
+                      >
+                        {it.a}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+          <div className="flex flex-wrap gap-2">
             {QUESTIONS[action.type].map((q) => (
               <button
                 key={q}
                 type="button"
                 disabled={busy}
                 onClick={() => ask(q)}
-                className="rounded-full bg-fill px-3 py-1.5 text-[13px] font-medium text-tint hover:bg-fill-2 disabled:opacity-50"
+                className="t-subhead min-h-[44px] rounded-full px-4 text-left font-medium text-ink shadow-[inset_0_0_0_1.5px_var(--ink)] hover:bg-fill active:bg-fill-2 disabled:opacity-50"
               >
                 {q}
               </button>
             ))}
           </div>
           <form
-            className="flex items-center gap-2 px-4 pb-3 pt-2"
+            className="mt-3 flex items-center gap-1.5 rounded-full bg-floor py-1 pl-4 pr-1"
             onSubmit={(e) => {
               e.preventDefault();
               ask(text);
@@ -95,10 +133,14 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
               placeholder="Ask about this item"
               aria-label="Question about this item"
               maxLength={200}
-              className="t-body min-w-0 flex-1 rounded-[10px] bg-fill px-3 py-2 outline-none placeholder:text-label-3"
+              className="t-body min-h-[44px] min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted"
             />
-            <button disabled={busy || !text.trim()} className="text-[15px] font-semibold text-tint disabled:text-label-3">
+            <button
+              disabled={busy || !text.trim()}
+              className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-4 text-[15px] font-semibold text-white transition-opacity disabled:bg-fill-2 disabled:text-muted"
+            >
               Ask
+              <ArrowUpIcon size={12} />
             </button>
           </form>
         </div>
@@ -136,15 +178,17 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
     setCopied(true);
   };
 
+  const supplier = action.proposal.supplier ?? action.facts.supplier;
+
   return (
     <section aria-label="Draft message to supplier">
-      <h3 className="group-header">Message to supplier</h3>
+      <h3 className={HEADING}>Message to supplier</h3>
       {!hasKey ? (
         <NoKey onAddKey={onAddKey} />
       ) : (
-        <div className="group-list">
-          <div className="cell flex items-center gap-3 px-4 py-3">
-            <div role="radiogroup" aria-label="Language" className="flex rounded-[9px] bg-fill p-[2px]">
+        <div className={`${CARD} p-4`}>
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="radiogroup" aria-label="Language" className="flex gap-1.5">
               {(["uk", "en"] as const).map((l) => (
                 <button
                   key={l}
@@ -155,35 +199,60 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
                     setLang(l);
                     setCopied(false);
                   }}
-                  className={`rounded-[7px] px-3 py-1 text-[13px] font-medium ${lang === l ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-label-2"}`}
+                  className={SEG(lang === l)}
                 >
                   {l === "uk" ? "Українська" : "English"}
                 </button>
               ))}
             </div>
-            <button type="button" disabled={busy} onClick={write} className="ml-auto text-[15px] font-semibold text-tint disabled:text-label-3">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={write}
+              className={`${typeof draft === "object" ? "btn-ghost" : "btn-ink"} ml-auto min-h-[44px] px-5 text-[15px] disabled:opacity-50`}
+            >
               {busy ? "Writing…" : draft ? "Rewrite" : "Write draft"}
             </button>
           </div>
-          {busy && !draft && <p role="status" className="cell t-subhead animate-pulse px-4 py-3 text-label-2">Writing the message…</p>}
-          {typeof draft === "string" && <p className="cell t-subhead px-4 py-3 text-label-2" role="alert">{draft}</p>}
+
+          {!draft && !busy && (
+            <p className="t-subhead mt-3 text-muted">
+              A short, polite message{supplier ? ` to ${supplier}` : ""}. You review it and send it yourself.
+            </p>
+          )}
+          {busy && !draft && (
+            <p role="status" className="t-subhead mt-3 animate-pulse rounded-[12px] bg-floor p-4 text-muted">
+              Writing the message…
+            </p>
+          )}
+          {typeof draft === "string" && (
+            <p className="t-subhead mt-3 rounded-[12px] bg-floor p-4 text-muted" role="alert">
+              {draft}
+            </p>
+          )}
           {typeof draft === "object" && (
             <>
-              <div className="cell px-4 py-3" data-testid="supplier-draft" lang={lang}>
+              <div className="mt-3 rounded-[12px] bg-floor p-4" data-testid="supplier-draft" lang={lang}>
+                <div className="t-footnote text-muted">Subject</div>
                 <div className="t-subhead font-semibold">{draft.subject}</div>
-                <p className="t-subhead mt-1 whitespace-pre-line">{draft.body}</p>
+                <div className="my-3 h-px bg-separator" />
+                <p className="t-subhead whitespace-pre-line">{draft.body}</p>
               </div>
-              <div className="cell flex items-center gap-5 px-4 py-[11px]">
-                <button type="button" onClick={copy} className="text-[15px] font-semibold text-tint">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={copy}
+                  className="btn-ink min-h-[44px] px-5 text-[15px]"
+                >
                   {copied ? "Copied" : "Copy"}
                 </button>
                 <a
                   href={`mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`}
-                  className="text-[15px] font-semibold text-tint"
+                  className="btn-ghost min-h-[44px] px-5 text-[15px]"
                 >
                   Open in Mail
                 </a>
-                <span className="t-footnote ml-auto text-label-2">Not sent automatically</span>
+                <span className="t-footnote ml-auto text-muted">Not sent automatically</span>
               </div>
             </>
           )}

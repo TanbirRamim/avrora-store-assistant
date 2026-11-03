@@ -1,37 +1,60 @@
 import type { ProductStatus, ProductUpdateKind } from "@/lib/api";
 import { shortDate } from "@/lib/format";
 
-/** Label and colours per status. Problem colours match the suggestion type behind them. */
-export const STATUS_META: Record<ProductStatus, { label: string; text: string; tint: string }> = {
-  late: { label: "Delivery late", text: "var(--delivery-text)", tint: "rgba(175, 82, 222, 0.12)" },
-  running_out: { label: "Running out", text: "var(--order-text)", tint: "rgba(255, 59, 48, 0.12)" },
-  hard_to_find: { label: "Hard to find", text: "var(--move-text)", tint: "rgba(0, 122, 255, 0.12)" },
-  overstocked: { label: "Overstocked", text: "var(--discount-text)", tint: "rgba(255, 149, 0, 0.14)" },
-  low: { label: "Low", text: "var(--order-text)", tint: "rgba(255, 59, 48, 0.08)" },
-  on_order: { label: "On order", text: "var(--note-text)", tint: "var(--fill)" },
-  ok: { label: "OK", text: "#1f7a37", tint: "rgba(52, 199, 89, 0.14)" },
+/** Word and colour per status. Red only for urgency, orange for not-urgent warnings. */
+export const STATUS_META: Record<ProductStatus, { label: string; text: string }> = {
+  late: { label: "Delivery late", text: "var(--orange)" },
+  running_out: { label: "Running out", text: "var(--red)" },
+  hard_to_find: { label: "Hard to find", text: "var(--ink)" },
+  overstocked: { label: "Overstocked", text: "var(--orange)" },
+  low: { label: "Low", text: "var(--red)" },
+  on_order: { label: "On order", text: "var(--muted)" },
+  ok: { label: "OK", text: "var(--green)" },
 };
 
+/** Status as a coloured dot and a word, never a filled pill. */
 export function StatusChip({ status }: { status: ProductStatus }) {
   const m = STATUS_META[status];
   return (
-    <span
-      className="inline-flex shrink-0 items-center rounded-full px-[7px] py-px text-[12px] font-semibold leading-[16px]"
-      style={{ color: m.text, background: m.tint }}
-    >
+    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold leading-[18px]" style={{ color: m.text }}>
+      <span className="size-2 rounded-full" style={{ background: STATUS_DOT[status] }} aria-hidden />
       {m.label}
     </span>
   );
 }
 
+/** Solid colour per status, for dots. */
+export const STATUS_DOT: Record<ProductStatus, string> = {
+  late: "var(--orange)",
+  running_out: "var(--red)",
+  hard_to_find: "var(--ink)",
+  overstocked: "var(--orange)",
+  low: "var(--red)",
+  on_order: "#8a8a83",
+  ok: "var(--green)",
+};
+
+/** Days of cover the bar treats as full. */
+export const COVER_SCALE = 30;
+
+/** Slim bar: how long the stock lasts, out of a month. Decorative; the text next to it says the same. */
+export function CoverBar({ days, status, className = "" }: { days: number | null; status: ProductStatus; className?: string }) {
+  const pct = days === null ? 0 : Math.max(4, Math.min(1, days / COVER_SCALE) * 100);
+  return (
+    <span className={`block h-[4px] overflow-hidden rounded-full bg-[var(--rule)] ${className}`} aria-hidden>
+      <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: status === "running_out" || status === "low" ? "var(--red)" : "var(--ink)" }} />
+    </span>
+  );
+}
+
 export const UPDATE_COLOR: Record<ProductUpdateKind, string> = {
-  suggestion: "var(--tint)",
-  late: "var(--delivery)",
-  expected: "var(--note)",
-  received: "var(--done)",
-  sold_out: "var(--order)",
-  no_sales: "var(--discount)",
-  promotion: "var(--move)",
+  suggestion: "var(--ink)",
+  late: "var(--orange)",
+  expected: "#8a8a83",
+  received: "var(--green)",
+  sold_out: "var(--red)",
+  no_sales: "var(--orange)",
+  promotion: "var(--ink)",
 };
 
 /** Days of cover in plain words. */

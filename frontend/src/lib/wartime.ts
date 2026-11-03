@@ -5,12 +5,15 @@
  * Honesty notes shown in the UI:
  * - the stores are illustrative samples (public/map/wartime-stores.json);
  * - the front line is a hand-drawn sketch (public/map/wartime-lines.geojson), not live data;
- * - alerts come from alerts.in.ua only when the server has ALERTS_IN_UA_TOKEN; nothing is simulated.
+ * - alerts come from alerts.in.ua only when the server has ALERTS_IN_UA_TOKEN; nothing is simulated;
+ * - aerial threats come from mapa.ua's public feed: unofficial position estimates, not confirmed strikes.
  */
 
 export const STORES_URL = "/map/wartime-stores.json";
 export const LINES_URL = "/map/wartime-lines.geojson";
 export const ALERTS_URL = "/api/wartime/alerts";
+export const THREATS_URL = "/api/wartime/threats";
+export const BORDER_URL = "/map/ukraine-border.geojson";
 
 export interface WarStore {
   id: string;
@@ -46,6 +49,104 @@ export type LineFeature =
 export type Alerts =
   | { connected: true; source: string; fetched_at: string; oblasts: string[]; hromadas: string[] }
   | { connected: false; reason: string };
+
+export interface AerialThreat {
+  id: string;
+  kind: string;
+  lat: number;
+  lon: number;
+  amount: number;
+  seen_at: string | null;
+}
+
+export type Threats =
+  | { connected: true; source: string; fetched_at: string; threats: AerialThreat[] }
+  | { connected: false; reason: string };
+
+/** mapa.ua object kinds in plain words; anything new falls back to "Aerial threat". */
+export const THREAT_KIND: Record<string, string> = {
+  drone_jet: "Jet drone",
+  drone_piston: "Attack drone",
+  drone_fpv: "FPV drone",
+  missile: "Missile",
+  missile_ballistic: "Ballistic missile",
+  missile_cruise: "Cruise missile",
+  bomb: "Guided bomb",
+};
+export const threatKind = (k: string) => THREAT_KIND[k] ?? "Aerial threat";
+
+/** Great-circle distance in km between two [lon, lat] points. */
+export function haversineKm([aLon, aLat]: [number, number], [bLon, bLat]: [number, number]): number {
+  const r = Math.PI / 180;
+  const h = Math.sin(((bLat - aLat) * r) / 2) ** 2 + Math.cos(aLat * r) * Math.cos(bLat * r) * Math.sin(((bLon - aLon) * r) / 2) ** 2;
+  return Math.round(12742 * Math.asin(Math.sqrt(h)) * 10) / 10;
+}
+
+/** A distribution site (warehouse, logistics centre, supply partner) inside a risk radius. */
+export interface Exposure {
+  id: string;
+  name: string;
+  kind: string;
+  coordinates: [number, number];
+  frontKm: number;
+  threatKm: number | null;
+  threatKind: string | null;
+  grade: Grade;
+  reason: string;
+  action: string;
+}
+
+/** Radii for "affected": the front line's drone-corridor band, and an active aerial threat nearby. */
+export const EXPOSURE_FRONT_KM = 65; // ZONES.orange: 120 km swept in most of the east
+export const EXPOSURE_THREAT_KM = 50;
+
+/**
+ * Rate one site. Rules of thumb, not a model: within 25 km of the line or 15 km of an active threat
+ * is critical, within 65 km or 30 km is high, the rest of the radius is elevated. Returns null when
+ * the site is outside both radii.
+ */
+export function exposure(
+  site: { id: string; name: string; kind: string; coordinates: [number, number] },
+  fronts: [number, number][][],
+  threats: AerialThreat[],
+): Exposure | null {
+  const [lon, lat] = site.coordinates;
+  const frontKm = Math.min(...fronts.map((c) => distanceToLineKm(lat, lon, c)), 999);
+  let near: AerialThreat | null = null;
+  let threatKm = Infinity;
+  for (const t of threats) {
+    // cheap box test first; 0.8 degrees is about 55-90 km at Ukraine's latitudes
+    if (Math.abs(t.lat - lat) > 0.8 || Math.abs(t.lon - lon) > 1.2) continue;
+    const km = haversineKm(site.coordinates, [t.lon, t.lat]);
+    if (km < threatKm) [near, threatKm] = [t, km];
+  }
+  const threatNear = near && threatKm <= EXPOSURE_THREAT_KM;
+  if (frontKm > EXPOSURE_FRONT_KM && !threatNear) return null;
+  const grade: Grade =
+    frontKm <= ZONES.red.km || (threatNear && threatKm <= 15)
+      ? "critical"
+      : frontKm <= ZONES.orange.km || (threatNear && threatKm <= 30)
+        ? "high"
+        : "elevated";
+  const reason = threatNear
+    ? `${threatKind(near!.kind)} reported ${Math.round(threatKm)} km away`
+    : `${Math.round(frontKm)} km from the front line`;
+  const action =
+    grade === "critical"
+      ? "Hold shipments from here. Ask the carrier for the driver's status and plan a reroute through a rear hub."
+      : grade === "high"
+        ? "Expect delays. Order a day early and confirm the delivery window before the truck leaves."
+        : "Deliveries usually run. Keep two days of safety stock for lines sourced here.";
+  return {
+    ...site,
+    frontKm,
+    threatKm: threatNear ? Math.round(threatKm) : null,
+    threatKind: threatNear ? threatKind(near!.kind) : null,
+    grade,
+    reason,
+    action,
+  };
+}
 
 export type Zone = "red" | "orange" | "yellow" | "rear";
 export type Grade = "critical" | "high" | "elevated" | "low";

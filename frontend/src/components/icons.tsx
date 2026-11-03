@@ -174,3 +174,11 @@ export const BackIcon = ({ size = 18, className }: P) => (
     <path d="m15 5-7 7 7 7" />
   </svg>
 );
+
+export const UsersIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 19.5c.6-3.3 3.2-5.5 6.5-5.5s5.9 2.2 6.5 5.5" />
+    <path d="M15.5 4.8a3.3 3.3 0 0 1 0 6.4M18 14.3c1.9.8 3.2 2.6 3.5 5.2" />
+  </svg>
+);

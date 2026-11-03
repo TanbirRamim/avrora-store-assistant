@@ -3,15 +3,17 @@
 import { AnimatePresence, LayoutGroup, motion, useDragControls } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
-import { ActionRow } from "@/components/ActionRow";
+import { ActionRow, TypeGlyph } from "@/components/ActionRow";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { AiSheet } from "@/components/AiSheet";
 import { DetailPanel, ignoreShortcut } from "@/components/DetailPanel";
 import { ProductsView } from "@/components/ProductsView";
 import { NotificationsSheet } from "@/components/NotificationsSheet";
 import { LiveConditions } from "@/components/LiveConditions";
 import { NetworkMap } from "@/components/NetworkMap";
-import { BackIcon, BellIcon, BoltIcon, ChevronIcon, ClockIcon, GridIcon, ListIcon, MapIcon, MoreIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
-import { Ring } from "@/components/Ring";
+import { TeamTodayCard, TeamView } from "@/components/TeamView";
+import { BackIcon, BellIcon, BoltIcon, CheckIcon, ChevronIcon, ClockIcon, CloseIcon, GridIcon, ListIcon, MapIcon, MoreIcon, SparkleIcon, SunIcon, UsersIcon } from "@/components/icons";
+import { TagProgress } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview, Signal, Signals } from "@/lib/api";
 import { savedKey, useAi } from "@/lib/ai";
 import { applyOrder, type Replan, replanByRules, replanWithModel } from "@/lib/replan";
@@ -19,10 +21,11 @@ import { api, fetcher } from "@/lib/api";
 import { ModelError } from "@/lib/ollama";
 import { longDate, money, TYPE_META } from "@/lib/format";
 
-type View = "today" | "products" | "all" | "log" | "map" | "more";
+type View = "today" | "team" | "products" | "all" | "log" | "map" | "more";
 
 const TITLES: Record<View, string> = {
   today: "Today",
+  team: "Team",
   products: "Products",
   all: "All suggestions",
   log: "Decisions",
@@ -30,12 +33,12 @@ const TITLES: Record<View, string> = {
   more: "More",
 };
 
-/** Phone tab bar: the four daily sections plus More (All suggestions and settings). */
+/** Tab bar: the four daily sections plus More (All suggestions, Decisions and settings). */
 const TABS: { id: View; label: string; Icon: typeof SunIcon }[] = [
   { id: "today", label: "Today", Icon: SunIcon },
+  { id: "team", label: "Team", Icon: UsersIcon },
   { id: "products", label: "Products", Icon: GridIcon },
   { id: "map", label: "Map", Icon: MapIcon },
-  { id: "log", label: "Decisions", Icon: ClockIcon },
   { id: "more", label: "More", Icon: MoreIcon },
 ];
 
@@ -67,6 +70,8 @@ export default function Home() {
     setViewState(v);
   };
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [teamDate, setTeamDate] = useState<string | undefined>();
+  const [teamKey, setTeamKey] = useState(0);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
   const wide = useMedia("(min-width: 1024px)");
   const reduceMotion = useMedia("(prefers-reduced-motion: reduce)");
@@ -84,7 +89,16 @@ export default function Home() {
   // The service worker is registered when notifications are turned on and stays registered.
   useEffect(() => {
     const openUrl = (href: string) => {
-      const id = new URL(href, location.href).searchParams.get("action");
+      const params = new URL(href, location.href).searchParams;
+      // staffing pushes link to /?view=team&date=YYYY-MM-DD
+      if (params.get("view") === "team") {
+        const d = params.get("date");
+        setTeamDate(d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined);
+        setTeamKey((k) => k + 1);
+        setViewState("team");
+        return;
+      }
+      const id = params.get("action");
       if (!id) return;
       setViewState("today");
       setSelectedId(id);
@@ -120,7 +134,8 @@ export default function Home() {
     const onScroll = () => {
       const h1 = main.querySelector("h1");
       const top = main.getBoundingClientRect().top;
-      setCompact(h1 ? h1.getBoundingClientRect().bottom - top < 48 : main.scrollTop > 40);
+      const bar = 44 + (parseFloat(getComputedStyle(main).paddingTop) || 0);
+      setCompact(h1 ? h1.getBoundingClientRect().bottom - top < bar + 4 : main.scrollTop > 40);
     };
     onScroll();
     main.addEventListener("scroll", onScroll, { passive: true });
@@ -245,6 +260,20 @@ export default function Home() {
   const movedUp = (a: Action) => replan !== null && priorities.indexOf(a) < basePriorities.indexOf(a);
   const open = priorities.filter((a) => !decided.has(a.id));
   const handled = priorities.filter((a) => decided.has(a.id));
+  const logGroups = useMemo(() => {
+    const day = (iso: string) => {
+      const d = new Date(iso);
+      const t = new Date();
+      const y = new Date(t);
+      y.setDate(t.getDate() - 1);
+      if (d.toDateString() === t.toDateString()) return "Today";
+      if (d.toDateString() === y.toDateString()) return "Yesterday";
+      return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    };
+    const out = new Map<string, Decision[]>();
+    for (const d of shown) out.set(day(d.decided_at), [...(out.get(day(d.decided_at)) ?? []), d]);
+    return [...out];
+  }, [shown]);
   const list = (actions ?? []).filter((a) => filter === "ALL" || a.type === filter);
 
   /** The rows on screen, in order: j/k walk them and a decision moves on through them. */
@@ -294,11 +323,11 @@ export default function Home() {
       <main className="grid h-full place-items-center p-8 text-center">
         <div>
           <h1 className="text-[22px] font-semibold">Can&apos;t load the store data</h1>
-          <p className="mt-2 text-label-2">Check your connection and try again.</p>
+          <p className="mt-2 text-muted">Check your connection and try again.</p>
           <button
             onClick={() => retryOverview()}
             disabled={retrying}
-            className="t-body mt-5 rounded-[12px] bg-tint-fill px-5 py-2 font-semibold text-white active:opacity-80 disabled:opacity-50"
+            className="btn-ink mt-5 disabled:opacity-50"
           >
             {retrying ? "Trying…" : "Retry"}
           </button>
@@ -307,27 +336,18 @@ export default function Home() {
     );
   }
 
-  const header = (title: string, subtitle?: string, trailing?: React.ReactNode) => (
-    <header className="flex items-end justify-between gap-4 px-1">
-      <div className="min-w-0">
-        {subtitle && <p className="t-subhead text-label-2">{subtitle}</p>}
-        <h1 className="t-large-title">{title}</h1>
-      </div>
-      {trailing}
-    </header>
-  );
 
-  const tabActive = (id: View) => view === id || (id === "more" && view === "all");
-  const settingsRow = (label: string, color: string, Icon: typeof SunIcon, onClick: () => void, detail?: string) => (
-    <button onClick={onClick} className="cell flex min-h-[44px] w-full items-center gap-3 px-4 py-[7px] text-left [--inset:58px] active:bg-fill">
-      <span className="icon-tile size-[30px]" style={{ background: color }}>
-        <Icon size={17} />
-      </span>
-      <span className="t-body flex-1">{label}</span>
-      {detail && <span className="t-body num text-label-2" aria-hidden>{detail}</span>}
-      <ChevronIcon className="text-[#c4c4c7]" />
-    </button>
-  );
+  const undoClick = (e: React.MouseEvent<HTMLButtonElement>) => void undo(e.currentTarget.dataset.id!);
+  const tabActive = (id: View) => view === id || (id === "more" && (view === "all" || view === "log"));
+
+  const health = overview
+    ? ([
+        ["Items running out", `${overview.stockout_risks}`, "ORDER", overview.stockout_risks > 0],
+        ["Late deliveries", `${overview.late_deliveries}`, "CHECK_DELIVERY", false],
+        ["Items hard to find", `${overview.visibility_issues}`, "MOVE_TO_FRONT", false],
+        ["Value in slow stock", money(overview.slow_stock_value_uah), "DISCOUNT", false],
+      ] as const)
+    : [];
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -339,17 +359,17 @@ export default function Home() {
             : "pb-tabbar overflow-y-auto overscroll-contain"
         } ${productPanel && view === "products" ? "lg:mr-[400px]" : ""}`}
       >
-        {/* Phones: compact navigation bar the large title folds into */}
+        {/* Phones: compact bar, shown only once the large title has fully scrolled under it */}
         {view !== "map" && (
           <div className="pointer-events-none sticky top-0 z-10 h-0 md:hidden">
             <div
-              className={`material absolute inset-x-0 top-0 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-200 ${
-                compact ? "border-separator bg-[var(--bar-on-bg)]" : "border-transparent bg-transparent"
+              className={`absolute inset-x-0 top-0 border-b pt-[env(safe-area-inset-top)] transition-[background-color,border-color] duration-150 ${
+                compact ? "border-rule bg-floor" : "border-transparent bg-transparent"
               }`}
             >
               <div
                 aria-hidden={!compact}
-                className={`t-headline grid h-11 place-items-center px-16 transition-opacity duration-200 ${compact ? "opacity-100" : "opacity-0"}`}
+                className={`t-headline grid h-11 place-items-center px-16 transition-opacity duration-150 ${compact ? "opacity-100" : "opacity-0"}`}
               >
                 <span className="truncate">{TITLES[view]}</span>
               </div>
@@ -357,182 +377,220 @@ export default function Home() {
           </div>
         )}
         {view === "map" && <NetworkMap />}
-        <div className={view === "map" ? "hidden" : "mx-auto max-w-[720px] px-4 pb-16 pt-[calc(env(safe-area-inset-top)+16px)] md:px-8 md:pt-10"}>
+        <div className={view === "map" ? "hidden" : `mx-auto ${view === "today" ? "max-w-[1120px]" : view === "team" ? "max-w-[960px]" : "max-w-[720px]"} px-4 pb-16 pt-[calc(env(safe-area-inset-top)+16px)] md:px-6 md:pt-10`}>
           {view === "today" && (
             <>
-              {header(
-                "Today",
-                overview ? longDate(overview.today) : " ",
-                priorities.length > 0 ? <Ring done={handled.length} total={priorities.length} /> : null,
-              )}
-              <p className="t-body mt-2 px-1 text-label-2" lang={briefing?.lang} data-testid="summary">{briefing?.summary ?? "Preparing today's priorities…"}</p>
-              {briefing && (
-                <p className="t-footnote mt-2 flex flex-wrap items-center gap-x-1.5 px-1 text-label-2">
-                  <SparkleIcon size={13} className={briefing.source === "model" ? "text-tint" : ""} />
-                  {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : "Sorted by fixed rules, not AI."}
-                  <button onClick={() => setAiOpen(true)} className="hit font-medium text-tint">
-                    {briefing.source === "model" ? "AI settings" : "Write with AI"}
-                  </button>
-                </p>
-              )}
+              <ScreenHeader title="Today" date={overview ? longDate(overview.today) : " "} />
 
-              {signals && (
-                <LiveConditions
-                  data={signals}
-                  replan={replan}
-                  busy={replanBusy}
-                  error={replanError}
-                  hasKey={ai.hasKey}
-                  lang={ai.lang}
-                  onReplan={runReplan}
-                  onRevert={() => setReplan(null)}
-                />
-              )}
+              {/* Phones: one column in reading order. Wide: tag and decisions left, the store right. */}
+              <div className="@container mt-5">
+                <div className="flex flex-col @[52rem]:grid @[52rem]:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] @[52rem]:items-start @[52rem]:gap-x-8">
+                  <div className="contents @[52rem]:block @[52rem]:min-w-0">
+                    {/* The one yellow price tag: what matters now */}
+                    <section aria-label="Today's summary" className="price-tag order-1 @[52rem]:order-none">
+                      <div className="flex items-end gap-3 pl-3">
+                        <span className="tag-figure">{briefing ? open.length : " "}</span>
+                        <span className="pb-1 text-[17px] font-semibold leading-[22px]">
+                          {briefing ? (open.length === 0 ? "left to decide" : "to decide") : "Loading…"}
+                        </span>
+                      </div>
+                      <p className="t-callout mt-3 text-ink" lang={briefing?.lang} data-testid="summary">
+                        {briefing?.summary ?? "Preparing today's priorities…"}
+                      </p>
+                      {priorities.length > 0 && (
+                        <div className="mt-4">
+                          <TagProgress done={handled.length} total={priorities.length} />
+                        </div>
+                      )}
+                      {briefing && (
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <p className="t-footnote min-w-0 text-[rgba(0,0,0,0.78)]">
+                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : "Fixed rules, not AI."}
+                          </p>
+                          <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
+                            <SparkleIcon size={14} />
+                            {briefing.source === "model" ? "AI settings" : "Write with AI"}
+                          </button>
+                        </div>
+                      )}
+                    </section>
 
-              {briefing?.notices.map((n) => (
-                <div key={n.id} className="group-list mt-6 flex items-start gap-3 px-4 py-3">
-                  <span className="icon-tile size-[30px]" style={{ background: "var(--note)" }}>
-                    <BoltIcon size={17} />
-                  </span>
-                  <div>
-                    <div className="t-body">Store note</div>
-                    <p className="t-subhead mt-0.5 text-label-2">{n.reason}</p>
+                    <div className="order-3 mt-6 @[52rem]:order-none">
+                      <LayoutGroup>
+                        <section>
+                          <div className="section-head">
+                            <h2>{open.length || !briefing ? "To decide" : "All done"}</h2>
+                            {briefing && open.length > 0 && <span className="t-footnote text-muted">Highest value first</span>}
+                          </div>
+                          <motion.ul layout className="flat-list">
+                            <AnimatePresence initial={false}>
+                              {open.map((a) => (
+                                <ActionRow
+                                  key={a.id}
+                                  action={a}
+                                  selected={a.id === selectedId}
+                                  onOpen={() => setSelectedId(a.id)}
+                                  onToggle={() => toggle(a)}
+                                  movedUp={movedUp(a)}
+                                />
+                              ))}
+                            </AnimatePresence>
+                            {!briefing && <li className="h-[320px] animate-pulse bg-fill" />}
+                            {briefing && open.length === 0 && (
+                              <li className="flex items-center gap-3 px-4 py-4">
+                                <span className="grid size-[28px] shrink-0 place-items-center rounded-full bg-green text-white">
+                                  <CheckIcon size={15} />
+                                </span>
+                                <span className="t-subhead text-muted">Every priority has a decision. More ahead in All suggestions.</span>
+                              </li>
+                            )}
+                          </motion.ul>
+                          <p className="group-footer px-1 text-muted">Tap the circle to approve. Open a row to see why, adjust or dismiss.</p>
+                        </section>
+
+                        {handled.length > 0 && (
+                          <motion.section layout className="mt-6">
+                            <div className="section-head">
+                              <h2>Handled</h2>
+                              <span className="t-footnote num text-muted">{handled.length}</span>
+                            </div>
+                            <motion.ul layout className="flat-list">
+                              <AnimatePresence initial={false}>
+                                {handled.map((a) => (
+                                  <ActionRow
+                                    key={a.id}
+                                    action={a}
+                                    decision={decided.get(a.id)}
+                                    selected={a.id === selectedId}
+                                    onOpen={() => setSelectedId(a.id)}
+                                    onToggle={() => toggle(a)}
+                                  />
+                                ))}
+                              </AnimatePresence>
+                            </motion.ul>
+                          </motion.section>
+                        )}
+                      </LayoutGroup>
+                    </div>
+                  </div>
+
+                  <div className="contents @[52rem]:block @[52rem]:min-w-0">
+                    {overview && (
+                      <div className="order-2 mt-3 @[52rem]:order-none @[52rem]:mt-0 [&>section]:mt-0">
+                        <TeamTodayCard today={overview.today} onOpen={() => setView("team")} />
+                      </div>
+                    )}
+
+                    {signals && (
+                      <div className="order-4 mt-6 @[52rem]:order-none">
+                        <LiveConditions
+                          data={signals}
+                          replan={replan}
+                          busy={replanBusy}
+                          error={replanError}
+                          hasKey={ai.hasKey}
+                          lang={ai.lang}
+                          onReplan={runReplan}
+                          onRevert={() => setReplan(null)}
+                        />
+                      </div>
+                    )}
+
+                    {briefing && briefing.notices.length > 0 && (
+                      <ul className="flat-list order-5 mt-6 @[52rem]:order-none">
+                        {briefing.notices.map((n) => (
+                          <li key={n.id} className="cell flex items-start gap-3 px-4 py-3.5 [--inset:48px]">
+                            <BoltIcon size={20} className="mt-[1px] shrink-0 text-ink" />
+                            <div className="min-w-0">
+                              <div className="t-headline">Store note</div>
+                              <p className="t-subhead mt-0.5 text-muted">{n.reason}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {overview && (
+                      <section className="order-6 mt-6 @[52rem]:order-none" aria-labelledby="health-title">
+                        <div className="section-head">
+                          <h2 id="health-title">Store health</h2>
+                        </div>
+                        <dl className="flat-list">
+                          {health.map(([k, v, t, urgent]) => (
+                            <div key={k} className="cell flex min-h-[48px] items-center gap-3 px-4 py-2.5 [--inset:38px]">
+                              <TypeGlyph type={t} />
+                              <dt className="t-subhead flex-1 text-ink">{k}</dt>
+                              <dd className={`num text-[17px] font-semibold ${urgent ? "text-red" : ""}`}>{v}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </section>
+                    )}
                   </div>
                 </div>
-              ))}
-
-              <LayoutGroup>
-                <section className="mt-8">
-                  <h2 className="group-header">{open.length || !briefing ? "To decide" : "All done"}</h2>
-                  <motion.ul layout className="group-list">
-                    <AnimatePresence initial={false}>
-                      {open.map((a) => (
-                        <ActionRow
-                          key={a.id}
-                          action={a}
-                          selected={a.id === selectedId}
-                          onOpen={() => setSelectedId(a.id)}
-                          onToggle={() => toggle(a)}
-                          movedUp={movedUp(a)}
-                        />
-                      ))}
-                    </AnimatePresence>
-                    {!briefing && <li className="h-[320px] animate-pulse bg-fill" />}
-                    {briefing && open.length === 0 && (
-                      <li className="t-subhead px-4 py-4 text-label-2">
-                        Every priority has a decision. More ahead in All suggestions.
-                      </li>
-                    )}
-                  </motion.ul>
-                  <p className="group-footer">Tap the circle to approve. Open a row to see why, adjust or dismiss.</p>
-                </section>
-
-                {handled.length > 0 && (
-                  <motion.section layout className="mt-8">
-                    <h2 className="group-header">Handled</h2>
-                    <motion.ul layout className="group-list">
-                      <AnimatePresence initial={false}>
-                        {handled.map((a) => (
-                          <ActionRow
-                            key={a.id}
-                            action={a}
-                            decision={decided.get(a.id)}
-                            selected={a.id === selectedId}
-                            onOpen={() => setSelectedId(a.id)}
-                            onToggle={() => toggle(a)}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </motion.ul>
-                  </motion.section>
-                )}
-              </LayoutGroup>
-
-              {overview && (
-                <section className="mt-8">
-                  <h2 className="group-header">Store health</h2>
-                  <dl className="group-list">
-                    {[
-                      ["Items running out", `${overview.stockout_risks}`],
-                      ["Late deliveries", `${overview.late_deliveries}`],
-                      ["Items hard to find", `${overview.visibility_issues}`],
-                      ["Value in slow stock", money(overview.slow_stock_value_uah)],
-                    ].map(([k, v]) => (
-                      <div key={k} className="cell flex items-center justify-between gap-3 px-4 py-[11px]">
-                        <dt className="t-body">{k}</dt>
-                        <dd className="t-body num text-label-2">{v}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </section>
-              )}
+              </div>
             </>
           )}
+
+          {view === "team" && (overview ? <TeamView key={teamKey} today={overview.today} initialDate={teamDate} /> : <div className="h-[480px] animate-pulse rounded-[14px] bg-fill" />)}
 
           {view === "products" && <ProductsView onOpenAction={(id) => setSelectedId(id)} onPanel={setProductPanel} />}
 
           {view === "more" && (
             <>
-              {header("More")}
-              <div className="group-list mt-6 flex items-center gap-3 px-4 py-3">
+              <ScreenHeader title="More" />
+              <section aria-label="Your store" className="mt-6 flex items-center gap-3.5 px-1">
                 {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
-                <img src="/avrora-mark.svg" alt="Avrora" width={44} height={44} className="size-11 shrink-0" />
+                <img src="/avrora-mark.svg" alt="Avrora" width={48} height={48} className="size-12 shrink-0" />
                 <div className="min-w-0">
-                  <div className="t-headline truncate">{overview?.store_name.split(", ")[0] ?? "\u00a0"}</div>
-                  <div className="t-subhead truncate text-label-2">
-                    {overview ? `${overview.store_name.split(", ")[1] ?? ""} · ${overview.products} products` : "\u00a0"}
-                  </div>
+                  <div className="t-title3 truncate">{overview?.store_name.split(", ")[0] ?? " "}</div>
+                  <div className="t-subhead truncate text-muted">{overview ? (overview.store_name.split(", ")[1] ?? "") : " "}</div>
                 </div>
-              </div>
-              <section className="mt-6">
-                <div className="group-list">
-                  {settingsRow("All suggestions", "var(--move)", ListIcon, () => setView("all"), actions ? `${actions.length}` : undefined)}
-                </div>
-                <p className="group-footer">Everything the store data points to, beyond today&apos;s five.</p>
               </section>
-              <section className="mt-8">
-                <h2 className="group-header">Settings</h2>
-                <div className="group-list">
-                  {settingsRow("AI briefing", "var(--delivery)", SparkleIcon, () => setAiOpen(true))}
-                  {settingsRow("Notifications", "var(--order)", BellIcon, () => setNotifOpen(true))}
+              {overview && (
+                <dl className="mt-4 grid grid-cols-3 border-y border-rule py-3">
+                  {[
+                    ["Products", `${overview.products}`],
+                    ["Suggestions", actions ? `${actions.length}` : "–"],
+                    ["Decided", `${shown.length}`],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex min-w-0 flex-col px-1">
+                      <dt className="t-footnote order-last text-muted">{k}</dt>
+                      <dd className="num text-[20px] font-semibold leading-[26px]">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <section className="mt-6">
+                <div className="flat-list">
+                  <SettingsRow label="All suggestions" Icon={ListIcon} onClick={() => setView("all")} detail={actions ? `${actions.length}` : undefined} />
+                  <SettingsRow label="Decisions" Icon={ClockIcon} onClick={() => setView("log")} detail={`${shown.length}`} />
                 </div>
-                <p className="group-footer hidden [@media(hover:hover)_and_(pointer:fine)]:block" data-testid="shortcuts">
+                <p className="group-footer text-muted">Everything the store data points to, beyond today&apos;s five.</p>
+              </section>
+              <section className="mt-6">
+                <div className="section-head">
+                  <h2>Settings</h2>
+                </div>
+                <div className="flat-list">
+                  <SettingsRow label="AI briefing" Icon={SparkleIcon} onClick={() => setAiOpen(true)} />
+                  <SettingsRow label="Notifications" Icon={BellIcon} onClick={() => setNotifOpen(true)} />
+                </div>
+                <p className="group-footer hidden text-muted [@media(hover:hover)_and_(pointer:fine)]:block" data-testid="shortcuts">
                   Keyboard: J and K move through the list, A approves, D dismisses, Esc closes.
                 </p>
               </section>
-              {overview && (
-                <section className="mt-8">
-                  <h2 className="group-header">Store</h2>
-                  <dl className="group-list">
-                    {[
-                      ["Store", overview.store_name.split(", ")[0]],
-                      ["City", overview.store_name.split(", ")[1] ?? ""],
-                      ["Products", `${overview.products}`],
-                    ].map(([k, v]) => (
-                      <div key={k} className="cell flex items-center justify-between gap-3 px-4 py-[11px]">
-                        <dt className="t-body">{k}</dt>
-                        <dd className="t-body num text-right text-label-2">{v}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="group-footer">Store data is made up for this demo. Map: avrora.ua, © OpenStreetMap contributors.</p>
-                </section>
-              )}
+              <p className="t-footnote mt-8 px-4 text-center text-muted">
+                Store data is made up for this demo. Map: avrora.ua, © OpenStreetMap contributors.
+              </p>
             </>
           )}
 
           {view === "all" && (
             <>
-              <button
-                onClick={() => setView("more")}
-                className="t-body -ml-1.5 mb-1 flex min-h-[44px] items-center gap-0.5 text-tint"
-              >
-                <BackIcon size={20} />
-                More
-              </button>
-              {header("All suggestions")}
-              <p className="t-body mt-2 px-1 text-label-2">Everything the store data points to, highest value first.</p>
-              <div role="tablist" aria-label="Filter by type" className="mt-6 flex w-full rounded-[9px] bg-fill p-[2px] sm:w-auto sm:inline-flex">
+              <ScreenHeader title="All suggestions" back={<BackToMore onClick={() => setView("more")} />} />
+              <p className="t-subhead mt-1 px-1 text-muted">Everything the store data points to, highest value first.</p>
+              <div role="tablist" aria-label="Filter by type" className="scroll-row -mx-4 mt-5 pb-1 pl-4 [scroll-padding-left:16px] md:mx-0 md:pl-0">
                 {FILTERS.map((f) => (
                   <button
                     key={f}
@@ -540,22 +598,28 @@ export default function Home() {
                     aria-selected={filter === f}
                     aria-label={f === "ALL" ? "All" : TYPE_META[f].label}
                     onClick={() => setFilter(f)}
-                    className="t-footnote relative min-h-[32px] flex-1 whitespace-nowrap rounded-[7px] px-3 py-[6px] font-medium sm:flex-none"
+                    className={`t-subhead flex min-h-[40px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 font-semibold transition-colors ${
+                      filter === f ? "bg-ink text-white" : "bg-paper text-ink active:bg-fill-2"
+                    }`}
                   >
-                    {filter === f && (
-                      <motion.span
-                        layoutId="seg"
-                        className="absolute inset-0 rounded-[7px] bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)]"
-                        transition={{ type: "spring", stiffness: 500, damping: 40 }}
+                    {f !== "ALL" && (
+                      <span
+                        aria-hidden
+                        className="type-glyph"
+                        data-outline={f === "CHECK_DELIVERY" ? "" : undefined}
+                        style={{ background: TYPE_META[f].color, boxShadow: filter === f ? "0 0 0 1.5px #fff" : undefined }}
                       />
                     )}
-                    <span className="relative sm:hidden">{f === "ALL" ? "All" : TYPE_META[f].short}</span>
-                    <span className="relative hidden sm:inline">{f === "ALL" ? "All" : TYPE_META[f].label}</span>
+                    <span className="sm:hidden">{f === "ALL" ? "All" : TYPE_META[f].short}</span>
+                    <span className="hidden sm:inline">{f === "ALL" ? "All" : TYPE_META[f].label}</span>
                   </button>
                 ))}
               </div>
-              <h2 className="group-header mt-6">{list.length} suggestions</h2>
-              <ul className="group-list">
+              <div className="section-head mt-6">
+                <h2>{list.length} suggestions</h2>
+                <span className="t-footnote num text-muted">{money(list.reduce((sum, a) => sum + a.risk_uah, 0))} in total</span>
+              </div>
+              <ul className="flat-list">
                 <AnimatePresence initial={false}>
                   {list.map((a) => (
                     <ActionRow
@@ -574,53 +638,82 @@ export default function Home() {
 
           {view === "log" && (
             <>
-              {header("Decisions")}
-              <p className="t-body mt-2 px-1 text-label-2">Every approval and dismissal, newest first.</p>
+              <ScreenHeader title="Decisions" back={<BackToMore onClick={() => setView("more")} />} />
+              <p className="t-subhead mt-1 px-1 text-muted">Every approval and dismissal, newest first.</p>
+              {shown.length > 0 && (
+                <p className="t-subhead num mt-4 flex gap-5 border-y border-rule px-1 py-3">
+                  <span className="inline-flex items-center gap-2">
+                    <CheckIcon size={15} className="text-green" />
+                    <span><b className="font-semibold">{shown.filter((d) => d.decision !== "reject").length}</b> approved</span>
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <CloseIcon size={13} className="text-muted" />
+                    <span><b className="font-semibold">{shown.filter((d) => d.decision === "reject").length}</b> dismissed</span>
+                  </span>
+                </p>
+              )}
               {decisions && shown.length === 0 ? (
-                <div className="group-list t-subhead mt-8 px-4 py-4 text-label-2">
-                  No decisions yet. Approve or dismiss a priority on Today.
+                <div className="mt-6 border-y border-rule px-1 py-8 text-center">
+                  <ClockIcon size={24} className="mx-auto text-muted" />
+                  <p className="t-headline mt-3">No decisions yet.</p>
+                  <p className="t-subhead mt-1 text-muted">Approve or dismiss a priority on Today.</p>
                 </div>
               ) : (
-                <ul className="group-list mt-8">
-                  <AnimatePresence initial={false}>
-                    {shown.map((d) => {
-                      const a = all.get(d.action_id);
-                      return (
-                        <motion.li
-                          key={d.action_id}
-                          layout
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                          className="cell flex items-center gap-3 px-4"
-                          style={{ background: d.action_id === selectedId ? "var(--selected)" : undefined }}
-                        >
-                          <button onClick={() => setSelectedId(d.action_id)} className="min-w-0 flex-1 py-[11px] text-left">
-                            <div className="t-body line-clamp-2">{a?.product_name ?? "Earlier suggestion"}</div>
-                            {a && (
-                              <div className="t-footnote mt-[3px] flex items-center gap-1 font-medium" style={{ color: TYPE_META[a.type].text }}>
-                                <TypeIcon type={a.type} size={13} />
-                                {TYPE_META[a.type].label}
-                              </div>
-                            )}
-                            <div className="t-subhead mt-[2px] text-label-2">
-                              {d.decision === "approve"
-                                ? "Approved"
-                                : d.decision === "change"
-                                  ? `Approved with change: ${d.value}`
-                                  : `Dismissed · ${d.reason}`}
-                              {" at "}
-                              {new Date(d.decided_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                            </div>
-                          </button>
-                          <button onClick={() => void undo(d.action_id)} className="t-body min-h-[44px] shrink-0 px-1 text-tint">
-                            Undo
-                          </button>
-                        </motion.li>
-                      );
-                    })}
-                  </AnimatePresence>
-                </ul>
+                logGroups.map(([day, items]) => (
+                  <section key={day} className="mt-6" aria-label={day}>
+                    <div className="section-head">
+                      <h2>{day}</h2>
+                      <span className="t-footnote num text-muted">{items.length}</span>
+                    </div>
+                    <ul className="flat-list">
+                      <AnimatePresence initial={false}>
+                        {items.map((d) => {
+                          const a = all.get(d.action_id);
+                          const rejected = d.decision === "reject";
+                          return (
+                            <motion.li
+                              key={d.action_id}
+                              layout
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                              className="cell flex items-start gap-3 pl-4 pr-2 [--inset:68px]"
+                              style={{ background: d.action_id === selectedId ? "var(--selected)" : undefined }}
+                            >
+                              <span className="t-footnote num w-[40px] shrink-0 pt-[15px] font-semibold text-muted">
+                                {new Date(d.decided_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                              <button onClick={() => setSelectedId(d.action_id)} className="min-w-0 flex-1 py-3 text-left active:opacity-70">
+                                <span className="t-headline line-clamp-2 block">{a?.product_name ?? "Earlier suggestion"}</span>
+                                <span className={`t-subhead mt-[2px] flex items-center gap-1.5 font-medium ${rejected ? "text-muted" : "text-green"}`}>
+                                  {rejected ? <CloseIcon size={11} /> : <CheckIcon size={13} />}
+                                  {d.decision === "approve"
+                                    ? "Approved"
+                                    : d.decision === "change"
+                                      ? `Approved with change: ${d.value}`
+                                      : `Dismissed · ${d.reason}`}
+                                </span>
+                                {a && (
+                                  <span className="t-footnote mt-1 flex items-center gap-1.5 text-muted">
+                                    <TypeGlyph type={a.type} />
+                                    {TYPE_META[a.type].label}
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                data-id={d.action_id}
+                                onClick={undoClick}
+                                className="t-subhead mt-1 min-h-[44px] shrink-0 rounded-full px-3 font-semibold text-ink underline underline-offset-4 active:bg-fill"
+                              >
+                                Undo
+                              </button>
+                            </motion.li>
+                          );
+                        })}
+                      </AnimatePresence>
+                    </ul>
+                  </section>
+                ))
               )}
             </>
           )}
@@ -641,14 +734,14 @@ export default function Home() {
                 onClick={() => setView(id)}
                 aria-current={tabActive(id) ? "page" : undefined}
                 className={`dock-item relative flex flex-1 flex-col items-center justify-center gap-[2px] rounded-full text-[11px] font-medium leading-[13px] tracking-[0.01em] transition-colors ${
-                  tabActive(id) ? "text-tint" : "text-[#6e6e73] hover:text-label"
+                  tabActive(id) ? "text-ink" : "text-white/75 hover:text-white"
                 }`}
               >
                 {tabActive(id) && (
                   <motion.span
                     layoutId="dock-pill"
                     aria-hidden
-                    className="absolute inset-0 rounded-full bg-[var(--selected)]"
+                    className="absolute inset-[3px] rounded-full bg-yellow"
                     transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38 }}
                   />
                 )}
@@ -686,7 +779,7 @@ export default function Home() {
               exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
               transition={{ type: "spring", stiffness: 500, damping: 40 }}
               data-testid="toast"
-              className="material pointer-events-auto flex min-h-[48px] w-full max-w-[420px] items-center gap-3 rounded-[14px] bg-[rgba(28,28,30,0.9)] pl-4 pr-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.22)]"
+              className="material pointer-events-auto flex min-h-[48px] w-full max-w-[420px] items-center gap-3 rounded-[14px] bg-ink pl-4 pr-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.22)]"
             >
               <span className="t-subhead min-w-0 flex-1 py-2.5">{toast.text}</span>
               {toast.undoId && (
@@ -695,7 +788,7 @@ export default function Home() {
                     void undo(toast.undoId!);
                     setToast(null);
                   }}
-                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-[#6cb4ff] active:bg-white/10"
+                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-yellow active:bg-white/10"
                 >
                   Undo
                 </button>
@@ -759,5 +852,25 @@ export default function Home() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function BackToMore({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="btn-text -ml-1.5 mb-1 text-[17px] font-medium">
+      <BackIcon size={20} />
+      More
+    </button>
+  );
+}
+
+function SettingsRow({ label, Icon, onClick, detail }: { label: string; Icon: typeof SunIcon; onClick: () => void; detail?: string }) {
+  return (
+    <button onClick={onClick} className="cell flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-left [--inset:48px] transition-colors hover:bg-[rgba(0,0,0,0.02)] active:bg-fill">
+      <Icon size={20} className="shrink-0 text-ink" />
+      <span className="t-body flex-1">{label}</span>
+      {detail && <span className="t-body num text-muted" aria-hidden>{detail}</span>}
+      <ChevronIcon className="text-[var(--label-3)]" />
+    </button>
   );
 }

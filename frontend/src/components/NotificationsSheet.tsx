@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { currentSubscription, pushSupport, sendTest, subscribe, unsubscribe, type PushSupport } from "@/lib/push";
-import { BellIcon, CloseIcon } from "./icons";
+import { CloseIcon } from "./icons";
 
 /** Settings sheet for push notifications on this device. */
 export function NotificationsSheet({ onClose }: { onClose: () => void }) {
@@ -83,49 +83,69 @@ export function NotificationsSheet({ onClose }: { onClose: () => void }) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
           transition={{ type: "spring", stiffness: 420, damping: 38 }}
-          className="pointer-events-auto max-h-full w-full max-w-[460px] overflow-y-auto overscroll-contain rounded-t-[12px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] md:rounded-[14px] md:pb-4 md:shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
+          className="float pointer-events-auto relative max-h-full w-full max-w-[440px] overflow-y-auto overscroll-contain rounded-t-[20px] bg-floor pb-[max(env(safe-area-inset-bottom),20px)] md:rounded-[20px] md:pb-6"
         >
-          <header className="flex items-center gap-3 border-b border-separator px-4 py-3">
-            <span className="icon-tile size-[30px]" style={{ background: "var(--order)" }}>
-              <BellIcon size={17} />
-            </span>
-            <h2 id="notif-title" className="t-headline flex-1">Notifications</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close notifications"
-              className="hit grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
-            >
+          <div className="flex justify-center pt-2 md:hidden" aria-hidden>
+            <span className="h-[5px] w-9 rounded-full bg-[rgba(0,0,0,0.2)]" />
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close notifications"
+            className="absolute right-2 top-2 grid size-[44px] place-items-center"
+          >
+            <span className="grid size-[32px] place-items-center rounded-full bg-fill text-ink hover:bg-fill-2">
               <CloseIcon />
-            </button>
+            </span>
+          </button>
+
+          <header className="px-5 pr-14 pt-4 md:pt-6">
+            <h2 id="notif-title" className="t-title2 font-display">Notifications</h2>
+            <p className="t-subhead mt-1.5 text-muted">
+              Get an alert when an item is about to run out, a delivery is late or the store adds a note.
+            </p>
+            {support === "supported" && (
+              <span className="t-subhead mt-3 flex items-center gap-2 font-medium">
+                <span className="size-2 rounded-full" style={{ background: on ? "var(--green)" : denied ? "var(--red)" : "var(--muted)" }} aria-hidden />
+                {on ? "On for this device" : denied ? "Blocked in browser settings" : "Off for this device"}
+              </span>
+            )}
           </header>
 
-          <div className="px-4 pt-4">
+          <div className="px-4 pt-6">
             {support === "ios-needs-home-screen" && (
               <>
-                <div className="group-list px-4 py-3">
-                  <p className="t-body">Add to Home Screen first</p>
-                  <ol className="t-subhead mt-1 list-decimal space-y-0.5 pl-5 text-label-2">
-                    <li>Tap the Share button in Safari.</li>
-                    <li>Choose Add to Home Screen.</li>
-                    <li>Open Store from your Home Screen and come back here.</li>
+                <div className="rounded-[14px] bg-paper p-4">
+                  <p className="t-headline">Add to Home Screen first</p>
+                  <ol className="mt-3 space-y-2.5">
+                    {["Tap the Share button in Safari.", "Choose Add to Home Screen.", "Open Store from your Home Screen and come back here."].map((t, i) => (
+                      <li key={t} className="t-subhead flex items-start gap-3">
+                        <span className="num grid size-6 shrink-0 place-items-center rounded-full bg-fill text-[13px] font-semibold text-label" aria-hidden>
+                          {i + 1}
+                        </span>
+                        <span className="pt-[2px]">{t}</span>
+                      </li>
+                    ))}
                   </ol>
                 </div>
-                <p className="group-footer">iPhone shows notifications only for apps on the Home Screen (iOS 16.4 or later).</p>
+                <p className="t-footnote px-4 pt-2 text-muted">iPhone shows notifications only for apps on the Home Screen (iOS 16.4 or later).</p>
               </>
             )}
 
             {support === "unsupported" && (
-              <div className="group-list t-subhead px-4 py-3 text-label-2">
+              <div className="rounded-[14px] bg-paper t-subhead p-4 text-muted">
                 This browser can&apos;t show notifications. Try Chrome, Edge, Firefox or Safari.
               </div>
             )}
 
             {support === "supported" && (
               <>
-                <div className="group-list">
-                  <div className="cell flex items-center justify-between gap-3 px-4 py-[11px]">
-                    <span className="t-body" id="notif-switch-label">Urgent alerts</span>
+                <div className="rounded-[14px] bg-paper">
+                  <div className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2">
+                    <span className="min-w-0">
+                      <span className="t-body block" id="notif-switch-label">Urgent alerts</span>
+                      <span className="t-footnote block text-muted">Each alert is sent once.</span>
+                    </span>
                     <button
                       type="button"
                       role="switch"
@@ -134,42 +154,42 @@ export function NotificationsSheet({ onClose }: { onClose: () => void }) {
                       disabled={busy}
                       onClick={toggle}
                       className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-                        on ? "bg-done" : "bg-fill-2"
+                        on ? "bg-green" : "bg-[#c9c9c2]"
                       }`}
                     >
                       <span
-                        className={`absolute top-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.15),0_3px_1px_rgba(0,0,0,0.06)] transition-[left] ${
+                        className={`absolute top-[2px] size-[27px] rounded-full bg-white shadow-[0_3px_8px_rgba(0,0,0,0.15),0_3px_1px_rgba(0,0,0,0.06)] transition-[left] motion-reduce:transition-none ${
                           on ? "left-[22px]" : "left-[2px]"
                         }`}
                       />
                     </button>
                   </div>
-                  {on && (
-                    <button
-                      type="button"
-                      onClick={test}
-                      disabled={busy}
-                      className="cell t-body w-full px-4 py-[11px] text-left text-tint disabled:opacity-50"
-                    >
-                      Send test notification
-                    </button>
-                  )}
                 </div>
-                <p className="group-footer">
-                  {denied && !on
-                    ? "Notifications are blocked for this site. Allow them in your browser or system settings, then try again."
-                    : "Items about to run out, late deliveries and store notes. Each alert is sent once."}
-                </p>
+                {denied && !on && (
+                  <p className="t-footnote px-4 pt-2 text-muted">
+                    Notifications are blocked for this site. Allow them in your browser or system settings, then try again.
+                  </p>
+                )}
+                {on && (
+                  <button
+                    type="button"
+                    onClick={test}
+                    disabled={busy}
+                    className="btn-ink mt-6 min-h-[52px] w-full disabled:opacity-40"
+                  >
+                    Send test notification
+                  </button>
+                )}
               </>
             )}
 
             {status && (
-              <p role="status" className="t-subhead mt-4 px-1 text-label-2">
+              <p role="status" className="t-subhead mt-4 text-center text-muted">
                 {status}
               </p>
             )}
             {error && (
-              <p role="alert" className="t-subhead mt-4 px-1" style={{ color: "var(--order-text)" }}>
+              <p role="alert" className="t-subhead mt-4 rounded-[14px] border-l-[4px] border-red bg-paper px-4 py-3 font-medium text-red">
                 {error}
               </p>
             )}

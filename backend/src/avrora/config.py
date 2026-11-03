@@ -37,3 +37,23 @@ class Settings:
 
 
 SETTINGS = Settings()
+
+
+@dataclass(frozen=True)
+class LabourRules:
+    """Hard rules every staffing plan must keep (synthetic store, Ukrainian labour code in spirit)."""
+
+    open_hour: int = 8
+    close_hour: int = 21
+    max_shift_hours: int = 8  # shift length from start to end, break included
+    min_shift_hours: int = 4  # planning rule for new shifts, not a legal limit
+    max_week_hours: float = 40.0  # also capped by each contract
+    min_rest_hours: int = 11
+    break_after_hours: int = 6  # shifts longer than this get a 30-minute break
+    break_minutes: int = 30
+    min_on_site: int = 2
+    lead_roles: tuple[str, ...] = ("shift_lead", "senior_cashier")
+    utilisation: float = 0.85
+
+
+RULES = LabourRules()

@@ -1,0 +1,3388 @@
+{
+ "E01": {
+  "employee_id": "E01",
+  "name": "Olena K.",
+  "role": "shift_lead",
+  "skills": [
+   "checkout",
+   "customer_service",
+   "inventory"
+  ],
+  "contract_hours_week": 40,
+  "hours_this_week": 0,
+  "status_today": "available",
+  "next_shift": {
+   "date": "2026-11-03",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 77,
+  "trend": "flat",
+  "hourly_cost_uah": 145,
+  "start_date": "2023-09-01",
+  "can_open": true,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 423.4,
+    "cases_received_per_hour": 42.3,
+    "shelves_replenished_per_hour": 28.8,
+    "scan_error_rate": 1.06,
+    "punctuality_pct": 96.5,
+    "absences": 0,
+    "customer_rating": 4.25
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 427.7,
+    "cases_received_per_hour": 43.9,
+    "shelves_replenished_per_hour": 30.1,
+    "scan_error_rate": 0.96,
+    "punctuality_pct": 95.4,
+    "absences": 0,
+    "customer_rating": 4.21
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 426.5,
+    "cases_received_per_hour": 40.8,
+    "shelves_replenished_per_hour": 29.2,
+    "scan_error_rate": 1.21,
+    "punctuality_pct": 94.6,
+    "absences": 0,
+    "customer_rating": 3.97
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 435.9,
+    "cases_received_per_hour": 38.8,
+    "shelves_replenished_per_hour": 28.6,
+    "scan_error_rate": 1.55,
+    "punctuality_pct": 96.8,
+    "absences": 1,
+    "customer_rating": 4.15
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 416.6,
+    "cases_received_per_hour": 42.3,
+    "shelves_replenished_per_hour": 27.0,
+    "scan_error_rate": 1.5,
+    "punctuality_pct": 97.5,
+    "absences": 1,
+    "customer_rating": 3.98
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 424.4,
+    "cases_received_per_hour": 42.8,
+    "shelves_replenished_per_hour": 28.1,
+    "scan_error_rate": 1.29,
+    "punctuality_pct": 99.1,
+    "absences": 0,
+    "customer_rating": 4.21
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 443.6,
+    "cases_received_per_hour": 40.0,
+    "shelves_replenished_per_hour": 29.1,
+    "scan_error_rate": 1.47,
+    "punctuality_pct": 94.4,
+    "absences": 0,
+    "customer_rating": 3.99
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 404.0,
+    "cases_received_per_hour": 40.4,
+    "shelves_replenished_per_hour": 27.1,
+    "scan_error_rate": 1.53,
+    "punctuality_pct": 95.4,
+    "absences": 0,
+    "customer_rating": 3.88
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 420.2,
+    "cases_received_per_hour": 44.1,
+    "shelves_replenished_per_hour": 29.9,
+    "scan_error_rate": 1.2,
+    "punctuality_pct": 99.3,
+    "absences": 0,
+    "customer_rating": 3.99
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 411.9,
+    "cases_received_per_hour": 41.0,
+    "shelves_replenished_per_hour": 27.3,
+    "scan_error_rate": 1.18,
+    "punctuality_pct": 99.5,
+    "absences": 0,
+    "customer_rating": 4.1
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 426.1,
+    "cases_received_per_hour": 41.0,
+    "shelves_replenished_per_hour": 28.2,
+    "scan_error_rate": 1.44,
+    "punctuality_pct": 99.7,
+    "absences": 0,
+    "customer_rating": 4.05
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E01",
+    "items_scanned_per_hour": 410.9,
+    "cases_received_per_hour": 43.8,
+    "shelves_replenished_per_hour": 27.2,
+    "scan_error_rate": 0.99,
+    "punctuality_pct": 98.1,
+    "absences": 0,
+    "customer_rating": 4.11
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Scan errors rose over the last 4 weeks"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Shift lead"
+ },
+ "E02": {
+  "employee_id": "E02",
+  "name": "Taras M.",
+  "role": "senior_cashier",
+  "skills": [
+   "checkout",
+   "customer_service"
+  ],
+  "contract_hours_week": 40,
+  "hours_this_week": 7.5,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 68,
+  "trend": "down",
+  "hourly_cost_uah": 125,
+  "start_date": "2023-03-01",
+  "can_open": true,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 414.9,
+    "cases_received_per_hour": 47.8,
+    "shelves_replenished_per_hour": 20.4,
+    "scan_error_rate": 0.88,
+    "punctuality_pct": 92.7,
+    "absences": 1,
+    "customer_rating": 4.3
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 417.7,
+    "cases_received_per_hour": 47.5,
+    "shelves_replenished_per_hour": 20.3,
+    "scan_error_rate": 0.74,
+    "punctuality_pct": 92.7,
+    "absences": 0,
+    "customer_rating": 4.22
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 412.6,
+    "cases_received_per_hour": 46.3,
+    "shelves_replenished_per_hour": 22.9,
+    "scan_error_rate": 0.71,
+    "punctuality_pct": 92.8,
+    "absences": 0,
+    "customer_rating": 4.35
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 432.6,
+    "cases_received_per_hour": 47.4,
+    "shelves_replenished_per_hour": 23.1,
+    "scan_error_rate": 1.02,
+    "punctuality_pct": 97.3,
+    "absences": 0,
+    "customer_rating": 4.33
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 406.2,
+    "cases_received_per_hour": 46.2,
+    "shelves_replenished_per_hour": 23.0,
+    "scan_error_rate": 1.17,
+    "punctuality_pct": 98.1,
+    "absences": 0,
+    "customer_rating": 4.25
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 421.1,
+    "cases_received_per_hour": 50.4,
+    "shelves_replenished_per_hour": 20.7,
+    "scan_error_rate": 0.88,
+    "punctuality_pct": 93.8,
+    "absences": 0,
+    "customer_rating": 4.26
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 418.0,
+    "cases_received_per_hour": 47.9,
+    "shelves_replenished_per_hour": 22.9,
+    "scan_error_rate": 0.8,
+    "punctuality_pct": 96.3,
+    "absences": 0,
+    "customer_rating": 4.15
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 450.5,
+    "cases_received_per_hour": 45.7,
+    "shelves_replenished_per_hour": 23.3,
+    "scan_error_rate": 1.03,
+    "punctuality_pct": 92.9,
+    "absences": 0,
+    "customer_rating": 4.4
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 424.3,
+    "cases_received_per_hour": 47.8,
+    "shelves_replenished_per_hour": 21.1,
+    "scan_error_rate": 0.86,
+    "punctuality_pct": 97.3,
+    "absences": 0,
+    "customer_rating": 4.5
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 388.9,
+    "cases_received_per_hour": 50.2,
+    "shelves_replenished_per_hour": 19.9,
+    "scan_error_rate": 1.12,
+    "punctuality_pct": 97.2,
+    "absences": 0,
+    "customer_rating": 4.35
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 464.0,
+    "cases_received_per_hour": 46.2,
+    "shelves_replenished_per_hour": 22.2,
+    "scan_error_rate": 0.83,
+    "punctuality_pct": 97.9,
+    "absences": 1,
+    "customer_rating": 4.49
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E02",
+    "items_scanned_per_hour": 425.4,
+    "cases_received_per_hour": 45.4,
+    "shelves_replenished_per_hour": 22.2,
+    "scan_error_rate": 0.7,
+    "punctuality_pct": 95.9,
+    "absences": 0,
+    "customer_rating": 4.37
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Scan errors rose over the last 4 weeks"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Fast checkout"
+ },
+ "E03": {
+  "employee_id": "E03",
+  "name": "Iryna S.",
+  "role": "cashier",
+  "skills": [
+   "checkout",
+   "customer_service"
+  ],
+  "contract_hours_week": 32,
+  "hours_this_week": 7.5,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "12:00",
+   "end": "20:00"
+  },
+  "score": 87,
+  "trend": "flat",
+  "hourly_cost_uah": 105,
+  "start_date": "2023-02-01",
+  "can_open": false,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 391.2,
+    "cases_received_per_hour": 45.5,
+    "shelves_replenished_per_hour": 29.7,
+    "scan_error_rate": 0.98,
+    "punctuality_pct": 90.1,
+    "absences": 1,
+    "customer_rating": 4.2
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 391.8,
+    "cases_received_per_hour": 43.3,
+    "shelves_replenished_per_hour": 32.5,
+    "scan_error_rate": 0.88,
+    "punctuality_pct": 90.0,
+    "absences": 1,
+    "customer_rating": 4.03
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 398.0,
+    "cases_received_per_hour": 45.5,
+    "shelves_replenished_per_hour": 31.4,
+    "scan_error_rate": 0.96,
+    "punctuality_pct": 91.6,
+    "absences": 1,
+    "customer_rating": 4.03
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 403.7,
+    "cases_received_per_hour": 43.8,
+    "shelves_replenished_per_hour": 32.4,
+    "scan_error_rate": 0.5,
+    "punctuality_pct": 88.7,
+    "absences": 1,
+    "customer_rating": 4.2
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 388.5,
+    "cases_received_per_hour": 48.7,
+    "shelves_replenished_per_hour": 28.9,
+    "scan_error_rate": 0.5,
+    "punctuality_pct": 91.7,
+    "absences": 0,
+    "customer_rating": 4.08
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 398.0,
+    "cases_received_per_hour": 47.1,
+    "shelves_replenished_per_hour": 30.8,
+    "scan_error_rate": 0.44,
+    "punctuality_pct": 89.3,
+    "absences": 0,
+    "customer_rating": 4.0
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 414.6,
+    "cases_received_per_hour": 48.7,
+    "shelves_replenished_per_hour": 31.4,
+    "scan_error_rate": 0.8,
+    "punctuality_pct": 91.5,
+    "absences": 0,
+    "customer_rating": 4.08
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 427.4,
+    "cases_received_per_hour": 47.5,
+    "shelves_replenished_per_hour": 31.1,
+    "scan_error_rate": 0.96,
+    "punctuality_pct": 90.9,
+    "absences": 1,
+    "customer_rating": 4.1
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 399.0,
+    "cases_received_per_hour": 43.7,
+    "shelves_replenished_per_hour": 31.9,
+    "scan_error_rate": 0.61,
+    "punctuality_pct": 91.8,
+    "absences": 0,
+    "customer_rating": 4.03
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 413.2,
+    "cases_received_per_hour": 46.9,
+    "shelves_replenished_per_hour": 31.3,
+    "scan_error_rate": 0.57,
+    "punctuality_pct": 93.5,
+    "absences": 0,
+    "customer_rating": 4.09
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 392.7,
+    "cases_received_per_hour": 46.5,
+    "shelves_replenished_per_hour": 29.2,
+    "scan_error_rate": 0.64,
+    "punctuality_pct": 93.4,
+    "absences": 0,
+    "customer_rating": 3.99
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E03",
+    "items_scanned_per_hour": 395.0,
+    "cases_received_per_hour": 43.9,
+    "shelves_replenished_per_hour": 32.4,
+    "scan_error_rate": 0.76,
+    "punctuality_pct": 91.0,
+    "absences": 0,
+    "customer_rating": 4.18
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Scan errors rose over the last 4 weeks"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Fast checkout"
+ },
+ "E04": {
+  "employee_id": "E04",
+  "name": "Andrii P.",
+  "role": "stocker",
+  "skills": [
+   "receiving",
+   "replenishment",
+   "inventory"
+  ],
+  "contract_hours_week": 40,
+  "hours_this_week": 6.5,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "08:00",
+   "end": "15:00"
+  },
+  "score": 71,
+  "trend": "up",
+  "hourly_cost_uah": 110,
+  "start_date": "2023-09-01",
+  "can_open": true,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 461.8,
+    "cases_received_per_hour": 39.8,
+    "shelves_replenished_per_hour": 27.6,
+    "scan_error_rate": 1.49,
+    "punctuality_pct": 96.1,
+    "absences": 0,
+    "customer_rating": 4.92
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 465.0,
+    "cases_received_per_hour": 41.2,
+    "shelves_replenished_per_hour": 25.8,
+    "scan_error_rate": 1.33,
+    "punctuality_pct": 93.7,
+    "absences": 0,
+    "customer_rating": 4.67
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 461.7,
+    "cases_received_per_hour": 39.7,
+    "shelves_replenished_per_hour": 28.9,
+    "scan_error_rate": 1.58,
+    "punctuality_pct": 94.8,
+    "absences": 1,
+    "customer_rating": 4.96
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 461.2,
+    "cases_received_per_hour": 38.5,
+    "shelves_replenished_per_hour": 27.2,
+    "scan_error_rate": 1.19,
+    "punctuality_pct": 97.7,
+    "absences": 1,
+    "customer_rating": 4.85
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 471.9,
+    "cases_received_per_hour": 38.1,
+    "shelves_replenished_per_hour": 28.7,
+    "scan_error_rate": 1.41,
+    "punctuality_pct": 93.3,
+    "absences": 0,
+    "customer_rating": 4.76
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 490.2,
+    "cases_received_per_hour": 39.7,
+    "shelves_replenished_per_hour": 26.3,
+    "scan_error_rate": 1.52,
+    "punctuality_pct": 97.8,
+    "absences": 0,
+    "customer_rating": 4.77
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 478.3,
+    "cases_received_per_hour": 38.8,
+    "shelves_replenished_per_hour": 27.3,
+    "scan_error_rate": 1.08,
+    "punctuality_pct": 97.9,
+    "absences": 0,
+    "customer_rating": 4.69
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 500.5,
+    "cases_received_per_hour": 36.9,
+    "shelves_replenished_per_hour": 28.0,
+    "scan_error_rate": 1.45,
+    "punctuality_pct": 95.6,
+    "absences": 0,
+    "customer_rating": 4.58
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 455.5,
+    "cases_received_per_hour": 40.4,
+    "shelves_replenished_per_hour": 25.7,
+    "scan_error_rate": 1.61,
+    "punctuality_pct": 92.9,
+    "absences": 0,
+    "customer_rating": 4.6
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 515.2,
+    "cases_received_per_hour": 37.6,
+    "shelves_replenished_per_hour": 28.4,
+    "scan_error_rate": 1.46,
+    "punctuality_pct": 96.8,
+    "absences": 1,
+    "customer_rating": 4.96
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 510.8,
+    "cases_received_per_hour": 40.2,
+    "shelves_replenished_per_hour": 27.1,
+    "scan_error_rate": 1.45,
+    "punctuality_pct": 96.7,
+    "absences": 0,
+    "customer_rating": 4.78
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E04",
+    "items_scanned_per_hour": 444.0,
+    "cases_received_per_hour": 41.0,
+    "shelves_replenished_per_hour": 26.8,
+    "scan_error_rate": 1.08,
+    "punctuality_pct": 93.4,
+    "absences": 0,
+    "customer_rating": 4.78
+   }
+  ],
+  "strengths": [
+   "Quick receiving, handles big deliveries well",
+   "Reliable on early shifts"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Receiving lead"
+ },
+ "E05": {
+  "employee_id": "E05",
+  "name": "Oksana D.",
+  "role": "merchandiser",
+  "skills": [
+   "merchandising",
+   "replenishment"
+  ],
+  "contract_hours_week": 30,
+  "hours_this_week": 6,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "09:00",
+   "end": "15:00"
+  },
+  "score": 66,
+  "trend": "up",
+  "hourly_cost_uah": 115,
+  "start_date": "2023-05-01",
+  "can_open": false,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 500.6,
+    "cases_received_per_hour": 38.7,
+    "shelves_replenished_per_hour": 23.3,
+    "scan_error_rate": 0.62,
+    "punctuality_pct": 89.4,
+    "absences": 0,
+    "customer_rating": 4.59
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 502.6,
+    "cases_received_per_hour": 35.8,
+    "shelves_replenished_per_hour": 25.5,
+    "scan_error_rate": 0.63,
+    "punctuality_pct": 89.3,
+    "absences": 1,
+    "customer_rating": 4.64
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 497.7,
+    "cases_received_per_hour": 36.1,
+    "shelves_replenished_per_hour": 23.4,
+    "scan_error_rate": 0.81,
+    "punctuality_pct": 89.7,
+    "absences": 0,
+    "customer_rating": 4.62
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 509.1,
+    "cases_received_per_hour": 38.3,
+    "shelves_replenished_per_hour": 25.0,
+    "scan_error_rate": 0.55,
+    "punctuality_pct": 88.1,
+    "absences": 0,
+    "customer_rating": 4.73
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 517.5,
+    "cases_received_per_hour": 36.5,
+    "shelves_replenished_per_hour": 25.8,
+    "scan_error_rate": 0.81,
+    "punctuality_pct": 89.3,
+    "absences": 0,
+    "customer_rating": 4.86
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 525.8,
+    "cases_received_per_hour": 38.2,
+    "shelves_replenished_per_hour": 25.3,
+    "scan_error_rate": 0.94,
+    "punctuality_pct": 87.9,
+    "absences": 1,
+    "customer_rating": 4.9
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 501.7,
+    "cases_received_per_hour": 33.4,
+    "shelves_replenished_per_hour": 25.5,
+    "scan_error_rate": 0.82,
+    "punctuality_pct": 87.6,
+    "absences": 0,
+    "customer_rating": 4.52
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 522.2,
+    "cases_received_per_hour": 34.9,
+    "shelves_replenished_per_hour": 25.0,
+    "scan_error_rate": 0.61,
+    "punctuality_pct": 86.2,
+    "absences": 0,
+    "customer_rating": 4.53
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 492.9,
+    "cases_received_per_hour": 34.6,
+    "shelves_replenished_per_hour": 26.5,
+    "scan_error_rate": 1.06,
+    "punctuality_pct": 90.1,
+    "absences": 0,
+    "customer_rating": 4.69
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 485.4,
+    "cases_received_per_hour": 35.1,
+    "shelves_replenished_per_hour": 26.2,
+    "scan_error_rate": 0.97,
+    "punctuality_pct": 89.2,
+    "absences": 0,
+    "customer_rating": 4.84
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 527.5,
+    "cases_received_per_hour": 35.3,
+    "shelves_replenished_per_hour": 23.3,
+    "scan_error_rate": 0.82,
+    "punctuality_pct": 84.7,
+    "absences": 0,
+    "customer_rating": 4.73
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E05",
+    "items_scanned_per_hour": 495.6,
+    "cases_received_per_hour": 34.2,
+    "shelves_replenished_per_hour": 25.5,
+    "scan_error_rate": 0.72,
+    "punctuality_pct": 85.6,
+    "absences": 1,
+    "customer_rating": 4.86
+   }
+  ],
+  "strengths": [
+   "Quick receiving, handles big deliveries well",
+   "Reliable on early shifts"
+  ],
+  "watch": [
+   "Scan errors rose over the last 4 weeks"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Promo setup"
+ },
+ "E06": {
+  "employee_id": "E06",
+  "name": "Mykola H.",
+  "role": "stocker",
+  "skills": [
+   "receiving",
+   "replenishment"
+  ],
+  "contract_hours_week": 40,
+  "hours_this_week": 0,
+  "status_today": "sick",
+  "next_shift": null,
+  "score": 87,
+  "trend": "down",
+  "hourly_cost_uah": 110,
+  "start_date": "2023-08-01",
+  "can_open": true,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 507.2,
+    "cases_received_per_hour": 44.6,
+    "shelves_replenished_per_hour": 30.7,
+    "scan_error_rate": 0.87,
+    "punctuality_pct": 96.3,
+    "absences": 0,
+    "customer_rating": 4.21
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 507.0,
+    "cases_received_per_hour": 49.7,
+    "shelves_replenished_per_hour": 32.3,
+    "scan_error_rate": 0.88,
+    "punctuality_pct": 96.5,
+    "absences": 0,
+    "customer_rating": 4.24
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 517.2,
+    "cases_received_per_hour": 47.1,
+    "shelves_replenished_per_hour": 29.6,
+    "scan_error_rate": 0.71,
+    "punctuality_pct": 95.0,
+    "absences": 0,
+    "customer_rating": 4.03
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 504.8,
+    "cases_received_per_hour": 49.2,
+    "shelves_replenished_per_hour": 29.6,
+    "scan_error_rate": 1.09,
+    "punctuality_pct": 94.0,
+    "absences": 0,
+    "customer_rating": 4.33
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 497.9,
+    "cases_received_per_hour": 49.2,
+    "shelves_replenished_per_hour": 29.8,
+    "scan_error_rate": 0.94,
+    "punctuality_pct": 92.4,
+    "absences": 0,
+    "customer_rating": 4.24
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 504.0,
+    "cases_received_per_hour": 47.7,
+    "shelves_replenished_per_hour": 31.7,
+    "scan_error_rate": 0.95,
+    "punctuality_pct": 96.9,
+    "absences": 0,
+    "customer_rating": 4.36
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 498.0,
+    "cases_received_per_hour": 48.6,
+    "shelves_replenished_per_hour": 29.3,
+    "scan_error_rate": 0.54,
+    "punctuality_pct": 93.2,
+    "absences": 0,
+    "customer_rating": 4.24
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 502.7,
+    "cases_received_per_hour": 49.6,
+    "shelves_replenished_per_hour": 31.8,
+    "scan_error_rate": 0.81,
+    "punctuality_pct": 97.3,
+    "absences": 0,
+    "customer_rating": 4.13
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 526.5,
+    "cases_received_per_hour": 47.1,
+    "shelves_replenished_per_hour": 30.4,
+    "scan_error_rate": 0.77,
+    "punctuality_pct": 94.7,
+    "absences": 0,
+    "customer_rating": 4.27
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 483.3,
+    "cases_received_per_hour": 45.0,
+    "shelves_replenished_per_hour": 30.0,
+    "scan_error_rate": 0.65,
+    "punctuality_pct": 95.7,
+    "absences": 0,
+    "customer_rating": 4.34
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 538.2,
+    "cases_received_per_hour": 46.4,
+    "shelves_replenished_per_hour": 31.3,
+    "scan_error_rate": 0.58,
+    "punctuality_pct": 93.6,
+    "absences": 0,
+    "customer_rating": 4.04
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E06",
+    "items_scanned_per_hour": 527.1,
+    "cases_received_per_hour": 44.2,
+    "shelves_replenished_per_hour": 29.6,
+    "scan_error_rate": 0.69,
+    "punctuality_pct": 96.4,
+    "absences": 0,
+    "customer_rating": 4.34
+   }
+  ],
+  "strengths": [
+   "Quick receiving, handles big deliveries well",
+   "Reliable on early shifts"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "sick",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Fast restock"
+ },
+ "E07": {
+  "employee_id": "E07",
+  "name": "Natalia V.",
+  "role": "cashier",
+  "skills": [
+   "checkout"
+  ],
+  "contract_hours_week": 24,
+  "hours_this_week": 4,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "16:00",
+   "end": "20:00"
+  },
+  "score": 80,
+  "trend": "up",
+  "hourly_cost_uah": 105,
+  "start_date": "2023-02-01",
+  "can_open": false,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 513.1,
+    "cases_received_per_hour": 41.4,
+    "shelves_replenished_per_hour": 30.4,
+    "scan_error_rate": 0.53,
+    "punctuality_pct": 99.4,
+    "absences": 1,
+    "customer_rating": 4.38
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 513.1,
+    "cases_received_per_hour": 45.0,
+    "shelves_replenished_per_hour": 27.8,
+    "scan_error_rate": 0.31,
+    "punctuality_pct": 95.9,
+    "absences": 0,
+    "customer_rating": 4.37
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 518.2,
+    "cases_received_per_hour": 45.0,
+    "shelves_replenished_per_hour": 30.0,
+    "scan_error_rate": 0.7,
+    "punctuality_pct": 95.1,
+    "absences": 1,
+    "customer_rating": 4.39
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 519.9,
+    "cases_received_per_hour": 45.1,
+    "shelves_replenished_per_hour": 28.2,
+    "scan_error_rate": 0.63,
+    "punctuality_pct": 96.3,
+    "absences": 0,
+    "customer_rating": 4.51
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 514.5,
+    "cases_received_per_hour": 45.8,
+    "shelves_replenished_per_hour": 31.3,
+    "scan_error_rate": 0.77,
+    "punctuality_pct": 98.9,
+    "absences": 0,
+    "customer_rating": 4.4
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 513.2,
+    "cases_received_per_hour": 44.6,
+    "shelves_replenished_per_hour": 29.8,
+    "scan_error_rate": 0.48,
+    "punctuality_pct": 100,
+    "absences": 0,
+    "customer_rating": 4.49
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 539.8,
+    "cases_received_per_hour": 41.9,
+    "shelves_replenished_per_hour": 30.1,
+    "scan_error_rate": 0.38,
+    "punctuality_pct": 95.9,
+    "absences": 0,
+    "customer_rating": 4.53
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 495.3,
+    "cases_received_per_hour": 46.3,
+    "shelves_replenished_per_hour": 31.1,
+    "scan_error_rate": 0.31,
+    "punctuality_pct": 100,
+    "absences": 0,
+    "customer_rating": 4.51
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 508.0,
+    "cases_received_per_hour": 41.8,
+    "shelves_replenished_per_hour": 29.5,
+    "scan_error_rate": 0.78,
+    "punctuality_pct": 96.2,
+    "absences": 1,
+    "customer_rating": 4.6
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 529.0,
+    "cases_received_per_hour": 45.9,
+    "shelves_replenished_per_hour": 27.9,
+    "scan_error_rate": 0.35,
+    "punctuality_pct": 100,
+    "absences": 0,
+    "customer_rating": 4.29
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 530.7,
+    "cases_received_per_hour": 46.5,
+    "shelves_replenished_per_hour": 31.0,
+    "scan_error_rate": 0.31,
+    "punctuality_pct": 97.5,
+    "absences": 0,
+    "customer_rating": 4.61
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E07",
+    "items_scanned_per_hour": 558.2,
+    "cases_received_per_hour": 41.6,
+    "shelves_replenished_per_hour": 28.4,
+    "scan_error_rate": 0.67,
+    "punctuality_pct": 96.1,
+    "absences": 0,
+    "customer_rating": 4.37
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Steady checkout"
+ },
+ "E08": {
+  "employee_id": "E08",
+  "name": "Dmytro L.",
+  "role": "senior_cashier",
+  "skills": [
+   "checkout",
+   "customer_service",
+   "inventory"
+  ],
+  "contract_hours_week": 40,
+  "hours_this_week": 7.5,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "13:00",
+   "end": "21:00"
+  },
+  "score": 76,
+  "trend": "down",
+  "hourly_cost_uah": 125,
+  "start_date": "2023-06-01",
+  "can_open": false,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 381.5,
+    "cases_received_per_hour": 31.1,
+    "shelves_replenished_per_hour": 24.0,
+    "scan_error_rate": 0.92,
+    "punctuality_pct": 92.0,
+    "absences": 0,
+    "customer_rating": 3.9
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 382.4,
+    "cases_received_per_hour": 27.9,
+    "shelves_replenished_per_hour": 21.9,
+    "scan_error_rate": 1.07,
+    "punctuality_pct": 90.6,
+    "absences": 0,
+    "customer_rating": 4.14
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 377.9,
+    "cases_received_per_hour": 30.6,
+    "shelves_replenished_per_hour": 23.8,
+    "scan_error_rate": 0.99,
+    "punctuality_pct": 92.3,
+    "absences": 0,
+    "customer_rating": 3.94
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 393.2,
+    "cases_received_per_hour": 30.3,
+    "shelves_replenished_per_hour": 23.2,
+    "scan_error_rate": 0.8,
+    "punctuality_pct": 90.8,
+    "absences": 0,
+    "customer_rating": 4.08
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 388.8,
+    "cases_received_per_hour": 28.6,
+    "shelves_replenished_per_hour": 24.0,
+    "scan_error_rate": 0.72,
+    "punctuality_pct": 91.6,
+    "absences": 0,
+    "customer_rating": 4.11
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 392.1,
+    "cases_received_per_hour": 28.2,
+    "shelves_replenished_per_hour": 25.3,
+    "scan_error_rate": 1.03,
+    "punctuality_pct": 93.0,
+    "absences": 1,
+    "customer_rating": 4.25
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 372.2,
+    "cases_received_per_hour": 28.0,
+    "shelves_replenished_per_hour": 25.3,
+    "scan_error_rate": 1.13,
+    "punctuality_pct": 92.9,
+    "absences": 1,
+    "customer_rating": 4.12
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 377.4,
+    "cases_received_per_hour": 32.2,
+    "shelves_replenished_per_hour": 22.2,
+    "scan_error_rate": 0.68,
+    "punctuality_pct": 90.1,
+    "absences": 0,
+    "customer_rating": 4.13
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 371.5,
+    "cases_received_per_hour": 29.7,
+    "shelves_replenished_per_hour": 25.4,
+    "scan_error_rate": 0.8,
+    "punctuality_pct": 91.8,
+    "absences": 0,
+    "customer_rating": 4.22
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 354.7,
+    "cases_received_per_hour": 31.0,
+    "shelves_replenished_per_hour": 23.7,
+    "scan_error_rate": 0.75,
+    "punctuality_pct": 90.1,
+    "absences": 1,
+    "customer_rating": 4.03
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 408.4,
+    "cases_received_per_hour": 32.8,
+    "shelves_replenished_per_hour": 23.2,
+    "scan_error_rate": 0.92,
+    "punctuality_pct": 90.7,
+    "absences": 0,
+    "customer_rating": 3.91
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E08",
+    "items_scanned_per_hour": 354.0,
+    "cases_received_per_hour": 27.1,
+    "shelves_replenished_per_hour": 25.5,
+    "scan_error_rate": 0.88,
+    "punctuality_pct": 93.1,
+    "absences": 0,
+    "customer_rating": 4.26
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Customer favourite"
+ },
+ "E09": {
+  "employee_id": "E09",
+  "name": "Sofiia B.",
+  "role": "cashier",
+  "skills": [
+   "checkout",
+   "customer_service"
+  ],
+  "contract_hours_week": 20,
+  "hours_this_week": 0,
+  "status_today": "day_off",
+  "next_shift": {
+   "date": "2026-11-03",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 85,
+  "trend": "flat",
+  "hourly_cost_uah": 105,
+  "start_date": "2023-03-01",
+  "can_open": false,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 503.0,
+    "cases_received_per_hour": 32.8,
+    "shelves_replenished_per_hour": 24.4,
+    "scan_error_rate": 0.25,
+    "punctuality_pct": 89.1,
+    "absences": 1,
+    "customer_rating": 4.13
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 501.9,
+    "cases_received_per_hour": 29.6,
+    "shelves_replenished_per_hour": 23.3,
+    "scan_error_rate": 0.27,
+    "punctuality_pct": 90.9,
+    "absences": 0,
+    "customer_rating": 4.27
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 512.9,
+    "cases_received_per_hour": 31.3,
+    "shelves_replenished_per_hour": 24.8,
+    "scan_error_rate": 0.73,
+    "punctuality_pct": 90.5,
+    "absences": 0,
+    "customer_rating": 4.29
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 503.2,
+    "cases_received_per_hour": 31.6,
+    "shelves_replenished_per_hour": 24.2,
+    "scan_error_rate": 0.24,
+    "punctuality_pct": 91.1,
+    "absences": 0,
+    "customer_rating": 4.32
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 511.7,
+    "cases_received_per_hour": 33.1,
+    "shelves_replenished_per_hour": 25.9,
+    "scan_error_rate": 0.37,
+    "punctuality_pct": 90.2,
+    "absences": 0,
+    "customer_rating": 4.18
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 522.9,
+    "cases_received_per_hour": 34.3,
+    "shelves_replenished_per_hour": 24.9,
+    "scan_error_rate": 0.57,
+    "punctuality_pct": 92.8,
+    "absences": 0,
+    "customer_rating": 4.32
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 504.1,
+    "cases_received_per_hour": 31.9,
+    "shelves_replenished_per_hour": 23.8,
+    "scan_error_rate": 0.7,
+    "punctuality_pct": 88.9,
+    "absences": 0,
+    "customer_rating": 4.31
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 509.1,
+    "cases_received_per_hour": 31.5,
+    "shelves_replenished_per_hour": 25.7,
+    "scan_error_rate": 0.65,
+    "punctuality_pct": 89.3,
+    "absences": 0,
+    "customer_rating": 4.12
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 498.1,
+    "cases_received_per_hour": 33.7,
+    "shelves_replenished_per_hour": 24.4,
+    "scan_error_rate": 0.59,
+    "punctuality_pct": 94.0,
+    "absences": 0,
+    "customer_rating": 4.36
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 551.2,
+    "cases_received_per_hour": 33.8,
+    "shelves_replenished_per_hour": 23.5,
+    "scan_error_rate": 0.5,
+    "punctuality_pct": 92.7,
+    "absences": 0,
+    "customer_rating": 4.27
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 533.2,
+    "cases_received_per_hour": 30.9,
+    "shelves_replenished_per_hour": 24.6,
+    "scan_error_rate": 0.31,
+    "punctuality_pct": 92.0,
+    "absences": 0,
+    "customer_rating": 4.31
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E09",
+    "items_scanned_per_hour": 515.5,
+    "cases_received_per_hour": 33.5,
+    "shelves_replenished_per_hour": 24.4,
+    "scan_error_rate": 0.28,
+    "punctuality_pct": 88.2,
+    "absences": 0,
+    "customer_rating": 4.28
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Scan errors rose over the last 4 weeks"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Fast checkout"
+ },
+ "E10": {
+  "employee_id": "E10",
+  "name": "Bohdan R.",
+  "role": "stocker",
+  "skills": [
+   "replenishment",
+   "inventory"
+  ],
+  "contract_hours_week": 32,
+  "hours_this_week": 6.5,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "14:00",
+   "end": "21:00"
+  },
+  "score": 73,
+  "trend": "up",
+  "hourly_cost_uah": 110,
+  "start_date": "2023-05-01",
+  "can_open": false,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 425.9,
+    "cases_received_per_hour": 39.5,
+    "shelves_replenished_per_hour": 21.7,
+    "scan_error_rate": 1.18,
+    "punctuality_pct": 94.6,
+    "absences": 0,
+    "customer_rating": 3.9
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 423.0,
+    "cases_received_per_hour": 36.2,
+    "shelves_replenished_per_hour": 24.0,
+    "scan_error_rate": 1.03,
+    "punctuality_pct": 91.4,
+    "absences": 1,
+    "customer_rating": 3.96
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 424.7,
+    "cases_received_per_hour": 37.5,
+    "shelves_replenished_per_hour": 21.3,
+    "scan_error_rate": 1.35,
+    "punctuality_pct": 96.9,
+    "absences": 0,
+    "customer_rating": 4.08
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 424.1,
+    "cases_received_per_hour": 35.4,
+    "shelves_replenished_per_hour": 24.7,
+    "scan_error_rate": 1.43,
+    "punctuality_pct": 91.7,
+    "absences": 1,
+    "customer_rating": 3.86
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 439.6,
+    "cases_received_per_hour": 35.4,
+    "shelves_replenished_per_hour": 23.7,
+    "scan_error_rate": 1.11,
+    "punctuality_pct": 97.0,
+    "absences": 0,
+    "customer_rating": 4.17
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 443.6,
+    "cases_received_per_hour": 40.0,
+    "shelves_replenished_per_hour": 23.6,
+    "scan_error_rate": 1.15,
+    "punctuality_pct": 96.3,
+    "absences": 0,
+    "customer_rating": 3.9
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 409.8,
+    "cases_received_per_hour": 38.9,
+    "shelves_replenished_per_hour": 22.9,
+    "scan_error_rate": 1.45,
+    "punctuality_pct": 94.2,
+    "absences": 1,
+    "customer_rating": 3.98
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 440.6,
+    "cases_received_per_hour": 36.6,
+    "shelves_replenished_per_hour": 23.3,
+    "scan_error_rate": 1.06,
+    "punctuality_pct": 91.4,
+    "absences": 1,
+    "customer_rating": 4.1
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 425.8,
+    "cases_received_per_hour": 39.3,
+    "shelves_replenished_per_hour": 23.9,
+    "scan_error_rate": 1.32,
+    "punctuality_pct": 92.1,
+    "absences": 0,
+    "customer_rating": 4.2
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 476.9,
+    "cases_received_per_hour": 39.2,
+    "shelves_replenished_per_hour": 22.3,
+    "scan_error_rate": 1.22,
+    "punctuality_pct": 95.3,
+    "absences": 0,
+    "customer_rating": 4.05
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 402.4,
+    "cases_received_per_hour": 39.5,
+    "shelves_replenished_per_hour": 24.0,
+    "scan_error_rate": 0.91,
+    "punctuality_pct": 94.4,
+    "absences": 0,
+    "customer_rating": 4.09
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E10",
+    "items_scanned_per_hour": 393.6,
+    "cases_received_per_hour": 36.7,
+    "shelves_replenished_per_hour": 21.6,
+    "scan_error_rate": 1.35,
+    "punctuality_pct": 92.0,
+    "absences": 0,
+    "customer_rating": 4.06
+   }
+  ],
+  "strengths": [
+   "Quick receiving, handles big deliveries well",
+   "Reliable on early shifts"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Fast restock"
+ },
+ "E11": {
+  "employee_id": "E11",
+  "name": "Kateryna Z.",
+  "role": "merchandiser",
+  "skills": [
+   "merchandising",
+   "customer_service"
+  ],
+  "contract_hours_week": 24,
+  "hours_this_week": 0,
+  "status_today": "vacation",
+  "next_shift": {
+   "date": "2026-11-03",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 78,
+  "trend": "up",
+  "hourly_cost_uah": 115,
+  "start_date": "2023-02-01",
+  "can_open": false,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 418.1,
+    "cases_received_per_hour": 34.5,
+    "shelves_replenished_per_hour": 25.3,
+    "scan_error_rate": 1.42,
+    "punctuality_pct": 95.0,
+    "absences": 0,
+    "customer_rating": 4.35
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 422.0,
+    "cases_received_per_hour": 30.8,
+    "shelves_replenished_per_hour": 22.5,
+    "scan_error_rate": 1.04,
+    "punctuality_pct": 96.5,
+    "absences": 1,
+    "customer_rating": 4.66
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 417.9,
+    "cases_received_per_hour": 32.5,
+    "shelves_replenished_per_hour": 25.6,
+    "scan_error_rate": 1.26,
+    "punctuality_pct": 94.7,
+    "absences": 1,
+    "customer_rating": 4.43
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 435.8,
+    "cases_received_per_hour": 34.8,
+    "shelves_replenished_per_hour": 25.4,
+    "scan_error_rate": 0.96,
+    "punctuality_pct": 94.9,
+    "absences": 0,
+    "customer_rating": 4.38
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 410.1,
+    "cases_received_per_hour": 32.8,
+    "shelves_replenished_per_hour": 25.3,
+    "scan_error_rate": 1.45,
+    "punctuality_pct": 97.6,
+    "absences": 1,
+    "customer_rating": 4.56
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 423.7,
+    "cases_received_per_hour": 30.4,
+    "shelves_replenished_per_hour": 25.3,
+    "scan_error_rate": 0.97,
+    "punctuality_pct": 93.9,
+    "absences": 0,
+    "customer_rating": 4.34
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 427.5,
+    "cases_received_per_hour": 29.9,
+    "shelves_replenished_per_hour": 23.9,
+    "scan_error_rate": 1.02,
+    "punctuality_pct": 94.0,
+    "absences": 0,
+    "customer_rating": 4.44
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 407.7,
+    "cases_received_per_hour": 31.6,
+    "shelves_replenished_per_hour": 25.0,
+    "scan_error_rate": 1.09,
+    "punctuality_pct": 93.7,
+    "absences": 1,
+    "customer_rating": 4.36
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 440.6,
+    "cases_received_per_hour": 33.3,
+    "shelves_replenished_per_hour": 24.6,
+    "scan_error_rate": 1.38,
+    "punctuality_pct": 95.4,
+    "absences": 0,
+    "customer_rating": 4.49
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 418.1,
+    "cases_received_per_hour": 33.4,
+    "shelves_replenished_per_hour": 26.3,
+    "scan_error_rate": 0.94,
+    "punctuality_pct": 94.3,
+    "absences": 1,
+    "customer_rating": 4.45
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 421.6,
+    "cases_received_per_hour": 30.9,
+    "shelves_replenished_per_hour": 23.8,
+    "scan_error_rate": 1.25,
+    "punctuality_pct": 94.4,
+    "absences": 0,
+    "customer_rating": 4.34
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E11",
+    "items_scanned_per_hour": 425.4,
+    "cases_received_per_hour": 30.3,
+    "shelves_replenished_per_hour": 23.0,
+    "scan_error_rate": 1.35,
+    "punctuality_pct": 97.8,
+    "absences": 0,
+    "customer_rating": 4.43
+   }
+  ],
+  "strengths": [
+   "Quick receiving, handles big deliveries well",
+   "Reliable on early shifts"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "vacation",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Promo setup"
+ },
+ "E12": {
+  "employee_id": "E12",
+  "name": "Yurii T.",
+  "role": "shift_lead",
+  "skills": [
+   "checkout",
+   "receiving",
+   "inventory"
+  ],
+  "contract_hours_week": 40,
+  "hours_this_week": 7.5,
+  "status_today": "working",
+  "next_shift": {
+   "date": "2026-11-02",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 63,
+  "trend": "down",
+  "hourly_cost_uah": 145,
+  "start_date": "2023-05-01",
+  "can_open": true,
+  "can_close": true,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 405.3,
+    "cases_received_per_hour": 35.8,
+    "shelves_replenished_per_hour": 32.6,
+    "scan_error_rate": 1.19,
+    "punctuality_pct": 89.4,
+    "absences": 0,
+    "customer_rating": 4.59
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 402.3,
+    "cases_received_per_hour": 34.9,
+    "shelves_replenished_per_hour": 31.0,
+    "scan_error_rate": 1.35,
+    "punctuality_pct": 91.2,
+    "absences": 0,
+    "customer_rating": 4.24
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 415.9,
+    "cases_received_per_hour": 38.3,
+    "shelves_replenished_per_hour": 32.3,
+    "scan_error_rate": 0.93,
+    "punctuality_pct": 88.4,
+    "absences": 0,
+    "customer_rating": 4.45
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 403.3,
+    "cases_received_per_hour": 36.9,
+    "shelves_replenished_per_hour": 31.9,
+    "scan_error_rate": 1.32,
+    "punctuality_pct": 86.7,
+    "absences": 0,
+    "customer_rating": 4.54
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 402.4,
+    "cases_received_per_hour": 34.0,
+    "shelves_replenished_per_hour": 30.4,
+    "scan_error_rate": 1.1,
+    "punctuality_pct": 86.7,
+    "absences": 0,
+    "customer_rating": 4.42
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 401.0,
+    "cases_received_per_hour": 33.1,
+    "shelves_replenished_per_hour": 31.0,
+    "scan_error_rate": 1.12,
+    "punctuality_pct": 88.1,
+    "absences": 0,
+    "customer_rating": 4.58
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 410.9,
+    "cases_received_per_hour": 35.3,
+    "shelves_replenished_per_hour": 31.5,
+    "scan_error_rate": 1.11,
+    "punctuality_pct": 91.3,
+    "absences": 1,
+    "customer_rating": 4.4
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 402.3,
+    "cases_received_per_hour": 34.6,
+    "shelves_replenished_per_hour": 30.1,
+    "scan_error_rate": 1.14,
+    "punctuality_pct": 88.3,
+    "absences": 0,
+    "customer_rating": 4.31
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 429.2,
+    "cases_received_per_hour": 36.6,
+    "shelves_replenished_per_hour": 32.6,
+    "scan_error_rate": 0.99,
+    "punctuality_pct": 88.9,
+    "absences": 0,
+    "customer_rating": 4.22
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 441.8,
+    "cases_received_per_hour": 35.3,
+    "shelves_replenished_per_hour": 31.2,
+    "scan_error_rate": 1.27,
+    "punctuality_pct": 86.5,
+    "absences": 0,
+    "customer_rating": 4.44
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 429.1,
+    "cases_received_per_hour": 38.4,
+    "shelves_replenished_per_hour": 32.8,
+    "scan_error_rate": 1.01,
+    "punctuality_pct": 88.4,
+    "absences": 1,
+    "customer_rating": 4.4
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E12",
+    "items_scanned_per_hour": 430.4,
+    "cases_received_per_hour": 34.9,
+    "shelves_replenished_per_hour": 32.4,
+    "scan_error_rate": 1.3,
+    "punctuality_pct": 90.4,
+    "absences": 0,
+    "customer_rating": 4.55
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Scan errors rose over the last 4 weeks"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Receiving lead"
+ },
+ "E13": {
+  "employee_id": "E13",
+  "name": "Halyna F.",
+  "role": "cashier",
+  "skills": [
+   "checkout"
+  ],
+  "contract_hours_week": 20,
+  "hours_this_week": 0,
+  "status_today": "day_off",
+  "next_shift": {
+   "date": "2026-11-03",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 78,
+  "trend": "flat",
+  "hourly_cost_uah": 105,
+  "start_date": "2023-01-01",
+  "can_open": false,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 410.0,
+    "cases_received_per_hour": 37.5,
+    "shelves_replenished_per_hour": 27.1,
+    "scan_error_rate": 1.14,
+    "punctuality_pct": 85.5,
+    "absences": 0,
+    "customer_rating": 4.76
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 408.5,
+    "cases_received_per_hour": 37.7,
+    "shelves_replenished_per_hour": 27.2,
+    "scan_error_rate": 0.91,
+    "punctuality_pct": 88.0,
+    "absences": 1,
+    "customer_rating": 4.84
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 413.0,
+    "cases_received_per_hour": 39.8,
+    "shelves_replenished_per_hour": 26.5,
+    "scan_error_rate": 1.14,
+    "punctuality_pct": 86.6,
+    "absences": 0,
+    "customer_rating": 4.9
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 427.0,
+    "cases_received_per_hour": 38.4,
+    "shelves_replenished_per_hour": 28.9,
+    "scan_error_rate": 1.12,
+    "punctuality_pct": 89.7,
+    "absences": 0,
+    "customer_rating": 4.94
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 406.1,
+    "cases_received_per_hour": 41.6,
+    "shelves_replenished_per_hour": 27.5,
+    "scan_error_rate": 1.07,
+    "punctuality_pct": 85.5,
+    "absences": 0,
+    "customer_rating": 4.69
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 436.6,
+    "cases_received_per_hour": 40.4,
+    "shelves_replenished_per_hour": 28.1,
+    "scan_error_rate": 0.89,
+    "punctuality_pct": 87.7,
+    "absences": 0,
+    "customer_rating": 4.93
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 429.4,
+    "cases_received_per_hour": 41.2,
+    "shelves_replenished_per_hour": 29.0,
+    "scan_error_rate": 1.21,
+    "punctuality_pct": 84.9,
+    "absences": 0,
+    "customer_rating": 4.64
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 395.2,
+    "cases_received_per_hour": 37.4,
+    "shelves_replenished_per_hour": 29.0,
+    "scan_error_rate": 1.07,
+    "punctuality_pct": 88.3,
+    "absences": 0,
+    "customer_rating": 4.61
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 395.8,
+    "cases_received_per_hour": 36.4,
+    "shelves_replenished_per_hour": 29.7,
+    "scan_error_rate": 0.74,
+    "punctuality_pct": 88.1,
+    "absences": 0,
+    "customer_rating": 4.59
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 453.6,
+    "cases_received_per_hour": 37.5,
+    "shelves_replenished_per_hour": 26.8,
+    "scan_error_rate": 0.98,
+    "punctuality_pct": 89.1,
+    "absences": 0,
+    "customer_rating": 4.77
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 468.4,
+    "cases_received_per_hour": 39.2,
+    "shelves_replenished_per_hour": 29.6,
+    "scan_error_rate": 1.08,
+    "punctuality_pct": 85.0,
+    "absences": 0,
+    "customer_rating": 4.78
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E13",
+    "items_scanned_per_hour": 421.0,
+    "cases_received_per_hour": 37.2,
+    "shelves_replenished_per_hour": 25.8,
+    "scan_error_rate": 1.01,
+    "punctuality_pct": 85.1,
+    "absences": 0,
+    "customer_rating": 4.83
+   }
+  ],
+  "strengths": [
+   "Fast at the till: top 3 scan speed in the store",
+   "Rarely late"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Reliable"
+ },
+ "E14": {
+  "employee_id": "E14",
+  "name": "Serhii O.",
+  "role": "stocker",
+  "skills": [
+   "receiving",
+   "replenishment"
+  ],
+  "contract_hours_week": 30,
+  "hours_this_week": 0,
+  "status_today": "available",
+  "next_shift": {
+   "date": "2026-11-03",
+   "start": "08:00",
+   "end": "16:00"
+  },
+  "score": 74,
+  "trend": "up",
+  "hourly_cost_uah": 110,
+  "start_date": "2023-07-01",
+  "can_open": true,
+  "can_close": false,
+  "performance": [
+   {
+    "week_start": "2026-08-22",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 488.4,
+    "cases_received_per_hour": 46.7,
+    "shelves_replenished_per_hour": 26.3,
+    "scan_error_rate": 0.96,
+    "punctuality_pct": 89.6,
+    "absences": 0,
+    "customer_rating": 4.44
+   },
+   {
+    "week_start": "2026-09-01",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 490.7,
+    "cases_received_per_hour": 43.9,
+    "shelves_replenished_per_hour": 24.4,
+    "scan_error_rate": 1.29,
+    "punctuality_pct": 91.4,
+    "absences": 0,
+    "customer_rating": 4.28
+   },
+   {
+    "week_start": "2026-09-08",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 500.2,
+    "cases_received_per_hour": 42.8,
+    "shelves_replenished_per_hour": 25.0,
+    "scan_error_rate": 0.99,
+    "punctuality_pct": 94.6,
+    "absences": 1,
+    "customer_rating": 4.28
+   },
+   {
+    "week_start": "2026-09-15",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 486.0,
+    "cases_received_per_hour": 46.0,
+    "shelves_replenished_per_hour": 25.1,
+    "scan_error_rate": 0.88,
+    "punctuality_pct": 90.0,
+    "absences": 0,
+    "customer_rating": 4.47
+   },
+   {
+    "week_start": "2026-09-22",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 508.4,
+    "cases_received_per_hour": 44.0,
+    "shelves_replenished_per_hour": 23.7,
+    "scan_error_rate": 1.35,
+    "punctuality_pct": 92.7,
+    "absences": 0,
+    "customer_rating": 4.47
+   },
+   {
+    "week_start": "2026-10-01",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 481.1,
+    "cases_received_per_hour": 41.9,
+    "shelves_replenished_per_hour": 23.8,
+    "scan_error_rate": 1.19,
+    "punctuality_pct": 90.6,
+    "absences": 0,
+    "customer_rating": 4.49
+   },
+   {
+    "week_start": "2026-10-08",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 500.8,
+    "cases_received_per_hour": 46.4,
+    "shelves_replenished_per_hour": 26.8,
+    "scan_error_rate": 1.35,
+    "punctuality_pct": 89.8,
+    "absences": 1,
+    "customer_rating": 4.57
+   },
+   {
+    "week_start": "2026-10-15",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 521.3,
+    "cases_received_per_hour": 44.7,
+    "shelves_replenished_per_hour": 27.0,
+    "scan_error_rate": 1.36,
+    "punctuality_pct": 90.6,
+    "absences": 1,
+    "customer_rating": 4.35
+   },
+   {
+    "week_start": "2026-10-22",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 509.7,
+    "cases_received_per_hour": 46.3,
+    "shelves_replenished_per_hour": 25.2,
+    "scan_error_rate": 1.31,
+    "punctuality_pct": 91.1,
+    "absences": 0,
+    "customer_rating": 4.57
+   },
+   {
+    "week_start": "2026-11-01",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 483.5,
+    "cases_received_per_hour": 46.4,
+    "shelves_replenished_per_hour": 24.2,
+    "scan_error_rate": 1.1,
+    "punctuality_pct": 94.5,
+    "absences": 0,
+    "customer_rating": 4.35
+   },
+   {
+    "week_start": "2026-11-08",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 546.9,
+    "cases_received_per_hour": 44.5,
+    "shelves_replenished_per_hour": 26.5,
+    "scan_error_rate": 0.91,
+    "punctuality_pct": 94.7,
+    "absences": 0,
+    "customer_rating": 4.39
+   },
+   {
+    "week_start": "2026-11-15",
+    "employee_id": "E14",
+    "items_scanned_per_hour": 514.6,
+    "cases_received_per_hour": 43.0,
+    "shelves_replenished_per_hour": 27.3,
+    "scan_error_rate": 0.8,
+    "punctuality_pct": 93.1,
+    "absences": 1,
+    "customer_rating": 4.44
+   }
+  ],
+  "strengths": [
+   "Quick receiving, handles big deliveries well",
+   "Reliable on early shifts"
+  ],
+  "watch": [
+   "Customer rating dipped in October"
+  ],
+  "recent_shifts": [
+   {
+    "date": "2026-10-28",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-29",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   },
+   {
+    "date": "2026-10-30",
+    "start": "08:00",
+    "end": "16:00",
+    "tasks": [
+     "checkout"
+    ]
+   }
+  ],
+  "availability": [
+   {
+    "date": "2026-11-02",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-03",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-04",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-05",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-06",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-07",
+    "status": "available",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   },
+   {
+    "date": "2026-11-08",
+    "status": "day_off",
+    "available_from": "08:00",
+    "available_to": "21:00",
+    "note": ""
+   }
+  ],
+  "strength": "Receiving lead"
+ }
+}

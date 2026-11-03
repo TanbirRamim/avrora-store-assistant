@@ -8,7 +8,23 @@ import useSWR from "swr";
 import { CheckIcon, CloseIcon } from "./icons";
 import { type Rated, WartimePanel } from "./WartimePanel";
 import { fetcher } from "@/lib/api";
-import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, STORES_URL, type WarStore, ZONES } from "@/lib/wartime";
+import {
+  ALERTS_URL,
+  type Alerts,
+  assess,
+  BORDER_URL,
+  type Exposure,
+  exposure,
+  GRADES,
+  LINES_URL,
+  type LineFeature,
+  STORES_URL,
+  THREATS_URL,
+  type Threats,
+  threatKind,
+  type WarStore,
+  ZONES,
+} from "@/lib/wartime";
 
 /**
  * Ukraine supply network: official Avrora stores, Avrora distribution centres, partners and
@@ -17,7 +33,9 @@ import { ALERTS_URL, type Alerts, assess, GRADES, LINES_URL, type LineFeature, S
  * zooming. Tiles: OpenFreeMap (free, no key).
  *
  * The war-time layer (on by default with the network; checkmarks narrow to one) adds sample Avrora stores rated by distance to the front line
- * and, when the server is connected to alerts.in.ua, live air-raid alerts (see lib/wartime.ts).
+ * and, when the server is connected to alerts.in.ua, live air-raid alerts (see lib/wartime.ts). It also
+ * marks active aerial threats from mapa.ua (unofficial estimates) and rings the distribution sites
+ * within reach of the front line or a threat, with a suggested supply action for each.
  */
 
 type Category = "avrora" | "supply" | "warehouse" | "logistics" | "food";
@@ -78,9 +96,42 @@ const inFilter = (filter: Filter, c: Category) => FILTERS.find((f) => f.id === f
 
 type Mode = "network" | "war";
 const NETWORK_LAYERS = ["clusters", "cluster-count", "points", "key-points"];
-const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-halo", "war-stores"];
+const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-exposed", "war-threat-halo", "war-threats", "war-halo", "war-stores"];
+/** Distribution sites whose exposure matters for deliveries; shops and food producers are left out. */
+const DISTRIBUTION: Category[] = ["supply", "warehouse", "logistics"];
+const THREAT_COLOR = "#af52de";
+
+/** Clusters take the colour of the category most of their places belong to (count per category). */
+const CLUSTER_COUNTS = {
+  nAv: ["+", ["case", ["==", ["get", "c"], "avrora"], 1, 0]],
+  nSt: ["+", ["case", ["in", ["get", "c"], ["literal", ["warehouse", "logistics"]]], 1, 0]],
+  nFd: ["+", ["case", ["==", ["get", "c"], "food"], 1, 0]],
+} as const;
 
 const fmt = new Intl.NumberFormat("en-US");
+const time = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+};
+const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+
+function exposureHtml(x: Exposure) {
+  const g = GRADES[x.grade];
+  return `
+    <div class="nm-kind" style="color:${g.text}"><span class="nm-dot" style="background:${g.color}"></span>${esc(x.kind)} · ${g.label} risk</div>
+    <div class="nm-name">${esc(x.name)}</div>
+    <div class="nm-row">${esc(x.reason)}</div>
+    <div class="nm-row nm-note">${esc(x.action)}</div>`;
+}
+
+function threatHtml(p: { kind: string; amount: number; seen: string }) {
+  const n = Number(p.amount) > 1 ? ` × ${Number(p.amount)}` : "";
+  return `
+    <div class="nm-kind" style="color:${THREAT_COLOR}"><span class="nm-dot" style="background:${THREAT_COLOR}"></span>Aerial threat</div>
+    <div class="nm-name">${esc(threatKind(p.kind))}${n}</div>
+    ${p.seen ? `<div class="nm-row">Last reported ${esc(p.seen)}</div>` : ""}
+    <div class="nm-row nm-note">Unofficial position estimate from mapa.ua, not a confirmed strike. Follow official air-raid alerts for safety.</div>`;
+}
 
 /** Kind line above the name: the role for supply nodes and food sites, else the category. */
 const kind = (p: Props) => p.r ?? CATEGORIES[p.c].one;
@@ -97,7 +148,6 @@ function source(p: Props): { href: string; label: string } | null {
 
 function popupHtml(p: Props) {
   const color = CATEGORIES[p.c].color;
-  const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
   const link = source(p);
   const rows = [
     p.a && `<div class="nm-row">${esc(p.a)}</div>`,
@@ -162,6 +212,13 @@ export function NetworkMap() {
     () => (alertsError ? { connected: false, reason: "unavailable" } : alerts),
     [alerts, alertsError],
   );
+  const { data: threats, error: threatsError } = useSWR<Threats>(show.war ? THREATS_URL : null, fetcher, {
+    refreshInterval: 60_000,
+  });
+  const threatState = useMemo<Threats | undefined>(
+    () => (threatsError ? { connected: false, reason: "unavailable" } : threats),
+    [threats, threatsError],
+  );
 
   // war-time data, loaded the first time that layer is shown
   useEffect(() => {
@@ -198,6 +255,22 @@ export function NetworkMap() {
   }, []);
 
   const total = features?.length ?? 0;
+
+  // distribution sites near the front line or an active aerial threat, worst first
+  const exposures = useMemo<Exposure[] | null>(() => {
+    if (!features || !war) return null;
+    const fronts = war.lines.flatMap((l) => (l.properties.kind === "front" && l.geometry.type === "LineString" ? [l.geometry.coordinates] : []));
+    const active = threatState?.connected ? threatState.threats : [];
+    const rank = { critical: 0, high: 1, elevated: 2, low: 3 };
+    return features
+      .flatMap((f) => {
+        const p = f.properties;
+        if (!DISTRIBUTION.includes(p.c) || p.s) return [];
+        const x = exposure({ id: p.id, name: p.n ?? p.o ?? CATEGORIES[p.c].one, kind: kind(p), coordinates: f.geometry.coordinates }, fronts, active);
+        return x ? [x] : [];
+      })
+      .sort((a, b) => rank[a.grade] - rank[b.grade] || (a.threatKm ?? a.frontKm) - (b.threatKm ?? b.frontKm));
+  }, [features, war, threatState]);
 
   const visible = useMemo(() => (features ?? []).filter((f) => inFilter(filter, f.properties.c)), [features, filter]);
 
@@ -253,6 +326,7 @@ export function NetworkMap() {
           cluster: true,
           clusterRadius: 44,
           clusterMaxZoom: 13,
+          clusterProperties: CLUSTER_COUNTS,
           promoteId: "id",
         });
         // supply partners are few and the reason to open the map, so they are never folded into clusters
@@ -263,9 +337,16 @@ export function NetworkMap() {
           source: "places",
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": "rgba(28,28,30,0.86)",
+            "circle-color": [
+              "case",
+              [">=", ["get", "nAv"], ["max", ["get", "nSt"], ["get", "nFd"]]],
+              CATEGORIES.avrora.color,
+              [">=", ["get", "nFd"], ["get", "nSt"]],
+              CATEGORIES.food.color,
+              CATEGORIES.warehouse.color,
+            ],
             "circle-radius": ["step", ["get", "point_count"], 13, 25, 16, 150, 19, 600, 23],
-            "circle-stroke-width": 1.5,
+            "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
             "circle-radius-transition": { duration: 300 },
           },
@@ -320,6 +401,19 @@ export function NetworkMap() {
           },
         });
 
+        // national border (Natural Earth outline), under the labels so place names stay readable
+        map.addSource("border", { type: "geojson", data: BORDER_URL });
+        map.addLayer(
+          {
+            id: "border",
+            type: "line",
+            source: "border",
+            layout: { "line-join": "round" },
+            paint: { "line-color": "#3a3a3c", "line-opacity": 0.55, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.6] },
+          },
+          map.getStyle().layers.find((l) => l.type === "symbol")?.id,
+        );
+
         // war-time layers; visibility follows the checkmarks
         map.addSource("war-lines", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
         map.addSource("war-stores", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
@@ -351,13 +445,62 @@ export function NetworkMap() {
             "line-dasharray": ["case", ["==", ["get", "kind"], "front"], ["literal", [1, 0]], ["literal", [2, 1.5]]],
           },
         });
+        map.addSource("war-exposed", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        map.addSource("war-threats", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
+        // a ring in the risk colour around each exposed distribution site; the dot itself stays the network's
+        map.addLayer({
+          id: "war-exposed",
+          type: "circle",
+          source: "war-exposed",
+          layout: { visibility: "none" },
+          paint: {
+            "circle-color": ["get", "color"],
+            "circle-opacity": 0.14,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 12, 11],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": ["get", "color"],
+          },
+        });
+        map.addLayer({
+          id: "war-threat-halo",
+          type: "circle",
+          source: "war-threats",
+          layout: { visibility: "none" },
+          paint: { "circle-color": THREAT_COLOR, "circle-opacity": 0.16, "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 9, 10, 16] },
+        });
+        map.addLayer({
+          id: "war-threats",
+          type: "circle",
+          source: "war-threats",
+          layout: { visibility: "none" },
+          paint: { "circle-color": THREAT_COLOR, "circle-radius": 4.5, "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" },
+        });
+        map.on("click", "war-threats", (e: MapLayerMouseEvent) => {
+          const f = e.features?.[0];
+          if (!f) return;
+          popupCat.current = null;
+          popupRef.current
+            ?.setLngLat((f.geometry as unknown as { coordinates: [number, number] }).coordinates)
+            .setHTML(threatHtml(f.properties as { kind: string; amount: number; seen: string }))
+            .addTo(map);
+        });
+        map.on("click", "war-exposed", (e: MapLayerMouseEvent) => {
+          const f = e.features?.[0];
+          // the stores and threats drawn on top win the click
+          if (!f || map.queryRenderedFeatures(e.point, { layers: ["war-stores", "war-threats"] }).length) return;
+          popupCat.current = null;
+          popupRef.current
+            ?.setLngLat((f.geometry as unknown as { coordinates: [number, number] }).coordinates)
+            .setHTML(exposureHtml(JSON.parse(f.properties.x as string) as Exposure))
+            .addTo(map);
+        });
         map.addLayer({
           id: "war-halo",
           type: "circle",
           source: "war-stores",
           filter: ["==", ["get", "selected"], true],
           layout: { visibility: "none" },
-          paint: { "circle-color": "rgba(0,113,227,0.22)", "circle-radius": 17 },
+          paint: { "circle-color": "#ffde00", "circle-opacity": 0.85, "circle-stroke-width": 1.5, "circle-stroke-color": "#000000", "circle-radius": 15 },
         });
         map.addLayer({
           id: "war-stores",
@@ -389,12 +532,16 @@ export function NetworkMap() {
           popupCat.current = (f.properties as Props).c;
           popupRef.current?.setLngLat(coords).setHTML(popupHtml(f.properties as Props)).addTo(map);
         };
+        // a ring or marker drawn on top (supply partner, exposure, threat, store) wins the click
+        const onTop = (e: MapLayerMouseEvent, layers: string[]) =>
+          map.queryRenderedFeatures(e.point, { layers: layers.filter((l) => map.getLayoutProperty(l, "visibility") !== "none") }).length > 0;
         map.on("click", "points", (e: MapLayerMouseEvent) => {
-          // a supply partner drawn on top of a point wins the click
-          if (!map.queryRenderedFeatures(e.point, { layers: ["key-points"] }).length) open(e);
+          if (!onTop(e, ["key-points", "war-exposed", "war-threats", "war-stores"])) open(e);
         });
-        map.on("click", "key-points", open);
-        for (const layer of ["clusters", "points", "key-points", "war-stores"]) {
+        map.on("click", "key-points", (e: MapLayerMouseEvent) => {
+          if (!onTop(e, ["war-exposed", "war-threats", "war-stores"])) open(e);
+        });
+        for (const layer of ["clusters", "points", "key-points", "war-stores", "war-threats", "war-exposed"]) {
           map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
           map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
         }
@@ -440,6 +587,37 @@ export function NetworkMap() {
       })),
     });
   }, [ready, war, rated, warId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    (map.getSource("war-exposed") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: (exposures ?? []).map((x) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: x.coordinates },
+        properties: { id: x.id, color: GRADES[x.grade].color, x: JSON.stringify(x) },
+      })),
+    });
+    (map.getSource("war-threats") as GeoJSONSource).setData({
+      type: "FeatureCollection",
+      features: (threatState?.connected ? threatState.threats : []).map((t) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [t.lon, t.lat] },
+        properties: { id: t.id, kind: t.kind, amount: t.amount, seen: t.seen_at ? time(t.seen_at) : "" },
+      })),
+    });
+  }, [ready, exposures, threatState]);
+
+  const focusExposure = (x: Exposure) => {
+    const map = mapRef.current;
+    if (!map) return;
+    requestAnimationFrame(() => {
+      map.flyTo({ center: x.coordinates, zoom: 11, duration: 1200, essential: true, offset: cardOffset(container.current, card.current) });
+      popupCat.current = null;
+      popupRef.current?.setLngLat(x.coordinates).setHTML(exposureHtml(x)).addTo(map);
+    });
+  };
 
   // highlight and fly to the chosen war-time store
   useEffect(() => {
@@ -496,13 +674,13 @@ export function NetworkMap() {
                   if (on) popupRef.current?.remove();
                   setShow((v) => ({ ...v, [m]: !on }));
                 }}
-                className={`t-footnote flex min-h-[32px] flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 font-medium transition-colors ${
-                  on ? "bg-[var(--selected)] text-tint" : "bg-fill text-label-2 hover:text-label"
+                className={`t-footnote flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 font-medium transition-colors ${
+                  on ? "bg-ink text-white" : "bg-fill text-label-2 hover:text-label"
                 }`}
               >
                 <span
                   aria-hidden
-                  className={`grid size-[16px] place-items-center rounded-full transition-colors ${on ? "bg-tint-fill text-white" : "border-[1.5px] border-[#aeaeb2]"}`}
+                  className={`grid size-[16px] place-items-center rounded-full transition-colors ${on ? "bg-yellow text-ink" : "border-[1.5px] border-muted"}`}
                 >
                   {on && <CheckIcon size={10} />}
                 </span>
@@ -526,12 +704,12 @@ export function NetworkMap() {
               role="tab"
               aria-selected={filter === f}
               onClick={() => setFilter(f)}
-              className="t-caption relative flex flex-1 items-center justify-center gap-1 rounded-[7px] px-1 py-[5px] font-medium"
+              className={`t-caption relative flex min-h-[32px] flex-1 items-center justify-center gap-1 rounded-[7px] px-1 py-[5px] font-medium transition-colors ${filter === f ? "text-white" : "text-label"}`}
             >
               {filter === f && (
                 <motion.span
                   layoutId="map-seg"
-                  className="absolute inset-0 rounded-[7px] bg-white shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)]"
+                  className="absolute inset-0 rounded-[7px] bg-ink"
                   transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 />
               )}
@@ -585,17 +763,26 @@ export function NetworkMap() {
         {show.war && (
           <div className={show.network ? "mt-3 border-t border-separator pt-3" : ""}>
             {!selectedWar && (show.network ? <h2 className="t-headline px-1">War-time risk</h2> : <h1 className="t-headline px-1">War-time risk</h1>)}
-            <WartimePanel rated={rated} alerts={alertState} failed={warFailed} selected={selectedWar} onSelect={setWarId} />
+            <WartimePanel
+              rated={rated}
+              alerts={alertState}
+              threats={threatState}
+              exposures={exposures}
+              failed={warFailed}
+              selected={selectedWar}
+              onSelect={setWarId}
+              onExposure={focusExposure}
+            />
           </div>
         )}
       </motion.div>
 
       <button
         onClick={toStore}
-        className="t-subhead absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+124px)] z-10 flex items-center gap-1.5 rounded-full bg-[rgba(255,255,255,0.9)] py-1.5 pl-1.5 pr-3 font-medium shadow-[0_4px_14px_rgba(0,0,0,0.14),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl"
+        className="t-subhead float absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+124px)] z-10 flex min-h-[44px] items-center gap-2 rounded-full bg-ink py-1.5 pl-1.5 pr-4 font-semibold text-white"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
-        <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-6" />
+        <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-7 rounded-full bg-yellow p-[3px]" />
         Your store
       </button>
     </div>

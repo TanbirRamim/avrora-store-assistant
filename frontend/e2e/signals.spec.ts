@@ -93,6 +93,8 @@ test("card lists power, alert and weather with simulated badges and sources", as
   await expect(card.getByText(/^Now · ends in \d+ min$/)).toBeVisible();
   await expect(card.getByText(/^Starts in 1 h 30 min$/)).toBeVisible();
   await expect(card.getByText("Frost down to −7 °C")).toBeVisible();
+  // sources sit behind a quiet disclosure
+  await card.getByText("Sources", { exact: true }).click();
   await expect(card.getByText(/Weather: Open.Meteo \(CC BY 4\.0\)\./)).toBeVisible();
   await expect(card.getByText(/Air.raid alerts: not connected yet, simulated only\./)).toBeVisible();
   // the card sits above the store note
