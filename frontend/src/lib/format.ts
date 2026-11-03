@@ -8,8 +8,12 @@ export const int = (v: number) => uah.format(Math.round(v));
 export const longDate = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
-export const shortDate = (iso: string) =>
-  new Date(`${iso}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+// Spelled out so every browser shows the same "30 Sep" (Chrome's en-GB gives "30 Sept").
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const shortDate = (iso: string) => {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d} ${MONTHS[m - 1]}`;
+};
 
 export const TYPE_META: Record<ActionType, { label: string; short: string; color: string; text: string; verb: string }> = {
   ORDER: { label: "Reorder", short: "Reorder", color: "var(--order)", text: "var(--order-text)", verb: "Order" },

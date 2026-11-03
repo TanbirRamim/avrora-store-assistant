@@ -6,6 +6,7 @@ import useSWR from "swr";
 import type { Action, Decision, DecisionKind, ProductDetail } from "@/lib/api";
 import { fetcher } from "@/lib/api";
 import { adjustable, money, proposalText, TYPE_META } from "@/lib/format";
+import { AskSection, SupplierDraft } from "./AiAssist";
 import { Chart } from "./Chart";
 import { CloseIcon, TypeIcon } from "./icons";
 
@@ -30,8 +31,21 @@ interface Props {
   action: Action;
   decision?: Decision;
   onClose: () => void;
-  onDecide: (kind: DecisionKind, opts?: { reason?: string; value?: number }) => Promise<void>;
-  onUndo: () => Promise<void>;
+  /** Saved optimistically by the page, which then moves on to the next open item. */
+  onDecide: (kind: DecisionKind, opts?: { reason?: string; value?: number }) => void;
+  onUndo: () => void;
+  /** Phones: a press on the grabber or header starts the swipe-down-to-close gesture. */
+  onGrab?: (e: React.PointerEvent) => void;
+  /** Opens the key sheet; without it the AI sections show a short hint instead. */
+  onAddKey?: () => void;
+}
+
+/** Single-key shortcuts stay quiet while the manager types, uses a modifier or has a dialog open. */
+export function ignoreShortcut(e: KeyboardEvent) {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return true;
+  const t = e.target as HTMLElement | null;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return true;
+  return document.querySelector('[aria-modal="true"]') !== null;
 }
 
 function formatFact(key: string, v: number | string) {
@@ -42,29 +56,32 @@ function formatFact(key: string, v: number | string) {
   return `${v}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`;
 }
 
-export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Props) {
+export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAddKey, onGrab }: Props) {
   const meta = TYPE_META[action.type];
   const adj = adjustable(action);
   const [mode, setMode] = useState<"idle" | "adjust" | "dismiss">("idle");
   const [value, setValue] = useState(adj?.value ?? 0);
-  const [busy, setBusy] = useState(false);
   const { data: product } = useSWR<ProductDetail>(`/api/products/${action.product_id}`, fetcher);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (document.querySelector('[aria-modal="true"]')) return; // the open dialog closes first
+        if (mode !== "idle") setMode("idle");
+        else onClose();
+        return;
+      }
+      if (ignoreShortcut(e) || decision) return;
+      if (mode === "dismiss" && /^[1-3]$/.test(e.key)) onDecide("reject", { reason: DISMISS_REASONS[Number(e.key) - 1] });
+      else if (mode !== "idle") return;
+      else if (e.key === "a") onDecide("approve");
+      else if (e.key === "d") setMode("dismiss");
+      else return;
+      e.preventDefault();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const run = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    try {
-      await fn();
-      setMode("idle");
-    } finally {
-      setBusy(false);
-    }
-  };
+  }, [onClose, onDecide, mode, decision]);
 
   const history = product?.history ?? [];
   const sales = history.map((p) => ({
@@ -76,14 +93,14 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
 
   return (
     <motion.aside
-      key="panel"
-      initial={{ x: 40, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 40, opacity: 0 }}
-      transition={{ type: "spring", stiffness: 420, damping: 38 }}
+      // moving to the next item swaps the content with a short fade, the sheet itself stays put
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
       className="flex h-full flex-col overflow-hidden rounded-t-[12px] bg-bg lg:rounded-none"
       aria-label={`Details for ${action.product_name}`}
     >
+      <div onPointerDown={onGrab} className="touch-none lg:touch-auto">
       <div className="flex justify-center pt-2 lg:hidden" aria-hidden>
         <span className="h-[5px] w-9 rounded-full bg-label-3/60" />
       </div>
@@ -95,17 +112,18 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
           <div className="t-footnote text-label-2">
             {meta.label} · {action.category}
           </div>
-          <h2 className="t-title3 truncate">{action.product_name}</h2>
+          <h2 className="t-title3 line-clamp-2">{action.product_name}</h2>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close details"
-          className="grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
+          className="hit grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
         >
           <CloseIcon />
         </button>
       </header>
+      </div>
 
       <div tabIndex={0} aria-label="Details" className="flex-1 space-y-7 overflow-y-auto px-4 pb-6 pt-2 focus-visible:outline-none">
         <section>
@@ -135,6 +153,10 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
           </dl>
         </section>
 
+        <AskSection action={action} product={product} onAddKey={onAddKey} />
+
+        {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={action} onAddKey={onAddKey} />}
+
         <section aria-busy={!product}>
           <h3 className="group-header">Trend</h3>
           <div className="group-list space-y-8 px-4 pb-4 pt-4">
@@ -155,13 +177,13 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
         </section>
       </div>
 
-      <footer className="border-t border-separator bg-[rgba(249,249,249,0.94)] px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-3 backdrop-blur-xl">
+      <footer className="material border-t border-separator bg-[var(--bar)] px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-3 lg:pb-4">
         {decision ? (
-          <div className="flex items-center justify-between">
-            <span className="text-[14px] text-label-2">
+          <div className="flex min-h-[44px] items-center justify-between gap-3">
+            <span className="t-subhead text-label-2">
               {decision.decision === "reject" ? `Dismissed: ${decision.reason}` : decision.decision === "change" ? `Approved with ${decision.value} ${adj?.unit ?? ""}` : "Approved"}
             </span>
-            <button disabled={busy} onClick={() => run(onUndo)} className="text-[14px] font-medium text-tint">
+            <button onClick={onUndo} className="t-subhead min-h-[44px] px-1 font-medium text-tint">
               Undo
             </button>
           </div>
@@ -170,26 +192,27 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
             className="flex items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              run(() => onDecide("change", { value }));
+              onDecide("change", { value });
             }}
           >
-            <label className="flex flex-1 items-center gap-2 rounded-[10px] bg-fill px-3 py-2 text-[14px]">
-              <span className="text-label-2">{adj.label}</span>
+            <label className="t-subhead flex min-h-[44px] min-w-0 flex-1 items-center gap-2 rounded-[10px] bg-fill px-3">
+              <span className="shrink-0 text-label-2">{adj.label}</span>
               <input
                 type="number"
                 min={0}
                 max={adj.unit === "%" ? 90 : 10000}
                 value={value}
                 onChange={(e) => setValue(Number(e.target.value))}
-                className="num w-full bg-transparent text-right font-semibold outline-none"
+                inputMode="numeric"
+                className="num w-full min-w-0 bg-transparent text-right text-[17px] font-semibold outline-none"
                 autoFocus
               />
-              <span className="text-label-2">{adj.unit}</span>
+              <span className="shrink-0 text-label-2">{adj.unit}</span>
             </label>
-            <button type="button" onClick={() => setMode("idle")} className="px-3 py-2 text-[14px] text-tint">
+            <button type="button" onClick={() => setMode("idle")} className="t-subhead min-h-[44px] px-2 text-tint">
               Cancel
             </button>
-            <button disabled={busy} className="rounded-[12px] bg-tint-fill px-4 py-2 text-[14px] font-semibold text-white">
+            <button className="t-subhead min-h-[44px] rounded-[12px] bg-tint-fill px-4 font-semibold text-white active:opacity-80">
               Approve
             </button>
           </form>
@@ -198,22 +221,21 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
             {DISMISS_REASONS.map((r) => (
               <button
                 key={r}
-                disabled={busy}
-                onClick={() => run(() => onDecide("reject", { reason: r }))}
-                className="rounded-full bg-fill px-3 py-1.5 text-[13px] font-medium hover:bg-separator"
+                onClick={() => onDecide("reject", { reason: r })}
+                className="t-subhead min-h-[44px] rounded-full bg-fill px-3.5 font-medium hover:bg-separator"
               >
                 {r}
               </button>
             ))}
-            <button onClick={() => setMode("idle")} className="ml-auto text-[14px] text-tint">
+            <button onClick={() => setMode("idle")} className="t-subhead ml-auto min-h-[44px] px-1 text-tint">
               Cancel
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <button
-              disabled={busy}
-              onClick={() => run(() => onDecide("approve"))}
+              onClick={() => onDecide("approve")}
+              aria-keyshortcuts="A"
               className="flex-1 rounded-[12px] bg-tint-fill py-3 text-[17px] font-semibold text-white active:opacity-80"
             >
               Approve
@@ -228,6 +250,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
             )}
             <button
               onClick={() => setMode("dismiss")}
+              aria-keyshortcuts="D"
               className="rounded-[12px] bg-fill px-5 py-3 text-[17px] font-semibold text-label"
             >
               Dismiss

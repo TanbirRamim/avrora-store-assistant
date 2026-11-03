@@ -43,3 +43,5 @@ next-env.d.ts
 /e2e/screens
 /test-results
 /playwright-report
+/public/map/maplibre-gl-worker.mjs
+/e2e/tmpshots

@@ -2,8 +2,9 @@
 
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { forgetKey, writeBriefing } from "@/lib/ai";
+import { forgetKey, setLang, useAi, writeBriefing } from "@/lib/ai";
 import type { Action } from "@/lib/api";
+import { ModelError } from "@/lib/ollama";
 import { CloseIcon, SparkleIcon } from "./icons";
 
 interface Props {
@@ -18,6 +19,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { lang } = useAi();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !busy && onClose();
@@ -30,10 +32,10 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
-      await writeBriefing(actions, notices, key || undefined);
+      await writeBriefing(actions, notices, key || undefined, lang);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The AI briefing could not be written.");
+      setError(err instanceof ModelError ? err.message : "The AI briefing couldn't be written. Try again.");
     } finally {
       setBusy(false);
     }
@@ -48,7 +50,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
         onClick={() => !busy && onClose()}
         className="fixed inset-0 z-40 bg-black/30"
       />
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6">
+      <div className="pointer-events-none fixed inset-x-0 top-0 bottom-[var(--kb,0px)] z-50 flex items-end justify-center pt-[calc(env(safe-area-inset-top)+10px)] md:items-center md:p-6">
         <motion.form
           role="dialog"
           aria-modal="true"
@@ -58,7 +60,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 40, opacity: 0 }}
           transition={{ type: "spring", stiffness: 420, damping: 38 }}
-          className="pointer-events-auto w-full max-w-[460px] rounded-t-[12px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] md:rounded-[14px] md:pb-4 md:shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
+          className="pointer-events-auto max-h-full w-full max-w-[460px] overflow-y-auto overscroll-contain rounded-t-[12px] bg-bg pb-[max(env(safe-area-inset-bottom),16px)] md:rounded-[14px] md:pb-4 md:shadow-[0_24px_60px_rgba(0,0,0,0.25)]"
         >
           <header className="flex items-center gap-3 border-b border-separator px-4 py-3">
             <span className="icon-tile size-[30px]" style={{ background: "var(--move)" }}>
@@ -70,7 +72,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
               onClick={onClose}
               disabled={busy}
               aria-label="Close AI briefing"
-              className="grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
+              className="hit grid size-[30px] place-items-center rounded-full bg-fill text-label-2 hover:bg-fill-2"
             >
               <CloseIcon />
             </button>
@@ -78,17 +80,17 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
 
           <div className="px-4 pt-4">
             <p className="t-subhead text-label-2">
-              The OTH model picks today&apos;s five priorities and explains them in plain words. Every number it writes
-              is checked against the store data.
+              AI picks today&apos;s five priorities and explains them in plain words. Every number it writes is checked
+              against the store data.
             </p>
 
-            <h3 className="group-header mt-5">Open WebUI API key</h3>
+            <h3 className="group-header mt-5">Open WebUI key</h3>
             <div className="group-list">
               <input
                 type="password"
                 autoComplete="off"
                 spellCheck={false}
-                aria-label="Open WebUI API key"
+                aria-label="Open WebUI key"
                 placeholder={hasKey ? "Saved in this browser" : "sk-…"}
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
@@ -97,9 +99,32 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
               />
             </div>
             <p className="group-footer">
-              Create one in Open WebUI under Settings, Account, API keys. It stays in this browser and goes only to the
-              OTH server, which answers on the university network or VPN.
+              In Open WebUI, open Settings, then Account, and copy your API key. It is saved only in this browser.
+              AI works only on the OTH university network (on campus or through the university VPN).
             </p>
+
+            <h3 className="group-header mt-5">Language</h3>
+            <div className="group-list">
+              <div className="cell flex items-center gap-3 px-4 py-[9px]">
+                <span className="t-body min-w-0 flex-1">Writes in</span>
+                <div role="radiogroup" aria-label="Briefing language" className="flex rounded-[9px] bg-fill p-[2px]">
+                  {(["uk", "en"] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      role="radio"
+                      aria-checked={lang === l}
+                      disabled={busy}
+                      onClick={() => setLang(l)}
+                      className={`rounded-[7px] px-3 py-1 text-[13px] font-medium ${lang === l ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.12)]" : "text-label-2"}`}
+                    >
+                      {l === "uk" ? "Українська" : "English"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="group-footer">AI writes in this language. Numbers are checked either way.</p>
 
             {error && (
               <p role="alert" className="t-subhead mt-4 px-1" style={{ color: "var(--order-text)" }}>
@@ -124,7 +149,7 @@ export function AiSheet({ hasKey, actions, notices, onClose }: Props) {
                 className="t-body mt-2 w-full py-2.5"
                 style={{ color: "var(--order-text)" }}
               >
-                Remove key and use rules
+                Remove key and stop using AI
               </button>
             )}
           </div>

@@ -3,18 +3,18 @@
 A daily action list for retail store managers: what to reorder, discount, move or follow up today, and why.
 Built for the BIP 2026 "Problem Solving Through Generative AI" challenge set by Avrora.
 
-The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine supply map combines the official Avrora store locator, public company sources and OpenStreetMap infrastructure data.
+The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine map combines Avrora's public store locator, public company sources and OpenStreetMap data, and is labelled accordingly.
 
 ## Structure
 
 - `backend/` – Python: synthetic dataset, analytics, action engine, AI layer, API
-- `frontend/` – Next.js web app for store managers, including the Avrora stores and supply-infrastructure map
-- `docs/ukraine-commercial-map.md` – map scope, sources, methodology and licence
+- `frontend/` – Next.js web app for store managers, including the Avrora stores and supply network map
+- `docs/ukraine-commercial-map.md` – map implementation, data files, sources, methodology and licence
 - `cloudflare/` – Worker that hosts the app on Cloudflare, with decisions in D1
 
-## Avrora stores and Ukraine supply infrastructure
+## Avrora stores and Ukraine supply network
 
-Open **Map** in the app to explore 7,561 Ukraine-only points: 1,935 official Avrora stores, 5,320 warehouses, 8 logistics/distribution centres, 281 non-retail food-production/storage sites and 17 highlighted Avrora/partner/manufacturer nodes. No other grocery, supermarket or food-retail chains are included. The static map supports filters, search, marker clustering and GeoJSON downloads. Scope and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
+Open **Map** in the app to explore 7,561 points in Ukraine: 1,935 official Avrora stores, 17 Avrora logistics sites, partners and manufacturers, and from OpenStreetMap 5,320 warehouses, 8 logistics/distribution centres and 281 food-production, beverage and grain sites. No other retail chains are shown. The map is a MapLibre component (`frontend/src/components/NetworkMap.tsx`) with filters, search and clustering. The data files are in `frontend/public/map/`. Sources, data dates and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
 
 ## Backend quick start
 
@@ -62,6 +62,28 @@ from the university network, so this needs campus Wi-Fi or the OTH VPN; without 
 
 To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright test`.
 
+## Live conditions
+
+`GET /api/signals` reports scheduled power cuts, air-raid alerts and notable weather (frost, heat, storm) for the
+store; Today shows them above the store note, and **Re-plan for this** reorders the day's five priorities around a
+power cut or an alert (OTH model with a key, rules without). The cron job pushes power cuts from 2 hours ahead.
+
+- Power: `cloudflare/src/outages.json`, copied by hand from the Vinnytsiaoblenergo schedule (its site blocks
+  requests from outside Ukraine). While `"example": true` the windows are placeholders and are labelled as such.
+- Air-raid alerts: alerts.in.ua when `ALERTS_IN_UA_TOKEN` is set (`wrangler secret put ALERTS_IN_UA_TOKEN`);
+  otherwise only simulated alerts.
+- Weather: Open-Meteo, CC BY 4.0.
+
+Demo simulation (needs the `DEMO_KEY` secret; locally it is in `cloudflare/.dev.vars`):
+
+```bash
+curl -X POST https://…/api/signals/simulate -H "X-Demo-Key: $DEMO_KEY" -d '{"kind":"power","minutes":240,"starts_in":90}'
+curl -X POST https://…/api/signals/simulate -H "X-Demo-Key: $DEMO_KEY" -d '{"kind":"air_alert","minutes":45}'
+curl -X DELETE https://…/api/signals/simulate -H "X-Demo-Key: $DEMO_KEY"
+```
+
+A simulated event is pushed to subscribed phones straight away and marked "Simulated" in the app.
+
 ## How it decides
 
 1. **Analytics (deterministic):** a 28-day forecast per product, adjusted for weekday, promotions and disrupted days;
@@ -72,19 +94,33 @@ To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright tes
 4. **The manager decides:** approve, adjust or dismiss. Every decision is logged.
 
 The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
+The synthetic dataset contains 20 planted problems. `GET /api/evaluation` reports how many the engine finds.
 
+## War-time map
 
-## Real-Time War Threat & Logistics Monitor (war-map-monitor/)
+**Map → War-time** rates 13 sample Avrora stores by distance to the front line and, when connected, live
+air-raid alerts: a risk grade, what the manager should do now, shelter, generator runtime, next delivery and the
+goods people will ask for. The logic is ported from `war-map-monitor/` into `frontend/src/lib/wartime.ts` and drawn
+as a mode of the same MapLibre map.
 
-Real-time situational intelligence and dual-mode data sheet system for Avrora store managers and supply chain dispatchers across Ukraine.
+- The stores (`frontend/public/map/wartime-stores.json`) are illustrative, not real Avrora data.
+- The front line (`frontend/public/map/wartime-lines.geojson`) is a hand-drawn sketch with 25/65/120 km bands,
+  not a live or current map. The app says so on screen.
+- Air-raid alerts come from [alerts.in.ua](https://alerts.in.ua) through `GET /api/wartime/alerts` (Worker and
+  FastAPI) only when `ALERTS_IN_UA_TOKEN` is set (`wrangler secret put ALERTS_IN_UA_TOKEN`, or `backend/.env`).
+  Without it the app says alerts are not connected and rates stores by distance only. Nothing is simulated.
 
-- **War Map Ingestion**: Tracks all 1,935 official active Avrora stores against a daily contact-line GeoJSON and live air-alert telemetry. The API exposes whether alerts are official community-level, public oblast-level or simulated, and whether the frontline is current, cached or sample data.
-- **Life Safety View**: Air raid alerts, nuanced manager action directives, exact walking distance to verified bunkers, and store manager evacuation acknowledgment loop.
-- **Logistics & Supply View**: Crisis surge demand forecasting (batteries, powerbanks, water), truck delivery ETAs & route safety, and generator fuel runtime tracking.
-- **Multi-Format Exports**: Real-time synchronized multi-tab Excel (vrora_war_threat_sheet.xlsx), UTF-8-BOM CSV, and REST API.
+### Standalone monitor prototype (war-map-monitor/)
 
-`ash
+The original Python prototype: a FastAPI dashboard, a console monitor and CSV/JSON/Excel threat sheets.
+
+- Reads front-line geometry from a community mirror of DeepStateMap data and alerts from alerts.in.ua.
+- Tracks all 1,935 active Avrora stores. Its API says whether alerts are community-level, oblast-level or simulated, and whether the front line is current, cached or sample data.
+- Without `ALERTS_IN_UA_TOKEN` it **simulates** random alerts; its output files are from such a simulated run.
+
+```bash
 cd war-map-monitor
-python server.py       # Web Dashboard at http://localhost:8000
-python monitor.py      # Real-time console monitor
-`
+pip install -r requirements.txt
+python server.py       # dashboard at http://localhost:8000
+python monitor.py      # console monitor
+```

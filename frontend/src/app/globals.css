@@ -31,6 +31,16 @@
   --note-text: #636366;
   --chart-mark: #0066cc; /* accessible systemBlue for marks on white */
   --chart-grid: rgba(60, 60, 67, 0.12);
+  /* bar material (tab bar, navigation bar, sheet footers): translucent over content */
+  --bar: rgba(249, 249, 249, 0.94);
+  --bar-on-bg: rgba(242, 242, 247, 0.94);
+  --badge: #ff3b30;
+  /* floating tab bar: pill height, gap to the screen bottom (above the home indicator), and the room content leaves for it */
+  --dock-h: 60px;
+  --dock-bottom: max(env(safe-area-inset-bottom), 12px);
+  --nav-clear: calc(var(--dock-h) + var(--dock-bottom));
+  /* height of the on-screen keyboard where the browser doesn't resize the page (iOS); set from visualViewport */
+  --kb: 0px;
 }
 
 @theme inline {
@@ -82,6 +92,28 @@ html {
 
 .icon-tile { display: grid; place-items: center; border-radius: 7px; color: #fff; flex-shrink: 0; }
 
+.material { -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); }
+
+/* 44pt hit target around a smaller visual control */
+.hit { position: relative; }
+.hit::after { content: ""; position: absolute; inset: -7px; }
+
+@media (min-width: 768px) { :root { --dock-h: 62px; --dock-bottom: max(env(safe-area-inset-bottom), 18px); } }
+
+/* scroll areas leave room for the floating tab bar and the home indicator */
+.pb-tabbar { padding-bottom: calc(var(--nav-clear) + 24px); }
+
+/* floating tab bar: white pill with a soft shadow */
+.dock {
+  border-radius: 999px;
+  background: #fff; /* solid, as in the reference: list text must never show through */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05), 0 0 0 0.5px rgba(0, 0, 0, 0.07);
+}
+.dock-item:focus-visible { border-radius: 999px; outline-offset: -3px; }
+
+html, body { overscroll-behavior-y: none; }
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
 :focus-visible {
   outline: 3px solid rgba(0, 113, 227, 0.5);
   outline-offset: 1px;
@@ -91,3 +123,29 @@ html {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Map (MapLibre): popup card, store pin and controls in the app's style */
+.nm-popup .maplibregl-popup-content {
+  padding: 12px 14px 10px; border-radius: 12px; font-family: var(--font-sans);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.nm-popup .maplibregl-popup-tip { display: none; }
+.nm-kind { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 600; }
+.nm-dot { width: 8px; height: 8px; border-radius: 999px; }
+.nm-name { margin-top: 2px; font-size: 16px; line-height: 21px; font-weight: 600; color: var(--label); letter-spacing: -0.02em; }
+.nm-row { margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--label-2); }
+.nm-status { color: var(--order-text); }
+.nm-note { margin-top: 6px; font-size: 12px; line-height: 16px; }
+.nm-link { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 500; color: var(--tint); }
+.nm-store {
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important; overflow: hidden; }
+.maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.maplibregl-ctrl-attrib { font-family: var(--font-sans); }
+/* phones: pinch to zoom, so the +/- buttons go (as in Apple Maps) */
+@media (max-width: 767px) { .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; } }
+.nm-store { z-index: 1; }
+/* the map runs under the floating tab bar: its bottom controls sit above it */
+.maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: calc(var(--nav-clear) + 2px) !important; }
+.maplibregl-popup.nm-popup { z-index: 2; }

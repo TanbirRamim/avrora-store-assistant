@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import closing
 from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
+from typing import Literal
 
+import httpx
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +20,9 @@ from avrora.actions.engine import Plan, build_plan
 from avrora.actions.models import Action, ActionType
 from avrora.ai.briefing import Briefing, build_briefing
 from avrora.analytics.forecast import sales_history
+from avrora.analytics.products import ProductFacts, build_products, store_feed
+from avrora.analytics.purchases import purchase_history
+from avrora.api.signals import router as signals_router
 from avrora.config import SETTINGS
 from avrora.data.loader import StoreData, load
 from avrora.evaluation import evaluate
@@ -28,6 +34,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+app.include_router(signals_router)
 
 DB_PATH = SETTINGS.data_dir / "decisions.sqlite"
 
@@ -46,6 +53,11 @@ def _plan() -> Plan:
 def _briefing() -> Briefing:
     p = _plan()
     return build_briefing(p.actions, p.notices, SETTINGS.top_n)
+
+
+@lru_cache(maxsize=1)
+def _products() -> ProductFacts:
+    return build_products(_data(), _plan())
 
 
 def _db() -> sqlite3.Connection:
@@ -83,6 +95,84 @@ class Point(BaseModel):
     forecast: float | None
 
 
+class ProductStatus(str, Enum):
+    late = "late"
+    running_out = "running_out"
+    hard_to_find = "hard_to_find"
+    overstocked = "overstocked"
+    low = "low"
+    on_order = "on_order"
+    ok = "ok"
+
+
+class NextDelivery(BaseModel):
+    date: str
+    qty: int
+    late: bool
+
+
+class ActionRef(BaseModel):
+    id: str
+    type: ActionType
+    risk_uah: float
+
+
+class ProductUpdate(BaseModel):
+    date: str
+    kind: str = Field(description="suggestion, late, expected, received, sold_out, no_sales or promotion")
+    text: str
+
+
+class StoreUpdate(ProductUpdate):
+    product_id: str
+    name: str
+
+
+class ProductRow(BaseModel):
+    product_id: str
+    name: str
+    category: str
+    price: float
+    supplier: str
+    stock: int
+    daily_sales: float = Field(description="Expected units a day, as the actions engine forecasts")
+    days_cover: float | None = Field(description="Days the stock lasts; null when nothing sells")
+    on_order: int
+    next_delivery: NextDelivery | None
+    sold_7d: int
+    received_7d: int
+    stock_change_7d: int | None
+    last_sale: str | None
+    status: ProductStatus
+    attention: bool
+    actions: list[ActionRef]
+
+
+class ProductList(BaseModel):
+    today: str
+    last_day: str = Field(description="Last trading day in the data")
+    products: list[ProductRow]
+    updates: list[StoreUpdate]
+
+
+class Purchase(BaseModel):
+    id: str
+    ordered: str
+    expected: str
+    received: str | None
+    qty: int
+    status: Literal["received", "late", "on_the_way"]
+    days_late: int
+
+
+class PurchaseSummary(BaseModel):
+    orders: int
+    units: int
+    avg_lead_days: float | None
+    on_time_pct: int | None
+    last_received: str | None
+
+
 class ProductDetail(BaseModel):
     product_id: str
     name: str
@@ -93,6 +183,20 @@ class ProductDetail(BaseModel):
     daily_forecast: float
     days_cover: float | None
     history: list[Point]
+    # added for the Products screen; the fields above keep their meaning
+    status: ProductStatus | None = None
+    stock: int | None = None
+    on_order: int | None = None
+    next_delivery: NextDelivery | None = None
+    sold_7d: int | None = None
+    received_7d: int | None = None
+    stock_change_7d: int | None = None
+    last_sale: str | None = None
+    actions: list[ActionRef] = []
+    updates: list[ProductUpdate] = []
+    # purchase history: supplier orders newest first, dates and quantities only (no costs in the data)
+    purchases: list[Purchase] = []
+    purchase_summary: PurchaseSummary | None = None
 
 
 class Decision(str, Enum):
@@ -156,6 +260,13 @@ def actions() -> list[Action]:
     return _plan().actions
 
 
+@app.get("/api/products", response_model=ProductList)
+def products() -> ProductList:
+    f = _products()
+    return ProductList(today=SETTINGS.today.isoformat(), last_day=_data().stock["date"].max().date().isoformat(),
+                       products=f.rows, updates=store_feed(f, SETTINGS, _data().stock["date"].max()))
+
+
 @app.get("/api/products/{product_id}", response_model=ProductDetail)
 def product(product_id: str, days: int = 30) -> ProductDetail:
     m = _plan().metrics
@@ -171,7 +282,13 @@ def product(product_id: str, days: int = 30) -> ProductDetail:
         points.append(Point(date=(start + pd.Timedelta(days=i)).date().isoformat(),
                             units_sold=None, stock_end=None, forecast=round(float(r.base_rate), 2)))
     cover = float(r.days_cover)
+    f = _products()
+    extra = next(x for x in f.rows if x["product_id"] == product_id)
+    keys = ("status", "stock", "on_order", "next_delivery", "sold_7d", "received_7d", "stock_change_7d",
+            "last_sale", "actions")
     return ProductDetail(
+        **{k: extra[k] for k in keys}, updates=f.updates[product_id],
+        **purchase_history(_data().deliveries, product_id),
         product_id=product_id, name=r["name"], category=r.category, price=float(r.price),
         supplier=r.supplier, lead_time_days=int(r.lead_time_days), daily_forecast=round(float(r.base_rate), 2),
         days_cover=None if cover == float("inf") else round(cover, 1), history=points,
@@ -211,3 +328,66 @@ def evaluation() -> EvaluationOut:
     s = evaluate(_plan())
     return EvaluationOut(planted=s.planted, found=s.found, precision=s.precision, recall=s.recall,
                          missed=s.missed, extra=s.extra)
+
+
+ALERTS_URL = "https://api.alerts.in.ua/v1/alerts/active.json"
+
+
+def summarise_alerts(alerts: list[dict], fetched_at: str) -> dict:
+    """Oblast-level (and Kyiv city) titles versus community titles, as cloudflare/src/wartime.ts does."""
+    oblasts: set[str] = set()
+    hromadas: set[str] = set()
+    for a in alerts:
+        title, kind = a.get("location_title"), a.get("location_type")
+        if not title:
+            continue
+        if kind in ("oblast", "city"):
+            oblasts.add(title)
+        elif kind in ("hromada", "community"):
+            hromadas.add(title)
+    return {"connected": True, "source": "alerts.in.ua", "fetched_at": fetched_at,
+            "oblasts": sorted(oblasts), "hromadas": sorted(hromadas)}
+
+
+@app.get("/api/wartime/alerts")
+def wartime_alerts() -> dict:
+    """Live air-raid alerts for the map's war-time mode. Needs ALERTS_IN_UA_TOKEN; never simulated."""
+    token = os.getenv("ALERTS_IN_UA_TOKEN", "")
+    if not token:
+        return {"connected": False, "reason": "no_token"}
+    try:
+        r = httpx.get(ALERTS_URL, headers={"Authorization": f"Bearer {token}"}, timeout=8)
+        r.raise_for_status()
+        alerts = r.json().get("alerts", [])
+    except (httpx.HTTPError, ValueError):
+        return {"connected": False, "reason": "unavailable"}
+    return summarise_alerts(alerts, datetime.now(UTC).isoformat())
+
+
+MAPA_CURRENT_URL = "https://mapa.ua/api/v1/current"
+
+
+@app.get("/api/wartime/threats")
+def wartime_threats() -> dict:
+    """Sanitised public aerial-threat reports for defensive supply-chain planning."""
+    try:
+        response = httpx.get(MAPA_CURRENT_URL, timeout=8)
+        response.raise_for_status()
+        body = response.json()
+    except (httpx.HTTPError, ValueError):
+        return {"connected": False, "reason": "unavailable"}
+    threats = []
+    for item in body.get("objects", []):
+        if not isinstance(item.get("lat"), (int, float)) or not isinstance(item.get("lon"), (int, float)):
+            continue
+        threats.append({
+            "id": str(item.get("id", "")),
+            "kind": item.get("kind", "unknown"),
+            "title": item.get("title", "Active aerial threat"),
+            "lat": item["lat"],
+            "lon": item["lon"],
+            "amount": item.get("amount", 1),
+            "status": item.get("status", "active"),
+        })
+    fetched = datetime.fromtimestamp(body.get("ts", datetime.now(UTC).timestamp()), UTC).isoformat()
+    return {"connected": True, "source": "mapa.ua", "fetched_at": fetched, "threats": threats}

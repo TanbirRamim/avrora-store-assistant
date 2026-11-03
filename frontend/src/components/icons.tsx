@@ -117,3 +117,60 @@ export const SparkleIcon = ({ size = 18, className }: P) => (
     <path d="M12 3.5 13.8 9a2 2 0 0 0 1.2 1.2l5.5 1.8-5.5 1.8a2 2 0 0 0-1.2 1.2L12 20.5 10.2 15A2 2 0 0 0 9 13.8L3.5 12 9 10.2A2 2 0 0 0 10.2 9z" />
   </svg>
 );
+
+export const BellIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z" />
+    <path d="M10 20.5a2.2 2.2 0 0 0 4 0" />
+  </svg>
+);
+
+export const AlertIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9.5v4.5M12 17.2v.1" />
+  </svg>
+);
+
+export const CloudIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z" />
+  </svg>
+);
+
+export const ArrowUpIcon = ({ size = 12, className }: P) => (
+  <svg {...base(size)} strokeWidth={2.4} className={className}>
+    <path d="M12 19V5M6 11l6-6 6 6" />
+  </svg>
+);
+
+export const CheckCircleIcon = ({ size = 15, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m8 12.3 2.7 2.7L16 9.7" />
+  </svg>
+);
+
+export const GridIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.6" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.6" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.6" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.6" />
+  </svg>
+);
+
+export const MoreIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="7.8" cy="12" r="0.6" fill="currentColor" />
+    <circle cx="12" cy="12" r="0.6" fill="currentColor" />
+    <circle cx="16.2" cy="12" r="0.6" fill="currentColor" />
+  </svg>
+);
+
+export const BackIcon = ({ size = 18, className }: P) => (
+  <svg {...base(size)} strokeWidth={2.2} className={className}>
+    <path d="m15 5-7 7 7 7" />
+  </svg>
+);

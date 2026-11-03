@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
+import { useEffect, useRef } from "react";
 import type { Action, Decision } from "@/lib/api";
 import { money, TYPE_META } from "@/lib/format";
-import { CheckIcon, ChevronIcon, TypeIcon } from "./icons";
+import { ArrowUpIcon, CheckIcon, ChevronIcon, TypeIcon } from "./icons";
 
 interface Props {
   action: Action;
@@ -11,6 +12,8 @@ interface Props {
   selected: boolean;
   onOpen: () => void;
   onToggle: () => void;
+  /** Set after a re-plan moved this row higher. */
+  movedUp?: boolean;
 }
 
 const decisionLabel = (d: Decision) =>
@@ -24,24 +27,30 @@ const decisionLabel = (d: Decision) =>
  * Reminders-style row. The circle approves in one tap and sits on the title's line;
  * the rest of the row opens the detail inspector.
  */
-export function ActionRow({ action, decision, selected, onOpen, onToggle }: Props) {
+export function ActionRow({ action, decision, selected, onOpen, onToggle, movedUp }: Props) {
   const meta = TYPE_META[action.type];
   const done = Boolean(decision);
+  const ref = useRef<HTMLLIElement>(null);
+  // keyboard moves (j/k) and auto-advance keep the selected row on screen
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
   return (
     <motion.li
+      ref={ref}
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: 0.12 } }}
       transition={{ type: "spring", stiffness: 500, damping: 42 }}
-      className="cell flex items-start [--inset:52px]"
+      className="cell flex scroll-my-24 items-start [--inset:52px]"
       style={{ background: selected ? "var(--selected)" : undefined }}
     >
       <button
         type="button"
         onClick={onToggle}
         aria-label={done ? `Undo decision for ${action.product_name}` : `Approve ${action.product_name}`}
-        className="flex shrink-0 justify-center pl-4 pr-3 pt-[12px]"
+        className="flex shrink-0 justify-center self-stretch pl-4 pr-3 pt-[12px]"
       >
         <span
           className="grid size-[22px] place-items-center rounded-full border-[1.5px] transition-colors duration-200"
@@ -74,6 +83,12 @@ export function ActionRow({ action, decision, selected, onOpen, onToggle }: Prop
           <span className="t-footnote mt-[3px] flex items-center gap-1 font-medium" style={{ color: meta.text }}>
             <TypeIcon type={action.type} size={13} />
             {meta.label}
+            {movedUp && (
+              <span className="ml-1.5 inline-flex items-center gap-0.5 text-tint" data-testid="moved-up">
+                <ArrowUpIcon size={11} />
+                Moved up
+              </span>
+            )}
           </span>
           <span className="t-subhead mt-[2px] line-clamp-2 block text-label-2">
             {decision ? decisionLabel(decision) : action.reason}

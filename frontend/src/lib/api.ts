@@ -26,6 +26,8 @@ export interface Overview {
 export interface Briefing {
   summary: string;
   source: "model" | "rules";
+  /** Language of a model-written briefing. */
+  lang?: "uk" | "en";
   priorities: Action[];
   notices: Action[];
 }
@@ -47,6 +49,121 @@ export interface ProductDetail {
   daily_forecast: number;
   days_cover: number | null;
   history: Point[];
+  // Products screen additions (always present from /api/products/{id})
+  status?: ProductStatus;
+  stock?: number;
+  on_order?: number;
+  next_delivery?: NextDelivery | null;
+  sold_7d?: number;
+  received_7d?: number;
+  stock_change_7d?: number | null;
+  last_sale?: string | null;
+  actions?: ActionRef[];
+  updates?: ProductUpdate[];
+  purchases?: Purchase[];
+  purchase_summary?: PurchaseSummary | null;
+}
+
+/** One supplier order. Dates and quantities only: the data has no purchase cost. */
+export interface Purchase {
+  id: string;
+  ordered: string;
+  expected: string;
+  /** null while the order has not arrived */
+  received: string | null;
+  qty: number;
+  /** late: due before today and not here, or arrived after the expected date */
+  status: "received" | "late" | "on_the_way";
+  days_late: number;
+}
+
+export interface PurchaseSummary {
+  orders: number;
+  units: number;
+  /** ordered to received, received orders only */
+  avg_lead_days: number | null;
+  /** share of orders due by today that arrived on time */
+  on_time_pct: number | null;
+  last_received: string | null;
+}
+
+/** Stock status on the Products screen. The first four follow the open suggestion's type. */
+export type ProductStatus = "late" | "running_out" | "hard_to_find" | "overstocked" | "low" | "on_order" | "ok";
+
+export interface NextDelivery {
+  date: string;
+  qty: number;
+  late: boolean;
+}
+
+export interface ActionRef {
+  id: string;
+  type: ActionType;
+  risk_uah: number;
+}
+
+export type ProductUpdateKind = "suggestion" | "late" | "expected" | "received" | "sold_out" | "no_sales" | "promotion";
+
+export interface ProductUpdate {
+  date: string;
+  kind: ProductUpdateKind;
+  text: string;
+}
+
+export interface StoreUpdate extends ProductUpdate {
+  product_id: string;
+  name: string;
+}
+
+export interface ProductRow {
+  product_id: string;
+  name: string;
+  category: string;
+  price: number;
+  supplier: string;
+  stock: number;
+  daily_sales: number;
+  /** null when nothing sells */
+  days_cover: number | null;
+  on_order: number;
+  next_delivery: NextDelivery | null;
+  sold_7d: number;
+  received_7d: number;
+  stock_change_7d: number | null;
+  last_sale: string | null;
+  status: ProductStatus;
+  attention: boolean;
+  actions: ActionRef[];
+}
+
+/** GET /api/products: rows come needs-attention first. */
+export interface ProductList {
+  today: string;
+  /** Last trading day in the data, usually the day before today. */
+  last_day: string;
+  products: ProductRow[];
+  updates: StoreUpdate[];
+}
+
+export type SignalKind = "power" | "air_alert" | "weather";
+
+/** A current outside condition: power cut, air-raid alert or notable weather. */
+export interface Signal {
+  id: string;
+  kind: SignalKind;
+  severity: "high" | "medium" | "low";
+  title: string;
+  detail: string;
+  starts_at: string;
+  ends_at: string | null;
+  source: string;
+  simulated: boolean;
+}
+
+export interface Signals {
+  updated_at: string;
+  signals: Signal[];
+  feeds: { kind: SignalKind; source: string; live: boolean }[];
 }
 
 export type DecisionKind = "approve" | "reject" | "change";

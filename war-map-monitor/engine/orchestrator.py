@@ -134,6 +134,8 @@ class WarMapOrchestrator:
                 "name": s.get("name"),
                 "address": s.get("address"),
                 "oblast": s.get("oblast"),
+                "lat": lat,
+                "lon": lon,
                 "dist_frontline_km": dist_km,
                 "threat_zone": eval_res["threat_zone"],
                 "threat_zone_label": eval_res["threat_zone_label"],

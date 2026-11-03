@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Optional
-from fastapi import FastAPI, Query, HTTPException, Path as FastPath
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -10,9 +10,9 @@ from config import CSV_OUTPUT_PATH, JSON_OUTPUT_PATH, METRICS_OUTPUT_PATH
 from engine.orchestrator import WarMapOrchestrator
 
 app = FastAPI(
-    title="Avrora War Map Situational Intelligence",
-    description="Dual-mode real-time threat & logistics monitor for Avrora stores in Ukraine",
-    version="2.5.0"
+    title="Avrora Store Alert Map",
+    description="Real-time alerts.in.ua-style situation map for Avrora store managers across Ukraine",
+    version="3.0.0"
 )
 
 app.add_middleware(
@@ -33,7 +33,7 @@ def startup_event():
 
 @app.get("/api/summary")
 def get_summary():
-    """Returns chain-wide threat and logistics metrics."""
+    """Returns chain-wide threat metrics summary."""
     if METRICS_OUTPUT_PATH.exists():
         with open(METRICS_OUTPUT_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -47,7 +47,7 @@ def get_datasheet(
     alarm_only: bool = Query(False, description="Filter stores under active siren only"),
     city: Optional[str] = Query(None, description="Filter by city name")
 ):
-    """Returns dual-mode real-time data sheet rows."""
+    """Returns real-time store alert telemetry."""
     if JSON_OUTPUT_PATH.exists():
         with open(JSON_OUTPUT_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -67,9 +67,8 @@ def get_datasheet(
 
 @app.post("/api/stores/{store_id}/acknowledge")
 def acknowledge_shelter(store_id: str):
-    """Manager acknowledgment: confirms store staff and customers evacuated to shelter."""
+    """Store Manager shelter evacuation acknowledgment loop."""
     ack = orchestrator.acknowledge_shelter(store_id)
-    # Refresh cycle to update exports
     orchestrator.process_cycle()
     return {"status": "success", "store_id": store_id, "ack": ack}
 
@@ -84,7 +83,7 @@ def reset_shelter_ack(store_id: str):
 
 @app.get("/api/datasheet/csv")
 def download_csv():
-    """Download current CSV datasheet."""
+    """Direct download of current CSV datasheet."""
     if not CSV_OUTPUT_PATH.exists():
         orchestrator.process_cycle()
     return FileResponse(
@@ -100,539 +99,757 @@ def force_refresh():
     rows, summary = orchestrator.process_cycle(force_refresh_maps=True)
     return {
         "status": "success",
-        "message": "Data sheet synchronized with latest war maps",
+        "message": "Data sheet synchronized",
         "summary": summary
     }
 
 
 @app.get("/", response_class=HTMLResponse)
-def get_dashboard_html():
+def get_alerts_map_html():
     """
-    Dual-mode Web Dashboard:
-    - View 1: Life Safety (Sirens, Directives, Shelters, Acknowledgment Loop)
-    - View 2: Logistics & Supply (Surge Demand, Delivery ETA, Generator Autonomy)
+    Alerts.in.ua-style Real-Time Situation Map for Avrora stores.
+    Displays store locations across Ukraine as interactive glowing markers,
+    with slide-out inspection cards for life-safety directives and shelter proximity.
     """
     return """<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Avrora War Map Monitor: Safety & Logistics</title>
+  <title>Avrora Store Alert Map · Alerts.in.ua Style</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            avrora: { yellow: '#FFD700', red: '#E60000', dark: '#0F172A', card: '#1E293B' }
-          }
-        }
-      }
-    }
-  </script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    @keyframes pulse-red {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.45; transform: scale(0.98); }
+    :root {
+      --bg-dark: #070d19;
+      --card-dark: #0f172a;
+      --border-dark: #1e293b;
+      --alert-red: #ef4444;
+      --warning-amber: #f59e0b;
+      --safe-green: #10b981;
     }
-    .alarm-pulse { animation: pulse-red 1.5s infinite ease-in-out; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--bg-dark); color: #f8fafc; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    
+    #map { width: 100%; height: 100%; position: absolute; inset: 0; z-index: 1; }
+    
+    /* Basemap styling */
+    .leaflet-container { background: #070d19; }
+    
+    /* OpenStreetMap Tactical Dark inversion filter */
+    .osm-dark-tiles {
+      filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(110%);
+    }
+
+    /* Radar-Style Store Pins */
+    @keyframes radar-pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.9); transform: scale(1); }
+      70% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); transform: scale(1.1); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
+    }
+    @keyframes amber-pulse {
+      0%, 100% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+      50% { box-shadow: 0 0 14px rgba(245, 158, 11, 0.9); }
+    }
+
+    .custom-pin-wrapper {
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .store-marker-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .store-marker-pin:hover {
+      transform: scale(1.3) !important;
+      z-index: 9999 !important;
+    }
+
+    .pin-siren {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      color: #ffffff;
+      border: 2px solid #ffffff;
+      animation: radar-pulse-red 1.6s infinite ease-in-out;
+      box-shadow: 0 0 18px rgba(239, 68, 68, 0.85);
+    }
+    .pin-frontline-red {
+      background: linear-gradient(135deg, #ea580c, #c2410c);
+      color: #ffffff;
+      border: 2px solid #ffffff;
+      animation: amber-pulse 2s infinite ease-in-out;
+      box-shadow: 0 0 12px rgba(234, 88, 12, 0.7);
+    }
+    .pin-amber {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #ffffff;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    }
+    .pin-green {
+      background: linear-gradient(135deg, #10b981, #047857);
+      color: #ffffff;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+    }
+
+    /* Floating Quick Store Bar at the bottom */
+    .store-quick-bar {
+      position: absolute;
+      bottom: 24px;
+      left: 275px;
+      right: 120px;
+      z-index: 1000;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 6px 4px;
+      scrollbar-width: none;
+    }
+    .store-quick-bar::-webkit-scrollbar { display: none; }
+    .store-pill {
+      flex-shrink: 0;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+      padding: 5px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #e2e8f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.18s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .store-pill:hover {
+      background: rgba(30, 41, 59, 0.98);
+      border-color: #facc15;
+      transform: translateY(-2px);
+      color: #ffffff;
+    }
+
+    /* Floating Header bar */
+    .top-header {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 10px 16px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Floating Legend & Filters */
+    .legend-panel {
+      position: absolute;
+      bottom: 24px;
+      left: 16px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 11px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Slide-out Store Details Inspector Panel */
+    .store-inspector {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 380px;
+      max-height: calc(100vh - 32px);
+      z-index: 1001;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      padding: 20px;
+      overflow-y: auto;
+      transform: translateX(420px);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .store-inspector.open {
+      transform: translateX(0);
+    }
+
+    /* Custom Leaflet Controls */
+    .leaflet-control-zoom { border: none !important; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; border-radius: 10px !important; overflow: hidden; margin-bottom: 8px !important; }
+    .leaflet-control-zoom a { background: #0f172a !important; color: #f8fafc !important; border-color: #334155 !important; }
+    .leaflet-control-attribution { background: rgba(15, 23, 42, 0.8) !important; color: #64748b !important; }
+    .leaflet-control-layers {
+      background: rgba(15, 23, 42, 0.94) !important;
+      backdrop-filter: blur(12px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      border-radius: 10px !important;
+      color: #f8fafc !important;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+      padding: 6px 10px !important;
+      font-size: 11px !important;
+    }
+    .leaflet-control-layers-toggle {
+      filter: invert(1);
+    }
+    .leaflet-control-layers label {
+      color: #cbd5e1 !important;
+      font-weight: 500;
+      margin: 2px 0;
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
-  
-  <!-- Header with View Switcher -->
-  <header class="border-b border-slate-800 bg-slate-900/95 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
-      
-      <!-- Brand & Status -->
-      <div class="flex items-center space-x-3.5">
-        <div class="w-9 h-9 rounded-lg bg-yellow-400 flex items-center justify-center font-black text-slate-950 text-lg shadow">
-          A
+<body>
+
+  <!-- Fullscreen Interactive Map -->
+  <div id="map"></div>
+
+  <!-- Alerts.in.ua Style Minimalist Header -->
+  <div class="top-header">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-yellow-400 flex items-center justify-center font-black text-slate-950 text-base shadow">
+        A
+      </div>
+      <div>
+        <div class="text-sm font-bold text-white flex items-center gap-2">
+          Avrora Store Alert Map
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
+            <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-ping"></span> Live Sirens
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-400">Real-time alerts.in.ua sirens + DeepStateMap frontline distance</div>
+      </div>
+    </div>
+
+    <div class="h-6 w-px bg-slate-700 mx-1"></div>
+
+    <!-- Quick Stats -->
+    <div class="flex items-center space-x-4 text-xs">
+      <div class="text-center">
+        <div class="text-xs font-bold text-white" id="stat-total">13</div>
+        <div class="text-[9px] text-slate-400">Stores</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs font-bold text-red-400 flex items-center gap-1 justify-center" id="stat-alarms">
+          <i class="fa-solid fa-bell text-[10px]"></i> <span id="stat-alarms-num">--</span>
+        </div>
+        <div class="text-[9px] text-red-300">Under Siren</div>
+      </div>
+      <div class="text-center">
+        <div class="text-xs font-bold text-amber-400" id="stat-red">--</div>
+        <div class="text-[9px] text-slate-400">&lt;25km Front</div>
+      </div>
+    </div>
+
+    <!-- Quick Search -->
+    <div class="relative ml-2 w-48">
+      <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+      <input type="text" id="store-search" oninput="handleSearch()" placeholder="Search city or store..." class="w-full bg-slate-800/90 border border-slate-700 rounded-lg pl-7 pr-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-400">
+    </div>
+  </div>
+
+  <!-- Alerts.in.ua Style Legend -->
+  <div class="legend-panel">
+    <div class="font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
+      <i class="fa-solid fa-circle-info text-yellow-400 text-xs"></i> Map Indicators
+    </div>
+    <div class="space-y-1 text-slate-400">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-red-500 border border-white inline-block"></span>
+        <span class="text-red-300 font-semibold">Active Siren (Evacuate to Bunker)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white inline-block"></span>
+        <span>Near Frontline (&lt;25km / KAB Risk)</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white inline-block"></span>
+        <span>Safe Rear (Normal Trading)</span>
+      </div>
+    </div>
+    <div class="mt-2 pt-1.5 border-t border-slate-800 text-[10px] text-slate-500 flex justify-between">
+      <span>Click any store point for details</span>
+      <a href="/api/datasheet/csv" download class="text-yellow-400 hover:underline">Download CSV</a>
+    </div>
+  </div>
+
+  <!-- Store Details Slide-out Inspector Card -->
+  <div class="store-inspector" id="inspector">
+    <div class="flex items-start justify-between pb-3 border-b border-slate-800">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-yellow-400 tracking-wider uppercase" id="card-id">AVR-0812</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500/20 text-red-400 border border-red-500/30" id="card-zone-badge">RED ZONE</span>
+        </div>
+        <h2 class="text-lg font-bold text-white mt-1 leading-tight" id="card-title">Pokrovsk (Center)</h2>
+        <div class="text-xs text-slate-400 mt-0.5" id="card-address">24 Soborna St, Donetsk Oblast</div>
+        <div class="text-[10px] text-slate-500 font-mono mt-0.5" id="card-coords">48.2831° N, 37.1772° E</div>
+      </div>
+      <button onclick="closeInspector()" class="text-slate-400 hover:text-white p-1 text-base transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Active Siren Status Banner -->
+    <div class="mt-3 p-3 rounded-xl border flex items-center justify-between" id="card-siren-banner">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm" id="card-siren-icon">
+          <i class="fa-solid fa-bell"></i>
         </div>
         <div>
-          <h1 class="text-base font-bold text-white flex items-center gap-2">
-            Avrora Stores: Real-Time War Threat & Logistics Monitor
-            <span id="source-status" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">Checking sources…</span>
-          </h1>
-          <p class="text-xs text-slate-400">DeepStateMap Frontlines + Alerts.in.ua Sirens + Store Comms & Power Telemetry</p>
+          <div class="text-xs font-bold uppercase tracking-wide" id="card-siren-title">SIREN ACTIVE</div>
+          <div class="text-[11px] opacity-80" id="card-siren-sub">Community alert from alerts.in.ua</div>
         </div>
       </div>
+      <div class="text-right">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded" id="card-mode-badge">CLOSED</span>
+      </div>
+    </div>
 
-      <!-- Controls & View Toggle -->
-      <div class="flex items-center space-x-3 text-xs">
-        
-        <!-- View Switcher -->
-        <div class="inline-flex rounded-lg bg-slate-800 p-1 border border-slate-700">
-          <button onclick="setViewMode('safety')" id="btn-mode-safety" class="px-3 py-1.5 rounded-md font-bold transition flex items-center gap-1.5 bg-yellow-500 text-slate-950 shadow">
-            <i class="fa-solid fa-shield-halved"></i> Life Safety View
-          </button>
-          <button onclick="setViewMode('logistics')" id="btn-mode-logistics" class="px-3 py-1.5 rounded-md font-medium text-slate-300 hover:text-white transition flex items-center gap-1.5">
-            <i class="fa-solid fa-truck-ramp-box"></i> Logistics & Supply View
-          </button>
+    <!-- Risk Score & Assessment -->
+    <div class="mt-2.5 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-1.5 text-slate-300">
+        <i class="fa-solid fa-chart-line text-yellow-400 text-xs"></i>
+        <span class="font-medium text-slate-400">Threat Assessment:</span>
+        <strong class="text-white font-bold" id="card-risk-score">Risk Score: 95 / 100</strong>
+      </div>
+      <span id="card-risk-grade" class="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30">CRITICAL</span>
+    </div>
+
+    <!-- Life-Saving Directive -->
+    <div class="mt-2.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
+      <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center justify-between">
+        <span>Manager Action Directive</span>
+        <span class="text-[10px] text-yellow-400 font-semibold">LIFE-SAFETY PROTOCOL</span>
+      </div>
+      <div class="text-xs font-semibold mt-1 leading-snug" id="card-directive">
+        STOP CHECKOUT & EVACUATE: Immediate strike threat. Lock cash registers, move shoppers and staff to shelter.
+      </div>
+    </div>
+
+    <!-- Designated Shelter Details (Crucial Life Safety) -->
+    <div class="mt-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs">
+      <div class="flex items-center space-x-2 text-amber-400 font-bold">
+        <i class="fa-solid fa-person-shelter text-sm"></i>
+        <span>Designated Safe Bunker</span>
+      </div>
+      <div class="text-slate-200 font-semibold mt-1 text-xs" id="card-shelter">
+        Bunker #102 (School Basement), 70m walking distance
+      </div>
+      <div class="text-[11px] text-slate-400 mt-0.5">
+        Mandatory civil defense evacuation point for staff & shoppers.
+      </div>
+    </div>
+
+    <!-- Frontline Distance & Comms Grid -->
+    <div class="mt-2.5 grid grid-cols-2 gap-2 text-xs">
+      <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+        <span class="text-[10px] text-slate-400 block font-medium">Frontline Distance</span>
+        <strong class="text-sm font-bold text-yellow-400 mt-0.5 block" id="card-dist">8.8 km</strong>
+        <span class="text-[10px] text-slate-500" id="card-zone">Red Zone (&lt; 25 km)</span>
+      </div>
+      <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800">
+        <span class="text-[10px] text-slate-400 block font-medium">Comms & Connection</span>
+        <strong class="text-xs font-bold text-cyan-400 mt-1 block flex items-center gap-1" id="card-comms">
+          <i class="fa-solid fa-satellite"></i> Starlink Active
+        </strong>
+        <span class="text-[10px] text-slate-500">Autonomous Satellite</span>
+      </div>
+    </div>
+
+    <!-- Power & Generator Telemetry -->
+    <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] text-slate-400 font-medium">Power Grid / Generator Status</span>
+        <span id="card-power-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">Generator Active</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-800/80 text-[11px]">
+        <div>
+          <span class="text-slate-400 block text-[10px]">Fuel Level</span>
+          <strong id="card-fuel" class="text-amber-400 font-bold">75 Liters</strong>
         </div>
-
-        <button onclick="refreshData()" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition font-medium">
-          <i class="fa-solid fa-arrows-rotate" id="refresh-icon"></i> Refresh
-        </button>
-        
-        <a href="/api/datasheet/csv" download class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center gap-1.5 transition">
-          <i class="fa-solid fa-file-csv text-yellow-400"></i> Export CSV
-        </a>
-      </div>
-    </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
-    
-    <!-- Dynamic KPI Cards depending on View -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5" id="kpi-cards">
-      <!-- Populated via Javascript depending on active view -->
-    </div>
-
-    <!-- Filters & Search Toolbar -->
-    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex flex-wrap items-center gap-2">
-        <span class="text-xs font-semibold text-slate-400 mr-1"><i class="fa-solid fa-filter"></i> Zone:</span>
-        <button onclick="setZoneFilter('ALL')" id="btn-zone-ALL" class="filter-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-950">All</button>
-        <button onclick="setZoneFilter('RED')" id="btn-zone-RED" class="filter-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-rose-400 hover:bg-slate-700">Red (&lt; 25km)</button>
-        <button onclick="setZoneFilter('ORANGE')" id="btn-zone-ORANGE" class="filter-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-amber-400 hover:bg-slate-700">Orange (25-65km)</button>
-        <button onclick="setZoneFilter('YELLOW')" id="btn-zone-YELLOW" class="filter-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-yellow-400 hover:bg-slate-700">Yellow</button>
-        <button onclick="setZoneFilter('GREEN')" id="btn-zone-GREEN" class="filter-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-emerald-400 hover:bg-slate-700">Green</button>
-        
-        <label class="ml-2 flex items-center space-x-2 text-xs text-slate-300 cursor-pointer select-none">
-          <input type="checkbox" id="alarm-toggle" onchange="toggleAlarmOnly()" class="rounded bg-slate-800 border-slate-700 text-red-500">
-          <span>Active Sirens Only 🚨</span>
-        </label>
-      </div>
-
-      <div class="relative w-full sm:w-64">
-        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-        <input type="text" id="search-input" oninput="handleSearch()" placeholder="Search city or store ID..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500">
-      </div>
-    </div>
-
-    <!-- Data Table -->
-    <div class="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-xl">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead id="table-head">
-            <!-- Headers injected based on safety vs logistics view -->
-          </thead>
-          <tbody id="table-body" class="divide-y divide-slate-800/60 font-normal">
-            <!-- Rows injected -->
-          </tbody>
-        </table>
-      </div>
-      
-      <!-- Minimalist Footer -->
-      <div class="px-4 py-2.5 bg-slate-950 border-t border-slate-800 text-[11px] text-slate-400 flex flex-wrap justify-between items-center gap-2">
-        <div id="status-time">Last telemetry sync: --</div>
-        <div class="flex items-center gap-4">
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online</span>
-          <span class="flex items-center gap-1.5"><i class="fa-solid fa-satellite text-cyan-400"></i> Starlink</span>
-          <span class="flex items-center gap-1.5"><i class="fa-solid fa-gas-pump text-amber-400"></i> Generator</span>
-          <span class="text-slate-600">|</span>
-          <span>Auto-refreshes every 15s</span>
+        <div>
+          <span class="text-slate-400 block text-[10px]">Generator Autonomy</span>
+          <strong id="card-runtime" class="text-cyan-400 font-bold">~12.5 hrs</strong>
         </div>
       </div>
     </div>
 
-  </main>
+    <!-- Logistics, Restock & Delivery ETA -->
+    <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+      <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+        <span>Logistics & Emergency Restock</span>
+        <span id="card-eta" class="text-amber-400 font-bold">Today 16:30</span>
+      </div>
+      <div class="text-[11px] text-slate-300 mt-1.5 font-medium leading-tight" id="card-restock">
+        Flashlights, 20k Powerbanks, Water
+      </div>
+    </div>
 
+    <!-- Manager Contact -->
+    <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+      <div class="flex items-center space-x-2 text-slate-300">
+        <i class="fa-solid fa-user-shield text-slate-500"></i>
+        <span id="card-manager" class="font-medium">Serhiy Kovalenko</span>
+      </div>
+      <div class="text-slate-300 text-[11px] font-mono font-semibold" id="card-phone">+380501234501</div>
+    </div>
+
+    <!-- Acknowledgment Action Button -->
+    <div class="mt-3 pt-2.5 border-t border-slate-800" id="card-ack-container">
+      <button onclick="handleAcknowledgeClick()" id="btn-ack" class="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow">
+        <i class="fa-solid fa-person-shelter"></i> In Shelter - Confirm Evacuation
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating Quick Store Selector Bar at the bottom -->
+  <div class="store-quick-bar" id="quick-store-bar"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    let currentData = [];
-    let currentSummary = {};
-    let activeViewMode = 'safety'; // 'safety' or 'logistics'
-    let activeZoneFilter = 'ALL';
-    let alarmOnlyFilter = false;
-    let searchQuery = '';
+    let map;
+    let storesData = [];
+    let markersMap = {};
+    let activeSelectedStore = null;
+    let hasFittedInitialBounds = false;
 
-    function setViewMode(mode) {
-      activeViewMode = mode;
-      const btnSafety = document.getElementById('btn-mode-safety');
-      const btnLogistics = document.getElementById('btn-mode-logistics');
+    // Initialize Map with dark basemap (Completely free, no API key required, zero watermarks)
+    function initMap() {
+      // 1. Esri Dark Gray Canvas (Default: Alerts.in.ua tactical look)
+      const esriDarkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri &copy; OpenStreetMap | alerts.in.ua | DeepStateMap',
+        maxNativeZoom: 16,
+        maxZoom: 19
+      });
 
-      if (mode === 'safety') {
-        btnSafety.className = "px-3 py-1.5 rounded-md font-bold transition flex items-center gap-1.5 bg-yellow-500 text-slate-950 shadow";
-        btnLogistics.className = "px-3 py-1.5 rounded-md font-medium text-slate-300 hover:text-white transition flex items-center gap-1.5";
-      } else {
-        btnLogistics.className = "px-3 py-1.5 rounded-md font-bold transition flex items-center gap-1.5 bg-yellow-500 text-slate-950 shadow";
-        btnSafety.className = "px-3 py-1.5 rounded-md font-medium text-slate-300 hover:text-white transition flex items-center gap-1.5";
-      }
+      const esriDarkLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '',
+        maxNativeZoom: 16,
+        maxZoom: 19
+      });
 
-      renderKpis();
-      renderTable();
+      const esriDarkGroup = L.layerGroup([esriDarkBase, esriDarkLabels]);
+
+      // 2. OpenStreetMap Tactical Dark (Free, high-detail street level)
+      const osmDark = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        className: 'osm-dark-tiles',
+        attribution: '&copy; OpenStreetMap contributors | alerts.in.ua',
+        maxZoom: 19
+      });
+
+      map = L.map('map', {
+        zoomControl: false,
+        minZoom: 5,
+        maxZoom: 19,
+        layers: [esriDarkGroup]
+      }).setView([48.6, 31.5], 6.5);
+
+      // Layer switcher & Zoom controls at bottom-right
+      L.control.layers({
+        "Tactical Dark (Esri)": esriDarkGroup,
+        "Street Dark (OSM)": osmDark
+      }, null, { position: 'bottomright' }).addTo(map);
+
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      fetchStoreTelemetry();
+      setInterval(fetchStoreTelemetry, 15000); // 15s live refresh
     }
 
-    async function loadData() {
+    async function fetchStoreTelemetry() {
       try {
         const [sheetRes, summaryRes] = await Promise.all([
           fetch('/api/datasheet'),
           fetch('/api/summary')
         ]);
-        currentData = await sheetRes.json();
-        currentSummary = await summaryRes.json();
+        storesData = await sheetRes.json();
+        const summary = await summaryRes.json();
 
-        renderSourceStatus();
-        renderKpis();
-        renderTable();
+        updateHeaderStats(summary);
+        renderStorePoints();
+
+        // Refresh active inspector if open
+        if (activeSelectedStore) {
+          const updated = storesData.find(s => s.store_id === activeSelectedStore.store_id);
+          if (updated) openInspector(updated);
+        }
       } catch (err) {
-        console.error("Failed to load telemetry:", err);
+        console.error("Telemetry fetch error:", err);
       }
     }
 
-    function renderSourceStatus() {
-      const element = document.getElementById('source-status');
-      if (!element) return;
-      const alertsSimulated = Boolean(currentSummary.alerts_is_simulated);
-      const frontlineFallback = Boolean(currentSummary.frontline_data_is_fallback);
-      const oblastOnly = currentSummary.alerts_coverage === 'oblast_only';
-      const alertLabel = alertsSimulated ? 'Alerts simulated' : (oblastOnly ? 'Alerts live · oblast only' : 'Alerts live · oblast + hromada');
-      const frontLabel = frontlineFallback ? 'frontline fallback' : 'frontline current';
-      element.textContent = alertLabel + ' · ' + frontLabel;
-      element.className = alertsSimulated || frontlineFallback
-        ? 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-red-500/10 text-red-300 border border-red-500/30'
-        : oblastOnly
-          ? 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30'
-          : 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    function updateHeaderStats(summary) {
+      document.getElementById('stat-total').textContent = summary.total_stores || storesData.length;
+      document.getElementById('stat-alarms-num').textContent = summary.stores_under_alarm || 0;
+      document.getElementById('stat-red').textContent = summary.stores_in_red_zone || 0;
     }
 
-    function renderKpis() {
-      const container = document.getElementById('kpi-cards');
-      if (activeViewMode === 'safety') {
-        const pendingBadge = currentSummary.stores_pending_ack > 0 
-          ? `<span class="alarm-pulse px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white ml-2">ACTION NEEDED</span>` 
-          : `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 ml-2">All Confirmed</span>`;
+    function renderStorePoints() {
+      // Clear existing markers
+      Object.values(markersMap).forEach(m => map.removeLayer(m));
+      markersMap = {};
 
-        container.innerHTML = `
-          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-            <span class="text-xs text-slate-400 font-medium">Stores Tracked</span>
-            <div class="text-2xl font-bold text-white mt-1">${currentSummary.total_stores || '--'}</div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-red-950/40 border border-red-800/40">
-            <div class="text-xs text-red-300 font-medium flex items-center justify-between">
-              <span><i class="fa-solid fa-bell text-red-400 alarm-pulse mr-1"></i> Active Siren (Shelter)</span>
-            </div>
-            <div class="text-2xl font-bold text-red-400 mt-1">${currentSummary.stores_under_alarm || '0'}</div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-            <div class="text-xs text-slate-300 font-medium flex items-center justify-between">
-              <span>Evacuation Acknowledgment</span>
-              ${pendingBadge}
-            </div>
-            <div class="text-2xl font-bold text-white mt-1">
-              ${currentSummary.stores_evacuated_confirmed || 0} <span class="text-xs text-slate-500 font-normal">/ ${currentSummary.stores_under_alarm || 0} confirmed</span>
-            </div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-rose-950/30 border border-rose-800/30">
-            <span class="text-xs text-rose-300 font-medium">Red Zone (&lt; 25 km)</span>
-            <div class="text-2xl font-bold text-rose-400 mt-1">${currentSummary.stores_in_red_zone || '0'}</div>
-          </div>
-        `;
-      } else {
-        container.innerHTML = `
-          <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-            <span class="text-xs text-slate-400 font-medium">Total Stores</span>
-            <div class="text-2xl font-bold text-white mt-1">${currentSummary.total_stores || '--'}</div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/30">
-            <span class="text-xs text-amber-300 font-medium flex items-center gap-1.5">
-              <i class="fa-solid fa-gas-pump text-amber-400"></i> On Generator Power
-            </span>
-            <div class="text-2xl font-bold text-amber-400 mt-1">${currentSummary.stores_on_generator || '0'}</div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-red-950/40 border border-red-800/40">
-            <span class="text-xs text-red-300 font-medium flex items-center gap-1.5">
-              <i class="fa-solid fa-triangle-exclamation text-red-400"></i> Blackout / Low Autonomy
-            </span>
-            <div class="text-2xl font-bold text-red-400 mt-1">${currentSummary.stores_blackout || '0'}</div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-yellow-950/30 border border-yellow-800/30">
-            <span class="text-xs text-yellow-300 font-medium">High Surge Demand</span>
-            <div class="text-2xl font-bold text-yellow-400 mt-1">${currentSummary.stores_in_red_zone + currentSummary.stores_in_orange_zone || '0'}</div>
-          </div>
-        `;
-      }
+      const bounds = [];
 
-      document.getElementById('status-time').textContent = 'Last telemetry sync: ' + currentSummary.generated_at;
-    }
+      storesData.forEach(store => {
+        if (!store.lat || !store.lon) return;
 
-    function renderTable() {
-      const thead = document.getElementById('table-head');
-      const tbody = document.getElementById('table-body');
-      tbody.innerHTML = '';
+        bounds.push([store.lat, store.lon]);
 
-      // Set Headings based on mode
-      if (activeViewMode === 'safety') {
-        thead.innerHTML = `
-          <tr class="border-b border-slate-800 bg-slate-950 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-            <th class="py-3 px-3.5">Store / Comms & Power</th>
-            <th class="py-3 px-3">Frontline Dist</th>
-            <th class="py-3 px-3">Danger Zone</th>
-            <th class="py-3 px-3">Air Siren Status</th>
-            <th class="py-3 px-3">Manager Action Directive</th>
-            <th class="py-3 px-3">Nearest Shelter</th>
-            <th class="py-3 px-3 text-center">Shelter Acknowledgment</th>
-          </tr>
-        `;
-      } else {
-        thead.innerHTML = `
-          <tr class="border-b border-slate-800 bg-slate-950 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
-            <th class="py-3 px-3.5">Store / Comms</th>
-            <th class="py-3 px-3">Frontline Dist</th>
-            <th class="py-3 px-3">Danger Zone</th>
-            <th class="py-3 px-3">Predicted Surge Demand</th>
-            <th class="py-3 px-3">Delivery ETA & Route Safety</th>
-            <th class="py-3 px-3">Power & Generator Runtime</th>
-            <th class="py-3 px-3">Priority Restock Categories</th>
-          </tr>
-        `;
-      }
+        const isSiren = (store.alert_status && store.alert_status !== 'CLEAR');
+        let pinClass = 'pin-green';
+        let pinIcon = '<i class="fa-solid fa-store text-xs"></i>';
+        let size = 26;
 
-      const filtered = currentData.filter(r => {
-        if (activeZoneFilter !== 'ALL' && r.threat_zone !== activeZoneFilter) return false;
-        if (alarmOnlyFilter && r.alert_status === 'CLEAR') return false;
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          const match = (r.city && r.city.toLowerCase().includes(q)) ||
-                        (r.name && r.name.toLowerCase().includes(q)) ||
-                        (r.address && r.address.toLowerCase().includes(q)) ||
-                        (r.store_id && r.store_id.toLowerCase().includes(q));
-          if (!match) return false;
+        if (isSiren) {
+          pinClass = 'pin-siren';
+          pinIcon = '<i class="fa-solid fa-bell text-xs animate-bounce"></i>';
+          size = 32;
+        } else if (store.threat_zone === 'RED') {
+          pinClass = 'pin-frontline-red';
+          pinIcon = '<i class="fa-solid fa-triangle-exclamation text-xs"></i>';
+          size = 28;
+        } else if (store.threat_zone === 'ORANGE') {
+          pinClass = 'pin-amber';
+          pinIcon = '<i class="fa-solid fa-shield-halved text-xs"></i>';
+          size = 26;
         }
-        return true;
-      });
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500">No stores match the active filter criteria.</td></tr>`;
-        return;
-      }
+        const icon = L.divIcon({
+          className: 'custom-pin-wrapper',
+          html: `<div class="store-marker-pin ${pinClass}" style="width:${size}px; height:${size}px;">${pinIcon}</div>`,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2]
+        });
 
-      filtered.forEach(r => {
-        const tr = document.createElement('tr');
+        const marker = L.marker([store.lat, store.lon], { icon: icon });
         
-        // Pulse red row if siren is active and unacknowledged
-        const isUrgentUnacknowledged = (r.alert_status !== 'CLEAR' && r.ack_status === 'PENDING_CONFIRMATION');
-        tr.className = isUrgentUnacknowledged 
-          ? 'bg-red-950/25 border-l-4 border-red-500 hover:bg-red-950/40 transition' 
-          : 'hover:bg-slate-800/40 transition';
+        // High-contrast clean tooltip on hover
+        marker.bindTooltip(`
+          <div style="font-size:11px; font-weight:700; color:#f8fafc; line-height:1.2;">
+            ${store.store_id} · ${store.city}
+            ${isSiren ? '<span style="color:#ef4444; margin-left:4px;">🚨 SIREN</span>' : ''}
+          </div>
+          <div style="font-size:10px; color:#94a3b8; margin-top:2px;">
+            ${store.dist_frontline_km} km to front · ${store.threat_zone} Zone
+          </div>
+        `, { direction: 'top', offset: [0, -10], opacity: 0.95 });
 
-        // 1. Comms & Power Indicators
-        let commsIcon = '';
-        if (r.comms_status === 'starlink') {
-          commsIcon = `<span class="inline-flex items-center text-[10px] text-cyan-400 font-medium" title="Connected via Starlink Terminal"><i class="fa-solid fa-satellite mr-1"></i> Starlink</span>`;
-        } else if (r.comms_status === 'cellular') {
-          commsIcon = `<span class="inline-flex items-center text-[10px] text-blue-400 font-medium" title="Cellular Backup"><i class="fa-solid fa-tower-broadcast mr-1"></i> 4G/Cell</span>`;
-        } else if (r.comms_status === 'offline') {
-          commsIcon = `<span class="inline-flex items-center text-[10px] text-red-400 font-medium" title="Connection Lost"><i class="fa-solid fa-ban mr-1"></i> Offline</span>`;
-        } else {
-          commsIcon = `<span class="inline-flex items-center text-[10px] text-emerald-400 font-medium" title="Broadband Fiber"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1"></span> Online</span>`;
+        // Click opens the Inspector Card and flies to the location
+        marker.on('click', () => {
+          openInspector(store);
+          map.flyTo([store.lat, store.lon], 13, { duration: 0.8 });
+        });
+
+        marker.addTo(map);
+        markersMap[store.store_id] = marker;
+      });
+
+      renderQuickBar();
+
+      // Fit bounds to Ukraine on initial load
+      if (!hasFittedInitialBounds && bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 8 });
+        hasFittedInitialBounds = true;
+      }
+    }
+
+    function renderQuickBar() {
+      const container = document.getElementById('quick-store-bar');
+      if (!container) return;
+      container.innerHTML = '';
+
+      storesData.forEach(store => {
+        const isSiren = (store.alert_status && store.alert_status !== 'CLEAR');
+        const pill = document.createElement('div');
+        pill.className = 'store-pill';
+        let statusDot = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span>';
+        if (isSiren) {
+          statusDot = '<span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>';
+        } else if (store.threat_zone === 'RED') {
+          statusDot = '<span class="w-2 h-2 rounded-full bg-orange-500"></span>';
         }
 
-        let powerIcon = '';
-        if (r.power_status === 'generator') {
-          powerIcon = `<span class="inline-flex items-center text-[10px] text-amber-400 font-medium ml-2" title="Running on Generator: ${r.generator_fuel_l}L fuel left"><i class="fa-solid fa-gas-pump mr-1"></i> Gen (${r.generator_fuel_l}L)</span>`;
-        } else if (r.power_status === 'blackout') {
-          powerIcon = `<span class="inline-flex items-center text-[10px] text-red-400 font-bold ml-2" title="Power Outage / Generator Depleted"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Blackout</span>`;
-        } else {
-          powerIcon = `<span class="inline-flex items-center text-[10px] text-slate-400 font-medium ml-2" title="Grid Electricity Normal"><i class="fa-solid fa-bolt text-yellow-400 mr-1"></i> Grid</span>`;
-        }
-
-        // 2. Zone Badge
-        let zoneBadge = '';
-        if (r.threat_zone === 'RED') {
-          zoneBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded font-bold bg-rose-500/15 text-rose-400 border border-rose-500/20">RED (&lt;25km)</span>`;
-        } else if (r.threat_zone === 'ORANGE') {
-          zoneBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20">ORANGE (25-65km)</span>`;
-        } else if (r.threat_zone === 'YELLOW') {
-          zoneBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded font-medium bg-yellow-500/15 text-yellow-400 border border-yellow-500/20">YELLOW (65-120km)</span>`;
-        } else {
-          zoneBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">GREEN REAR</span>`;
-        }
-
-        if (activeViewMode === 'safety') {
-          // --- LIFE SAFETY VIEW ---
-          let sirenBadge = '';
-          if (r.alert_status.includes('HROMADA')) {
-            sirenBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded font-bold bg-red-600 text-white alarm-pulse"><i class="fa-solid fa-bell mr-1"></i> SIREN ACTIVE</span>`;
-          } else if (r.alert_status.includes('OBLAST')) {
-            sirenBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded font-semibold bg-amber-600 text-black"><i class="fa-solid fa-triangle-exclamation mr-1"></i> REGIONAL SIREN</span>`;
-          } else {
-            sirenBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded text-emerald-400 font-medium"><i class="fa-solid fa-circle-check mr-1"></i> ALL CLEAR</span>`;
-          }
-
-          // Strict Color Hierarchy for Action Directive
-          let actionStyled = '';
-          if (r.action_color === 'red') {
-            actionStyled = `<span class="text-red-400 font-bold">${r.action_en}</span>`;
-          } else if (r.action_color === 'amber') {
-            actionStyled = `<span class="text-amber-400 font-medium">${r.action_en}</span>`;
-          } else if (r.action_color === 'yellow') {
-            actionStyled = `<span class="text-yellow-300">${r.action_en}</span>`;
-          } else {
-            actionStyled = `<span class="text-slate-300">${r.action_en}</span>`;
-          }
-
-          // Acknowledgment Button / Status
-          let ackContent = '';
-          if (r.alert_status !== 'CLEAR') {
-            if (r.ack_status === 'CONFIRMED_IN_SHELTER') {
-              ackContent = `
-                <div class="flex items-center justify-center gap-1.5">
-                  <span class="inline-flex items-center px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30 text-[11px]">
-                    <i class="fa-solid fa-check-double mr-1"></i> ${r.ack_label}
-                  </span>
-                  <button onclick="resetAck('${r.store_id}')" title="Reset confirmation" class="text-slate-500 hover:text-slate-300 text-xs px-1"><i class="fa-solid fa-rotate-left"></i></button>
-                </div>
-              `;
-            } else {
-              ackContent = `
-                <button onclick="confirmShelter('${r.store_id}')" class="alarm-pulse px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-black text-[11px] shadow-lg shadow-red-600/30 flex items-center justify-center gap-1.5 mx-auto">
-                  <i class="fa-solid fa-person-shelter"></i> In Shelter - Acknowledge
-                </button>
-              `;
-            }
-          } else {
-            ackContent = `<span class="text-slate-500 text-center block text-[11px]"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> Normal Trading</span>`;
-          }
-
-          tr.innerHTML = `
-            <td class="py-3 px-3.5">
-              <div class="font-bold text-white text-xs">${r.store_id} - ${r.city}</div>
-              <div class="text-[11px] text-slate-400">${r.address}</div>
-              <div class="mt-1 flex items-center">${commsIcon} ${powerIcon}</div>
-            </td>
-            <td class="py-3 px-3 font-semibold text-slate-200">
-              <span class="text-sm font-bold text-yellow-400">${r.dist_frontline_km}</span> km
-            </td>
-            <td class="py-3 px-3">${zoneBadge}</td>
-            <td class="py-3 px-3">${sirenBadge}</td>
-            <td class="py-3 px-3 text-[11px] leading-snug max-w-sm">
-              ${actionStyled}
-            </td>
-            <td class="py-3 px-3 text-[11px] text-slate-300">
-              <i class="fa-solid fa-person-shelter text-yellow-400 mr-1.5"></i>${r.shelter_nearby}
-              <div class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-user-shield mr-1"></i>${r.manager_name}</div>
-            </td>
-            <td class="py-3 px-3 text-center">
-              ${ackContent}
-            </td>
-          `;
-
-        } else {
-          // --- LOGISTICS & SUPPLY VIEW ---
-          let surgeBadge = '';
-          if (r.surge_level === 'CRITICAL') {
-            surgeBadge = `<span class="px-2 py-0.5 rounded font-black bg-rose-500/20 text-rose-400 border border-rose-500/30">🔥 CRITICAL SURGE</span>`;
-          } else if (r.surge_level === 'HIGH') {
-            surgeBadge = `<span class="px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">⚡ HIGH SURGE</span>`;
-          } else if (r.surge_level === 'ELEVATED') {
-            surgeBadge = `<span class="px-2 py-0.5 rounded font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">ELEVATED</span>`;
-          } else {
-            surgeBadge = `<span class="text-slate-500">NORMAL</span>`;
-          }
-
-          let etaClass = 'text-slate-300';
-          if (r.delivery_eta.includes('BLOCKED')) {
-            etaClass = 'text-red-400 font-bold';
-          } else if (r.delivery_eta.includes('Rerouted') || r.delivery_eta.includes('Escort')) {
-            etaClass = 'text-amber-400 font-medium';
-          }
-
-          let powerDetail = '';
-          if (r.power_status === 'generator') {
-            powerDetail = `<span class="text-amber-400 font-semibold"><i class="fa-solid fa-gas-pump mr-1"></i>${r.generator_fuel_l} L (~${r.generator_runtime_hours} hrs)</span>`;
-          } else if (r.power_status === 'blackout') {
-            powerDetail = `<span class="text-red-400 font-bold"><i class="fa-solid fa-battery-empty mr-1"></i>0 hrs (Refuel Urgent)</span>`;
-          } else {
-            powerDetail = `<span class="text-emerald-400"><i class="fa-solid fa-bolt mr-1"></i>Grid Active (${r.generator_fuel_l}L reserve)</span>`;
-          }
-
-          tr.innerHTML = `
-            <td class="py-3 px-3.5">
-              <div class="font-bold text-white text-xs">${r.store_id} - ${r.city}</div>
-              <div class="text-[11px] text-slate-400">${r.address}</div>
-              <div class="mt-1 flex items-center">${commsIcon} ${powerIcon}</div>
-            </td>
-            <td class="py-3 px-3 font-semibold text-slate-200">
-              <span class="text-sm font-bold text-yellow-400">${r.dist_frontline_km}</span> km
-            </td>
-            <td class="py-3 px-3">${zoneBadge}</td>
-            <td class="py-3 px-3 text-[11px]">
-              <div>${surgeBadge}</div>
-              <div class="text-slate-300 font-medium mt-1">${r.surge_category}</div>
-            </td>
-            <td class="py-3 px-3 text-[11px] ${etaClass}">
-              <i class="fa-solid fa-truck mr-1"></i>${r.delivery_eta}
-            </td>
-            <td class="py-3 px-3 text-[11px]">
-              ${powerDetail}
-            </td>
-            <td class="py-3 px-3 text-[11px] text-slate-300 font-medium">
-              <i class="fa-solid fa-boxes-stacked text-yellow-400 mr-1.5"></i>${r.priority_restock}
-            </td>
-          `;
-        }
-
-        tbody.appendChild(tr);
+        pill.innerHTML = `${statusDot} <span>${store.city}</span> <span class="text-[9px] text-slate-400 font-mono">${store.store_id}</span>`;
+        pill.onclick = () => {
+          openInspector(store);
+          map.flyTo([store.lat, store.lon], 13, { duration: 0.8 });
+        };
+        container.appendChild(pill);
       });
     }
 
-    async function confirmShelter(storeId) {
+    function openInspector(store) {
+      activeSelectedStore = store;
+      const isSiren = (store.alert_status && store.alert_status !== 'CLEAR');
+
+      document.getElementById('card-id').textContent = store.store_id;
+      document.getElementById('card-title').textContent = `${store.city} (${store.name ? store.name.split(' - ')[1] || 'Branch' : 'Store'})`;
+      document.getElementById('card-address').textContent = `${store.address}, ${store.oblast}`;
+      document.getElementById('card-coords').textContent = `${store.lat}° N, ${store.lon}° E`;
+
+      // Threat Zone Badge
+      const zoneBadge = document.getElementById('card-zone-badge');
+      zoneBadge.textContent = `${store.threat_zone} ZONE`;
+      if (store.threat_zone === 'RED') {
+        zoneBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-red-500/20 text-red-400 border border-red-500/30";
+      } else if (store.threat_zone === 'ORANGE') {
+        zoneBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30";
+      } else {
+        zoneBadge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+      }
+
+      // Siren Banner
+      const banner = document.getElementById('card-siren-banner');
+      const sirenTitle = document.getElementById('card-siren-title');
+      const sirenSub = document.getElementById('card-siren-sub');
+      const sirenIcon = document.getElementById('card-siren-icon');
+      const modeBadge = document.getElementById('card-mode-badge');
+
+      if (isSiren) {
+        banner.className = "mt-3 p-3 rounded-xl border bg-red-950/40 border-red-800/60 text-red-200 flex items-center justify-between";
+        sirenTitle.textContent = "AIR RAID SIREN ACTIVE";
+        sirenSub.textContent = "Hromada alert declared by alerts.in.ua";
+        sirenIcon.className = "w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center text-sm shadow animate-pulse";
+        modeBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded bg-red-600 text-white";
+        modeBadge.textContent = "EVACUATE";
+      } else {
+        banner.className = "mt-3 p-3 rounded-xl border bg-emerald-950/30 border-emerald-800/40 text-emerald-200 flex items-center justify-between";
+        sirenTitle.textContent = "ALL CLEAR · NO SIREN";
+        sirenSub.textContent = "No air raid alert in this hromada";
+        sirenIcon.className = "w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-sm";
+        modeBadge.className = "text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400";
+        modeBadge.textContent = "OPEN";
+      }
+
+      // Risk score & grade
+      document.getElementById('card-risk-score').textContent = `Risk Score: ${store.risk_score || 0} / 100`;
+      const riskGrade = document.getElementById('card-risk-grade');
+      riskGrade.textContent = store.risk_grade || 'NORMAL';
+      if (store.risk_grade === 'CRITICAL') {
+        riskGrade.className = "px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-500/20 text-red-400 border border-red-500/30";
+      } else if (store.risk_grade === 'HIGH') {
+        riskGrade.className = "px-2 py-0.5 rounded text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30";
+      } else {
+        riskGrade.className = "px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+      }
+
+      // Directive
+      const directive = document.getElementById('card-directive');
+      directive.textContent = store.action_en || "NORMAL OPERATIONS: Standard retail hours.";
+      if (store.action_color === 'red') directive.className = "text-xs font-bold text-red-400 mt-1 leading-snug";
+      else if (store.action_color === 'amber') directive.className = "text-xs font-semibold text-amber-400 mt-1 leading-snug";
+      else directive.className = "text-xs text-slate-300 mt-1 leading-snug";
+
+      // Meta
+      document.getElementById('card-dist').textContent = `${store.dist_frontline_km} km`;
+      document.getElementById('card-zone').textContent = store.threat_zone_label || `${store.threat_zone} Zone`;
+      
+      const comms = document.getElementById('card-comms');
+      if (store.comms_status === 'starlink') {
+        comms.innerHTML = '<i class="fa-solid fa-satellite text-cyan-400"></i> Starlink Active';
+      } else {
+        comms.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 inline-block mr-1"></span> Fiber Online';
+      }
+
+      // Power Infrastructure
+      const powerBadge = document.getElementById('card-power-badge');
+      if (store.power_status === 'generator') {
+        powerBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30";
+        powerBadge.textContent = "Generator Running";
+      } else if (store.power_status === 'blackout') {
+        powerBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/30";
+        powerBadge.textContent = "Grid Blackout";
+      } else {
+        powerBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        powerBadge.textContent = "Grid Power Normal";
+      }
+
+      document.getElementById('card-fuel').textContent = store.generator_fuel_l ? `${store.generator_fuel_l} Liters` : 'N/A';
+      document.getElementById('card-runtime').textContent = store.generator_runtime_hours ? `~${store.generator_runtime_hours} hrs` : 'N/A';
+
+      // Logistics & Restock
+      document.getElementById('card-eta').textContent = store.delivery_eta || 'Scheduled';
+      document.getElementById('card-restock').textContent = store.priority_restock || 'Standard Retail Assortment';
+
+      // Shelter & Contact
+      document.getElementById('card-shelter').textContent = store.shelter_nearby || "Nearest certified civil defense bunker";
+      document.getElementById('card-manager').textContent = store.manager_name || "Store Manager";
+      document.getElementById('card-phone').textContent = store.manager_phone || "+380501234500";
+
+      // Acknowledgment Button
+      const btnAck = document.getElementById('btn-ack');
+      if (isSiren) {
+        if (store.ack_status === 'CONFIRMED_IN_SHELTER') {
+          btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-emerald-600/30 text-emerald-300 border border-emerald-500/30";
+          btnAck.innerHTML = `<i class="fa-solid fa-check-double text-emerald-400"></i> ${store.ack_label || 'Evacuation Confirmed by Manager'}`;
+        } else {
+          btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/40 animate-pulse";
+          btnAck.innerHTML = `<i class="fa-solid fa-person-shelter"></i> In Shelter - Confirm Evacuation`;
+        }
+      } else {
+        btnAck.className = "w-full py-2 px-3 rounded-xl font-medium text-xs flex items-center justify-center gap-2 bg-slate-800 text-slate-400 cursor-default";
+        btnAck.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Normal Trading (No Siren Active)`;
+      }
+
+      document.getElementById('inspector').classList.add('open');
+    }
+
+    function closeInspector() {
+      activeSelectedStore = null;
+      document.getElementById('inspector').classList.remove('open');
+    }
+
+    async function handleAcknowledgeClick() {
+      if (!activeSelectedStore) return;
+      if (activeSelectedStore.alert_status === 'CLEAR') return;
+
       try {
-        await fetch(`/api/stores/${storeId}/acknowledge`, { method: 'POST' });
-        await loadData();
+        if (activeSelectedStore.ack_status === 'CONFIRMED_IN_SHELTER') {
+          await fetch(`/api/stores/${activeSelectedStore.store_id}/reset-ack`, { method: 'POST' });
+        } else {
+          await fetch(`/api/stores/${activeSelectedStore.store_id}/acknowledge`, { method: 'POST' });
+        }
+        await fetchStoreTelemetry();
       } catch (err) {
         console.error("Ack error:", err);
       }
     }
 
-    async function resetAck(storeId) {
-      try {
-        await fetch(`/api/stores/${storeId}/reset-ack`, { method: 'POST' });
-        await loadData();
-      } catch (err) {
-        console.error("Reset ack error:", err);
-      }
-    }
-
-    function setZoneFilter(zone) {
-      activeZoneFilter = zone;
-      document.querySelectorAll('.filter-btn').forEach(b => {
-        b.className = 'filter-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-400 hover:bg-slate-700';
-      });
-      const activeBtn = document.getElementById('btn-zone-' + zone);
-      if (activeBtn) {
-        activeBtn.className = 'filter-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-yellow-500 text-slate-950 shadow';
-      }
-      renderTable();
-    }
-
-    function toggleAlarmOnly() {
-      alarmOnlyFilter = document.getElementById('alarm-toggle').checked;
-      renderTable();
-    }
-
     function handleSearch() {
-      searchQuery = document.getElementById('search-input').value;
-      renderTable();
-    }
+      const q = document.getElementById('store-search').value.toLowerCase().trim();
+      if (!q) return;
 
-    async function refreshData() {
-      const icon = document.getElementById('refresh-icon');
-      icon.classList.add('fa-spin');
-      try {
-        await fetch('/api/refresh', { method: 'POST' });
-        await loadData();
-      } finally {
-        setTimeout(() => icon.classList.remove('fa-spin'), 600);
+      const found = storesData.find(s => 
+        (s.city && s.city.toLowerCase().includes(q)) ||
+        (s.store_id && s.store_id.toLowerCase().includes(q)) ||
+        (s.name && s.name.toLowerCase().includes(q))
+      );
+
+      if (found) {
+        openInspector(found);
+        map.flyTo([found.lat, found.lon], 12, { duration: 0.6 });
       }
     }
 
-    loadData();
-    setInterval(loadData, 15000);
+    window.addEventListener('DOMContentLoaded', initMap);
   </script>
 </body>
 </html>
