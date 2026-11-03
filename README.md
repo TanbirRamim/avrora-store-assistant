@@ -115,6 +115,7 @@ as a mode of the same MapLibre map.
 The original Python prototype: a FastAPI dashboard, a console monitor and CSV/JSON/Excel threat sheets.
 
 - Reads front-line geometry from a community mirror of DeepStateMap data and alerts from alerts.in.ua.
+- Tracks all 1,935 active Avrora stores. Its API says whether alerts are community-level, oblast-level or simulated, and whether the front line is current, cached or sample data.
 - Without `ALERTS_IN_UA_TOKEN` it **simulates** random alerts; its output files are from such a simulated run.
 
 ```bash
