@@ -43,8 +43,25 @@
     .leaflet-popup-content { min-width:260px; margin:14px; color:#172033; }
     .leaflet-control-zoom a,.leaflet-control-attribution { color:#172033; }
     .leaflet-tile-pane { filter:saturate(.3) brightness(.78) contrast(1.06); }
-    .marker-cluster div { color:#fff; font-weight:750; background:rgba(40,91,132,.92); }
-    .marker-cluster { background:rgba(143,184,216,.48); }
+    .cluster-shell,.map-point-shell { background:transparent!important; border:0!important; }
+    .category-cluster { display:flex; align-items:center; justify-content:center; gap:4px; width:100%; height:100%; border:3px solid rgba(255,255,255,.94); border-radius:999px; color:#fff; box-shadow:0 3px 14px rgba(0,0,0,.42); font-weight:800; }
+    .category-cluster--store { background:#ff9f0a; color:#1d1400; }
+    .category-cluster--warehouse { background:#087bb8; }
+    .category-cluster--logistics { background:#e31b50; }
+    .category-cluster--food { background:#168a45; }
+    .category-cluster--supply { background:#7040c8; }
+    .category-cluster__code { font-size:13px; }
+    .category-cluster__count { font-size:12px; font-variant-numeric:tabular-nums; }
+    .map-point { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border:2px solid #fff; border-radius:999px; color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.46); font-size:11px; font-weight:850; }
+    .map-point--store { background:#ff9f0a; color:#1d1400; }
+    .map-point--warehouse { background:#087bb8; border-radius:5px; }
+    .map-point--logistics { background:#e31b50; transform:rotate(45deg); border-radius:5px; }
+    .map-point--logistics span { transform:rotate(-45deg); }
+    .map-point--food { background:#168a45; clip-path:polygon(50% 0,100% 100%,0 100%); border-radius:0; padding-top:5px; }
+    .map-point--supply { background:#7040c8; }
+    .cluster-key { display:flex; flex-wrap:wrap; gap:5px 10px; margin:-3px 0 11px; color:var(--muted); font-size:11px; }
+    .cluster-key span { display:inline-flex; align-items:center; gap:4px; }
+    .cluster-key b { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:999px; color:#fff; font-size:10px; }
     .popup-title { margin:0 0 3px; font-weight:750; font-size:15px; }
     .popup-role { margin-bottom:8px; color:#48566b; font-size:12px; }
     .popup-meta { display:grid; grid-template-columns:72px 1fr; gap:4px 8px; font-size:12px; }
@@ -60,6 +77,7 @@
     <h1>Avrora stores &amp; supply infrastructure</h1>
     <p class="subtitle">Official Avrora stores plus warehouses, logistics centres and non-retail food infrastructure across Ukraine.</p>
     <div class="scope">Ukraine only · retail layer: Avrora only</div>
+    <div class="cluster-key" aria-label="Map symbol legend"><span><b style="background:#ff9f0a;color:#1d1400">A</b>Avrora</span><span><b style="background:#087bb8">W</b>Warehouse</span><span><b style="background:#e31b50">L</b>Logistics</span><span><b style="background:#168a45">F</b>Food infrastructure</span><span><b style="background:#7040c8">S</b>Supply node</span></div>
     <div class="summary">
       <div class="metric"><strong id="count-stores">–</strong><span>Avrora stores</span></div>
       <div class="metric"><strong id="count-warehouses">–</strong><span>warehouses</span></div>
@@ -76,19 +94,19 @@
     </div>
     <div class="group-title">Warehousing &amp; logistics</div>
     <div class="controls" role="group" aria-label="Warehouse and logistics filters">
-      <label class="layer"><input type="checkbox" value="warehouse" checked><span class="dot" style="background:var(--warehouse)"></span>Warehouses<span class="count" data-count="warehouse"></span></label>
+      <label class="layer"><input type="checkbox" value="warehouse"><span class="dot" style="background:var(--warehouse)"></span>Warehouses<span class="count" data-count="warehouse"></span></label>
       <label class="layer"><input type="checkbox" value="logistics_center" checked><span class="dot" style="background:var(--logistics)"></span>Logistics centres<span class="count" data-count="logistics_center"></span></label>
     </div>
     <div class="group-title">Non-retail food infrastructure</div>
     <div class="controls" role="group" aria-label="Food infrastructure filters">
-      <label class="layer"><input type="checkbox" value="food_production" checked><span class="dot" style="background:var(--food)"></span>Food production<span class="count" data-count="food_production"></span></label>
-      <label class="layer"><input type="checkbox" value="beverage_production" checked><span class="dot" style="background:var(--beverage)"></span>Beverage production<span class="count" data-count="beverage_production"></span></label>
-      <label class="layer"><input type="checkbox" value="grain_processing_storage" checked><span class="dot" style="background:var(--grain)"></span>Grain processing/storage<span class="count" data-count="grain_processing_storage"></span></label>
+      <label class="layer"><input type="checkbox" value="food_production"><span class="dot" style="background:var(--food)"></span>Food production<span class="count" data-count="food_production"></span></label>
+      <label class="layer"><input type="checkbox" value="beverage_production"><span class="dot" style="background:var(--beverage)"></span>Beverage production<span class="count" data-count="beverage_production"></span></label>
+      <label class="layer"><input type="checkbox" value="grain_processing_storage"><span class="dot" style="background:var(--grain)"></span>Grain processing/storage<span class="count" data-count="grain_processing_storage"></span></label>
     </div>
     <input id="search" class="search" type="search" placeholder="Search Avrora store, warehouse, city or operator…" autocomplete="off">
     <div id="results"></div>
     <div class="downloads"><a href="data/network.geojson" download>All map data</a><a href="data/avrora-stores.geojson" download>Avrora stores</a></div>
-    <p class="note">No other supermarket, grocery or food-retail chains are included. Infrastructure: © OpenStreetMap contributors, ODbL. Avrora stores: official Avrora locator. Snapshot: 3 November 2026.</p>
+    <p class="note">Dense warehouse and food-infrastructure layers are available above but start hidden for a clearer Avrora view. No other supermarket, grocery or food-retail chains are included. Infrastructure: © OpenStreetMap contributors, ODbL. Snapshot: 3 November 2026.</p>
   </aside>
   <script src="vendor/leaflet.js"></script>
   <script src="vendor/leaflet.markercluster.js"></script>
@@ -103,14 +121,25 @@
       const foodInfrastructure = window.__AVRORA_FOOD_INFRASTRUCTURE__;
       const summary = window.__AVRORA_SUPPLY_SUMMARY__;
       const groupColors = { avrora_store:'#ff9f0a', avrora_logistics:'#ff453a', historic_avrora:'#8e8e93', food_partners:'#30d158', fine_eat_manufacturers:'#bf5af2', assortment_manufacturers:'#0a84ff', warehouse:'#64d2ff', logistics_center:'#ff375f', food_production:'#34c759', beverage_production:'#af52de', grain_processing_storage:'#ffd60a' };
-      let activeGroups = new Set(Object.keys(groupColors));
+      let activeGroups = new Set(['avrora_store','avrora_logistics','historic_avrora','food_partners','fine_eat_manufacturers','assortment_manufacturers','logistics_center']);
       const allFeatures = [...core.features,...stores.features,...infrastructure.features,...foodInfrastructure.features];
       const featureById = new Map(allFeatures.map(feature => [String(feature.id),feature]));
       const map = L.map('map',{ zoomControl:false,preferCanvas:true,minZoom:3,maxZoom:18 }).setView([48.75,31.2],6);
       L.control.zoom({ position:'bottomright' }).addTo(map);
       L.control.scale({ position:'bottomleft',imperial:false }).addTo(map);
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19,attribution:'© OpenStreetMap contributors' }).addTo(map);
-      const cluster = L.markerClusterGroup({ chunkedLoading:true,chunkInterval:60,chunkDelay:10,showCoverageOnHover:false,maxClusterRadius:48,spiderfyOnMaxZoom:true }).addTo(map);
+      const familyForGroup = group => {
+        if (group === 'avrora_store') return 'store';
+        if (group === 'warehouse') return 'warehouse';
+        if (['logistics_center','avrora_logistics'].includes(group)) return 'logistics';
+        if (['food_production','beverage_production','grain_processing_storage'].includes(group)) return 'food';
+        return 'supply';
+      };
+      const familyCodes = { store:'A',warehouse:'W',logistics:'L',food:'F',supply:'S' };
+      const clusterGroups = Object.fromEntries(Object.keys(familyCodes).map(family => [family,L.markerClusterGroup({
+        chunkedLoading:true,chunkInterval:60,chunkDelay:10,showCoverageOnHover:false,maxClusterRadius:46,spiderfyOnMaxZoom:true,
+        iconCreateFunction: cluster => L.divIcon({ className:'cluster-shell',html:`<div class="category-cluster category-cluster--${family}"><span class="category-cluster__code">${familyCodes[family]}</span><span class="category-cluster__count">${cluster.getChildCount().toLocaleString('en-GB')}</span></div>`,iconSize:L.point(54,54) })
+      }).addTo(map)]));
       const markerById = new Map();
       const formatNumber = value => new Intl.NumberFormat('en-GB').format(value || 0);
       const escapeHtml = value => String(value || '').replace(/[&<>'"]/g,character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
@@ -119,21 +148,21 @@
         const rows = [['Status',p.status?.replaceAll('_',' ')],['Address',p.address],['Operator',p.operator],['Mapped as',p.matched_tag]].filter(row => row[1]);
         return `<div class="popup-title">${escapeHtml(p.name)}</div><div class="popup-role">${escapeHtml(p.role)}</div><div class="popup-meta">${rows.map(row => `<span>${escapeHtml(row[0])}</span><span>${escapeHtml(row[1])}</span>`).join('')}</div><p class="popup-note">${escapeHtml(p.note)}</p><a class="popup-source" href="${escapeHtml(p.source_url)}" target="_blank" rel="noreferrer">Source: ${escapeHtml(p.source_label)} ↗</a>`;
       }
-      function markerRadius(group) { if (group === 'warehouse') return 3.5; if (group === 'avrora_store') return 4.5; if (group === 'avrora_logistics') return 8; if (group === 'logistics_center') return 6.5; return 5.5; }
       function render() {
-        cluster.clearLayers(); markerById.clear();
-        const markers = allFeatures.filter(feature => activeGroups.has(feature.properties.group)).map(feature => {
-          const p = feature.properties; const [lon,lat] = feature.geometry.coordinates; const isGeneric = ['warehouse','logistics_center'].includes(p.group);
-          const marker = L.circleMarker([lat,lon],{ radius:markerRadius(p.group),color:isGeneric?'rgba(7,17,31,.72)':'#07111f',weight:isGeneric?.8:1.3,dashArray:['damaged','unclear','destroyed_historic'].includes(p.status)?'4 3':null,fillColor:groupColors[p.group],fillOpacity:p.group === 'warehouse'?.68:.92 });
-          marker.bindPopup(popupHtml(feature),{ maxWidth:360 }); markerById.set(String(feature.id),marker); return marker;
+        Object.values(clusterGroups).forEach(group => group.clearLayers()); markerById.clear();
+        const markersByFamily = Object.fromEntries(Object.keys(familyCodes).map(family => [family,[]]));
+        allFeatures.filter(feature => activeGroups.has(feature.properties.group)).forEach(feature => {
+          const p = feature.properties; const [lon,lat] = feature.geometry.coordinates; const family = familyForGroup(p.group);
+          const marker = L.marker([lat,lon],{ icon:L.divIcon({ className:'map-point-shell',html:`<div class="map-point map-point--${family}"><span>${familyCodes[family]}</span></div>`,iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-12] }),title:`${p.name} · ${p.role}` });
+          marker.bindPopup(popupHtml(feature),{ maxWidth:360 }); markerById.set(String(feature.id),{ marker,cluster:clusterGroups[family] }); markersByFamily[family].push(marker);
         });
-        cluster.addLayers(markers);
+        Object.entries(markersByFamily).forEach(([family,markers]) => clusterGroups[family].addLayers(markers));
       }
       function focusById(id) {
         const feature = featureById.get(String(id)); if (!feature) return false; activeGroups.add(feature.properties.group);
         const input = document.querySelector(`input[value="${feature.properties.group}"]`); if (input) input.checked = true; render();
         const [lon,lat] = feature.geometry.coordinates; map.flyTo([lat,lon],13,{ duration:.65 });
-        setTimeout(() => { const marker = markerById.get(String(feature.id)); if (marker) cluster.zoomToShowLayer(marker,() => marker.openPopup()); },700); return true;
+        setTimeout(() => { const entry = markerById.get(String(feature.id)); if (entry) entry.cluster.zoomToShowLayer(entry.marker,() => entry.marker.openPopup()); },700); return true;
       }
       for (const group of Object.keys(groupColors)) { const element = document.querySelector(`[data-count="${group}"]`); if (element) element.textContent = formatNumber(summary.counts_by_group[group]); }
       document.getElementById('count-stores').textContent = formatNumber(summary.total_avrora_stores);

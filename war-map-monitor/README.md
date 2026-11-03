@@ -1,6 +1,8 @@
 # 🇺🇦 Avrora War Map Situational Intelligence & Real-Time Data Sheet System
 
-> **Система оперативного табелю загроз карти війни в реальному часі для директорів магазинів мережі «Аврора» (Україна)**
+> **Система оперативного табелю загроз для 1,935 офіційних активних магазинів «Аврора» в Україні.**
+
+The dashboard reports source provenance explicitly: official alerts.in.ua provides oblast and hromada coverage when a token is configured; the public fallback is oblast-only; offline simulation is clearly labelled. Frontline status distinguishes a current feed from stale cache or baked sample data.
 
 Ця система зчитує оперативні геопросторові дані лінії зіткнення (**DeepStateMap**) та сповіщення про повітряні загрози (**Alerts.in.ua**), розраховує дистанції до бойових дій для кожного магазину мережі та автоматично генерує **живий Data Sheet** (табель загроз) у форматах **CSV, Excel та JSON**, оптимізований як для роботи персоналу, так і для інтеграції в **AI-рідери, модулі прогнозування та системи тактичних підказок**.
 
@@ -20,7 +22,7 @@
           └──────────────────────────────────────┬──────────────────────────────────────┘
                                                  ▼
                               [ РЕЄСТР МАГАЗИНІВ «АВРОРА» ]
-                              1,400+ точок (координати, укриття, генератори)
+                              1,935 офіційних активних точок (координати з локатора Avrora)
                                                  │
                                                  ▼
                               [ ГЕОПРОСТОРОВИЙ ДВИГУН (GeoEngine) ]

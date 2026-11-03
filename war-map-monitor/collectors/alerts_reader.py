@@ -1,98 +1,119 @@
-import os
-import time
-import random
 import logging
-from typing import Dict, Any, List, Optional
+import random
+import time
+from typing import Any, Dict, Optional
+
 import httpx
 
 from config import ALERTS_API_TOKEN, ALERTS_API_URL
 
+
 logger = logging.getLogger(__name__)
+PUBLIC_OBLAST_FEED = "https://ubilling.net.ua/aerialalerts/"
 
 
 class AlertsReader:
-    """
-    Reads real-time air raid alerts from alerts.in.ua.
-    If no token is supplied, provides realistic live-simulated alert telemetry
-    so the pipeline functions immediately for development and demonstration.
-    """
+    """Read official alerts when configured, otherwise a public oblast feed."""
 
     def __init__(self, api_token: Optional[str] = None):
         self.api_token = api_token or ALERTS_API_TOKEN
         self.last_fetch_time = 0
         self.cached_alerts: Dict[str, Any] = {}
-        self.cache_duration_seconds = 15  # Real-time granularity
+        self.cache_duration_seconds = 15
 
     def get_active_alerts(self, force_refresh: bool = False) -> Dict[str, Any]:
-        """
-        Returns structured dict of active alerts:
-        {
-          "is_simulated": bool,
-          "fetched_at": str,
-          "active_regions": List[str], # list of oblast names
-          "active_hromadas": List[str], # list of hromada names
-          "details": List[Dict]
-        }
-        """
         now = time.time()
-        if self.cached_alerts and not force_refresh and (now - self.last_fetch_time < self.cache_duration_seconds):
+        if self.cached_alerts and not force_refresh and now - self.last_fetch_time < self.cache_duration_seconds:
             return self.cached_alerts
 
+        errors = []
         if self.api_token:
             try:
-                data = self._fetch_live_api()
-                self.cached_alerts = data
-                self.last_fetch_time = now
-                return data
-            except Exception as e:
-                logger.warning("Failed to fetch from live alerts.in.ua API: %s. Falling back to dynamic feed.", e)
+                return self._remember(self._fetch_official_api())
+            except Exception as exc:
+                errors.append(f"official API: {exc}")
+                logger.warning("Official alerts.in.ua request failed: %s", exc)
 
-        # Simulation / fallback mode
+        try:
+            return self._remember(self._fetch_public_oblast_feed())
+        except Exception as exc:
+            errors.append(f"public oblast feed: {exc}")
+            logger.warning("Public oblast alert request failed: %s", exc)
+
         data = self._generate_simulated_alerts()
+        data["source_errors"] = errors
+        return self._remember(data)
+
+    def _remember(self, data: Dict[str, Any]):
         self.cached_alerts = data
-        self.last_fetch_time = now
+        self.last_fetch_time = time.time()
         return data
 
-    def _fetch_live_api(self) -> Dict[str, Any]:
-        headers = {
-            "Authorization": f"Bearer {self.api_token}",
-            "User-Agent": "Avrora-Situational-Awareness/1.0"
-        }
-        with httpx.Client(timeout=10.0) as client:
-            resp = client.get(ALERTS_API_URL, headers=headers)
-            resp.raise_for_status()
-            raw = resp.json()
-
-        active_alerts = raw.get("alerts", [])
-        active_regions = set()
-        active_hromadas = set()
-
-        for a in active_alerts:
-            loc_title = a.get("location_title", "")
-            loc_type = a.get("location_type", "")
-            
-            if loc_type == "oblast":
-                active_regions.add(loc_title)
-            elif loc_type == "community" or loc_type == "hromada":
-                active_hromadas.add(loc_title)
-
+    def _fetch_public_oblast_feed(self) -> Dict[str, Any]:
+        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            response = client.get(PUBLIC_OBLAST_FEED, headers={"User-Agent": "Avrora-Situational-Awareness/2.0"})
+            response.raise_for_status()
+            raw = response.json()
+        states = raw.get("states")
+        if not isinstance(states, dict) or len(states) < 20:
+            raise ValueError("public feed did not return the full oblast table")
+        active_regions = []
+        details = []
+        for oblast_uk, alert_info in states.items():
+            if bool(alert_info.get("alertnow")):
+                active_regions.append(oblast_uk)
+                details.append(
+                    {
+                        "location_title": oblast_uk,
+                        "location_type": "oblast",
+                        "threat_type": "air_raid_siren",
+                        "started_at": alert_info.get("changed"),
+                    }
+                )
         return {
             "is_simulated": False,
+            "source": f"Public oblast alert feed ({raw.get('source', 'Ukraine civil defence')})",
+            "coverage": "oblast_only",
             "fetched_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-            "active_regions": list(active_regions),
-            "active_hromadas": list(active_hromadas),
+            "data_timestamp": raw.get("cachedat"),
+            "active_regions": active_regions,
+            "active_hromadas": [],
+            "total_active_alerts": len(active_regions),
+            "raw_alerts": details,
+        }
+
+    def _fetch_official_api(self) -> Dict[str, Any]:
+        headers = {"Authorization": f"Bearer {self.api_token}", "User-Agent": "Avrora-Situational-Awareness/2.0"}
+        with httpx.Client(timeout=12.0, follow_redirects=True) as client:
+            response = client.get(ALERTS_API_URL, headers=headers)
+            response.raise_for_status()
+            raw = response.json()
+        active_alerts = raw.get("alerts", [])
+        if not isinstance(active_alerts, list):
+            raise ValueError("official API returned an unexpected payload")
+        active_regions = set()
+        active_hromadas = set()
+        for alert in active_alerts:
+            location = alert.get("location_title", "")
+            location_type = alert.get("location_type", "")
+            if location_type == "oblast":
+                active_regions.add(location)
+            elif location_type in {"community", "hromada"}:
+                active_hromadas.add(location)
+        return {
+            "is_simulated": False,
+            "source": "alerts.in.ua official API",
+            "coverage": "oblast_and_hromada",
+            "fetched_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "data_timestamp": None,
+            "active_regions": sorted(active_regions),
+            "active_hromadas": sorted(active_hromadas),
             "total_active_alerts": len(active_alerts),
-            "raw_alerts": active_alerts
+            "raw_alerts": active_alerts,
         }
 
     def _generate_simulated_alerts(self) -> Dict[str, Any]:
-        """
-        Generates realistic wartime alert telemetry based on operational frontlines.
-        Eastern/Southern regions (Donetsk, Kharkiv, Zaporizhzhia, Kherson) have high alert frequency;
-        Central/Western regions have sporadic alarms.
-        """
-        # Baseline probability of active alarm right now by oblast
-        oblast_probabilities = {
+        probabilities = {
             "Донецька область": 0.90,
             "Харківська область": 0.75,
             "Запорізька область": 0.70,
@@ -103,44 +124,16 @@ class AlertsReader:
             "Одеська область": 0.35,
             "Львівська область": 0.10,
         }
-
-        active_regions = []
-        active_hromadas = []
-        details = []
-
-        for oblast, prob in oblast_probabilities.items():
-            if random.random() < prob:
-                active_regions.append(oblast)
-                details.append({
-                    "location_title": oblast,
-                    "location_type": "oblast",
-                    "threat_type": random.choice(["tactical_aviation", "ballistics", "shahed_drone", "artillery"]),
-                    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - random.randint(120, 3600)))
-                })
-
-        # Add specific active frontline hromadas
-        frontline_hromadas = [
-            "Покровська міська громада",
-            "Краматорська міська громада",
-            "Нікопольська міська громада",
-            "Херсонська міська громада"
-        ]
-        for h in frontline_hromadas:
-            if random.random() < 0.85:
-                active_hromadas.append(h)
-                details.append({
-                    "location_title": h,
-                    "location_type": "hromada",
-                    "threat_type": "artillery_and_fpv",
-                    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-                })
-
+        active_regions = [oblast for oblast, probability in probabilities.items() if random.random() < probability]
         return {
             "is_simulated": True,
-            "notice": "Simulated live feed. Set ALERTS_IN_UA_TOKEN in .env to bind official live alerts.",
+            "source": "offline simulation",
+            "coverage": "simulation",
+            "notice": "Not live: official and public alert sources are unavailable.",
             "fetched_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "data_timestamp": None,
             "active_regions": active_regions,
-            "active_hromadas": active_hromadas,
-            "total_active_alerts": len(details),
-            "raw_alerts": details
+            "active_hromadas": [],
+            "total_active_alerts": len(active_regions),
+            "raw_alerts": [],
         }

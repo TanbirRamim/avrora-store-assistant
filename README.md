@@ -78,7 +78,7 @@ The synthetic dataset contains 20 planted problems. `GET /api/evaluation` report
 
 Real-time situational intelligence and dual-mode data sheet system for Avrora store managers and supply chain dispatchers across Ukraine.
 
-- **War Map Ingestion**: Reads frontline geometry from DeepStateMap OSINT telemetry and community siren alerts from lerts.in.ua.
+- **War Map Ingestion**: Tracks all 1,935 official active Avrora stores against a daily contact-line GeoJSON and live air-alert telemetry. The API exposes whether alerts are official community-level, public oblast-level or simulated, and whether the frontline is current, cached or sample data.
 - **Life Safety View**: Air raid alerts, nuanced manager action directives, exact walking distance to verified bunkers, and store manager evacuation acknowledgment loop.
 - **Logistics & Supply View**: Crisis surge demand forecasting (batteries, powerbanks, water), truck delivery ETAs & route safety, and generator fuel runtime tracking.
 - **Multi-Format Exports**: Real-time synchronized multi-tab Excel (vrora_war_threat_sheet.xlsx), UTF-8-BOM CSV, and REST API.

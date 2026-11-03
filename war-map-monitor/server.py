@@ -154,9 +154,7 @@ def get_dashboard_html():
         <div>
           <h1 class="text-base font-bold text-white flex items-center gap-2">
             Avrora Stores: Real-Time War Threat & Logistics Monitor
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> Live
-            </span>
+            <span id="source-status" class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">Checking sources…</span>
           </h1>
           <p class="text-xs text-slate-400">DeepStateMap Frontlines + Alerts.in.ua Sirens + Store Comms & Power Telemetry</p>
         </div>
@@ -277,11 +275,28 @@ def get_dashboard_html():
         currentData = await sheetRes.json();
         currentSummary = await summaryRes.json();
 
+        renderSourceStatus();
         renderKpis();
         renderTable();
       } catch (err) {
         console.error("Failed to load telemetry:", err);
       }
+    }
+
+    function renderSourceStatus() {
+      const element = document.getElementById('source-status');
+      if (!element) return;
+      const alertsSimulated = Boolean(currentSummary.alerts_is_simulated);
+      const frontlineFallback = Boolean(currentSummary.frontline_data_is_fallback);
+      const oblastOnly = currentSummary.alerts_coverage === 'oblast_only';
+      const alertLabel = alertsSimulated ? 'Alerts simulated' : (oblastOnly ? 'Alerts live · oblast only' : 'Alerts live · oblast + hromada');
+      const frontLabel = frontlineFallback ? 'frontline fallback' : 'frontline current';
+      element.textContent = alertLabel + ' · ' + frontLabel;
+      element.className = alertsSimulated || frontlineFallback
+        ? 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-red-500/10 text-red-300 border border-red-500/30'
+        : oblastOnly
+          ? 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30'
+          : 'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
     }
 
     function renderKpis() {
