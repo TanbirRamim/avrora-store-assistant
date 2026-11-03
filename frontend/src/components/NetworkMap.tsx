@@ -7,22 +7,27 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BoxIcon, CloseIcon } from "./icons";
 
 /**
- * Ukraine supply network: public OpenStreetMap department stores, warehouses and logistics
- * centres around the store. MapLibre draws everything on the GPU, so 6,000 points and their
- * clusters stay smooth while zooming. Tiles: OpenFreeMap (free, no key).
+ * Ukraine supply network: official Avrora stores, Avrora distribution centres, partners and
+ * manufacturers, and OpenStreetMap warehouses, logistics centres and food-production sites.
+ * MapLibre draws everything on the GPU, so 7,500 points and their clusters stay smooth while
+ * zooming. Tiles: OpenFreeMap (free, no key).
  */
 
-type Category = "store" | "warehouse" | "logistics";
+type Category = "avrora" | "supply" | "warehouse" | "logistics" | "food";
 
 interface Props {
   c: Category;
   id: string;
-  n?: string;
-  a?: string;
-  o?: string;
-  b?: string;
-  w?: string;
-  s?: string;
+  n?: string; // name
+  a?: string; // address
+  o?: string; // operator
+  b?: string; // brand
+  w?: string; // website
+  s?: string; // status, when not active
+  r?: string; // role (supply nodes) or kind of site (food)
+  t?: string; // opening hours (Avrora stores) or note (supply nodes)
+  u?: string; // source link (supply nodes)
+  l?: string; // source name (supply nodes)
 }
 
 interface Feature {
@@ -37,33 +42,64 @@ const WORKER = "/map/maplibre-gl-worker.mjs"; // copied from node_modules by `np
 const STORE: [number, number] = [28.4682, 49.2331]; // Avrora Store #417, Vinnytsia
 const UKRAINE: [[number, number], [number, number]] = [[22.1, 44.3], [40.3, 52.4]];
 
-export const CATEGORIES: Record<Category, { label: string; one: string; color: string }> = {
-  store: { label: "Stores", one: "Department store", color: "#ff9500" },
-  warehouse: { label: "Warehouses", one: "Warehouse", color: "#5856d6" },
-  logistics: { label: "Logistics", one: "Logistics centre", color: "#0a9396" },
+export const CATEGORIES: Record<Category, { one: string; color: string }> = {
+  avrora: { one: "Avrora store", color: "#ff9500" },
+  supply: { one: "Supply partner", color: "#ff2d55" },
+  warehouse: { one: "Warehouse", color: "#5856d6" },
+  logistics: { one: "Logistics centre", color: "#0a9396" },
+  food: { one: "Food production", color: "#34c759" },
 };
 
-const STATUS: Record<string, string> = { disused: "Disused", abandoned: "Abandoned", ruins: "Ruins" };
+const STATUS: Record<string, string> = {
+  disused: "Disused",
+  abandoned: "Abandoned",
+  ruins: "Ruins",
+  damaged: "Damaged",
+  unclear: "Operating status unclear",
+  destroyed_historic: "Destroyed",
+};
 
-type Filter = Category | "all";
-const FILTERS: Filter[] = ["all", "store", "warehouse", "logistics"];
+type Filter = "all" | "avrora" | "supply" | "storage" | "food";
+const FILTERS: { id: Filter; label: string; cats: Category[] }[] = [
+  { id: "all", label: "All", cats: ["avrora", "supply", "warehouse", "logistics", "food"] },
+  { id: "avrora", label: "Avrora", cats: ["avrora"] },
+  { id: "supply", label: "Supply", cats: ["supply"] },
+  { id: "storage", label: "Storage", cats: ["warehouse", "logistics"] },
+  { id: "food", label: "Food", cats: ["food"] },
+];
+const inFilter = (filter: Filter, c: Category) => FILTERS.find((f) => f.id === filter)!.cats.includes(c);
 
 const fmt = new Intl.NumberFormat("en-US");
 
-function popupHtml(p: Props) {
-  const cat = CATEGORIES[p.c];
-  const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+/** Kind line above the name: the role for supply nodes and food sites, else the category. */
+const kind = (p: Props) => p.r ?? CATEGORIES[p.c].one;
+
+function source(p: Props): { href: string; label: string } | null {
+  if (p.c === "avrora") {
+    const id = p.id.split("-").pop();
+    return { href: `https://avrora.ua/index.php?dispatch=store_locator.view&store_location_id=${id}`, label: "View on avrora.ua" };
+  }
+  if (p.c === "supply") return p.u ? { href: p.u, label: `Source: ${p.l ?? "public record"}` } : null;
   const [type, osmId] = p.id.split("/");
+  return osmId ? { href: `https://www.openstreetmap.org/${type}/${osmId}`, label: "View on OpenStreetMap" } : null;
+}
+
+function popupHtml(p: Props) {
+  const color = CATEGORIES[p.c].color;
+  const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+  const link = source(p);
   const rows = [
     p.a && `<div class="nm-row">${esc(p.a)}</div>`,
     (p.o || p.b) && `<div class="nm-row">Operator: ${esc(p.o || p.b!)}</div>`,
+    p.t && p.c === "avrora" && `<div class="nm-row">Open ${esc(p.t)}</div>`,
     p.s && `<div class="nm-row nm-status">${STATUS[p.s] ?? esc(p.s)}</div>`,
+    p.t && p.c !== "avrora" && `<div class="nm-row nm-note">${esc(p.t)}</div>`,
   ].filter(Boolean);
   return `
-    <div class="nm-kind" style="color:${cat.color}"><span class="nm-dot" style="background:${cat.color}"></span>${cat.one}</div>
+    <div class="nm-kind" style="color:${color}"><span class="nm-dot" style="background:${color}"></span>${esc(kind(p))}</div>
     <div class="nm-name">${esc(p.n ?? "No name in OpenStreetMap")}</div>
     ${rows.join("")}
-    <a class="nm-link" href="https://www.openstreetmap.org/${type}/${osmId}" target="_blank" rel="noopener noreferrer">View on OpenStreetMap</a>`;
+    ${link ? `<a class="nm-link" href="${esc(link.href)}" target="_blank" rel="noopener noreferrer">${esc(link.label)}</a>` : ""}`;
 }
 
 /** Keep flight targets clear of the floating card: below it or beside it, whichever leaves more map. */
@@ -115,25 +151,15 @@ export function NetworkMap() {
     };
   }, []);
 
-  const counts = useMemo(() => {
-    const c = { all: 0, store: 0, warehouse: 0, logistics: 0 } as Record<Filter, number>;
-    for (const f of features ?? []) {
-      c[f.properties.c]++;
-      c.all++;
-    }
-    return c;
-  }, [features]);
+  const total = features?.length ?? 0;
 
-  const visible = useMemo(
-    () => (features ?? []).filter((f) => filter === "all" || f.properties.c === filter),
-    [features, filter],
-  );
+  const visible = useMemo(() => (features ?? []).filter((f) => inFilter(filter, f.properties.c)), [features, filter]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
     return visible
-      .filter((f) => [f.properties.n, f.properties.a, f.properties.o, f.properties.b].some((v) => v?.toLowerCase().includes(q)))
+      .filter((f) => [f.properties.n, f.properties.a, f.properties.o, f.properties.b, f.properties.r].some((v) => v?.toLowerCase().includes(q)))
       .slice(0, 6);
   }, [visible, query]);
 
@@ -183,6 +209,8 @@ export function NetworkMap() {
           clusterMaxZoom: 13,
           promoteId: "id",
         });
+        // supply partners are few and the reason to open the map, so they are never folded into clusters
+        map.addSource("key", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
         map.addLayer({
           id: "clusters",
           type: "circle",
@@ -215,12 +243,34 @@ export function NetworkMap() {
           source: "places",
           filter: ["!", ["has", "point_count"]],
           paint: {
-            "circle-color": ["match", ["get", "c"], "store", CATEGORIES.store.color, "logistics", CATEGORIES.logistics.color, CATEGORIES.warehouse.color],
+            "circle-color": [
+              "match",
+              ["get", "c"],
+              "avrora",
+              CATEGORIES.avrora.color,
+              "logistics",
+              CATEGORIES.logistics.color,
+              "food",
+              CATEGORIES.food.color,
+              CATEGORIES.warehouse.color,
+            ],
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8],
             "circle-stroke-width": 1.5,
             "circle-stroke-color": "#ffffff",
             "circle-opacity": ["case", ["has", "s"], 0.45, 1],
             "circle-stroke-opacity": ["case", ["has", "s"], 0.45, 1],
+          },
+        });
+        map.addLayer({
+          id: "key-points",
+          type: "circle",
+          source: "key",
+          paint: {
+            "circle-color": CATEGORIES.supply.color,
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 5.5, 12, 8, 16, 10],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+            "circle-opacity": ["case", ["has", "s"], 0.6, 1],
           },
         });
 
@@ -230,14 +280,19 @@ export function NetworkMap() {
           const zoom = await (map.getSource("places") as GeoJSONSource).getClusterExpansionZoom(f.properties.cluster_id);
           map.easeTo({ center: (f.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: zoom + 0.3, duration: 600 });
         });
-        map.on("click", "points", (e: MapLayerMouseEvent) => {
+        const open = (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
           const coords = (f.geometry as unknown as { coordinates: [number, number] }).coordinates;
           popupCat.current = (f.properties as Props).c;
           popupRef.current?.setLngLat(coords).setHTML(popupHtml(f.properties as Props)).addTo(map);
+        };
+        map.on("click", "points", (e: MapLayerMouseEvent) => {
+          // a supply partner drawn on top of a point wins the click
+          if (!map.queryRenderedFeatures(e.point, { layers: ["key-points"] }).length) open(e);
         });
-        for (const layer of ["clusters", "points"]) {
+        map.on("click", "key-points", open);
+        for (const layer of ["clusters", "points", "key-points"]) {
           map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
           map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
         }
@@ -255,9 +310,11 @@ export function NetworkMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    (map.getSource("places") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible });
+    const key = (f: Feature) => f.properties.c === "supply";
+    (map.getSource("places") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible.filter((f) => !key(f)) });
+    (map.getSource("key") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible.filter(key) });
     // close the popup only if its place has just been filtered out
-    if (popupCat.current && filter !== "all" && popupCat.current !== filter) popupRef.current?.remove();
+    if (popupCat.current && !inFilter(filter, popupCat.current)) popupRef.current?.remove();
   }, [ready, visible, filter]);
 
   const focus = (f: Feature) => {
@@ -290,11 +347,11 @@ export function NetworkMap() {
       >
         <h1 className="t-headline px-1">Supply network</h1>
         <p className="t-footnote px-1 text-label-2">
-          {features ? `${fmt.format(counts.all)} places in Ukraine from OpenStreetMap` : failed ? "The map data could not be loaded." : "Loading places…"}
+          {features ? `${fmt.format(total)} places in Ukraine from Avrora and OpenStreetMap` : failed ? "The map data could not be loaded." : "Loading places…"}
         </p>
 
         <div role="tablist" aria-label="Show on map" className="mt-3 flex rounded-[9px] bg-fill p-[2px]">
-          {FILTERS.map((f) => (
+          {FILTERS.map(({ id: f, label, cats }) => (
             <button
               key={f}
               role="tab"
@@ -309,8 +366,8 @@ export function NetworkMap() {
                   transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 />
               )}
-              {f !== "all" && <span className="relative size-2 rounded-full" style={{ background: CATEGORIES[f].color }} />}
-              <span className="relative">{f === "all" ? "All" : CATEGORIES[f].label}</span>
+              {f !== "all" && <span className="relative size-2 rounded-full" style={{ background: CATEGORIES[cats[0]].color }} />}
+              <span className="relative">{label}</span>
             </button>
           ))}
         </div>
@@ -323,7 +380,7 @@ export function NetworkMap() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, address or operator"
+            placeholder="Search store, address or partner"
             aria-label="Search places"
             className="t-subhead w-full rounded-[10px] bg-fill px-3 py-[7px] outline-none placeholder:text-label-2"
           />
@@ -345,8 +402,8 @@ export function NetworkMap() {
                 <button onClick={() => focus(f)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-fill">
                   <span className="size-2 shrink-0 rounded-full" style={{ background: CATEGORIES[f.properties.c].color }} />
                   <span className="min-w-0">
-                    <span className="t-subhead block truncate">{f.properties.n ?? CATEGORIES[f.properties.c].one}</span>
-                    <span className="t-caption block truncate text-label-2">{f.properties.a ?? CATEGORIES[f.properties.c].one}</span>
+                    <span className="t-subhead block truncate">{f.properties.n ?? kind(f.properties)}</span>
+                    <span className="t-caption block truncate text-label-2">{f.properties.a ?? kind(f.properties)}</span>
                   </span>
                 </button>
               </li>

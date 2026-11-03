@@ -155,7 +155,7 @@ export default function Home() {
           <BellIcon size={17} className="text-tint" />
           Notifications
         </button>
-        <p className="t-caption mt-3 px-2 text-label-2">Store data is fictional. Map data: OpenStreetMap.</p>
+        <p className="t-caption mt-3 px-2 text-label-2">Store data is fictional. Map data: avrora.ua and OpenStreetMap.</p>
       </nav>
 
       <main ref={mainRef} className={`relative min-w-0 flex-1 ${view === "map" ? "overflow-hidden pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0" : "overflow-y-auto pb-24 md:pb-0"}`}>
