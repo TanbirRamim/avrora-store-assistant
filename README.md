@@ -3,18 +3,18 @@
 A daily action list for retail store managers: what to reorder, discount, move or follow up today, and why.
 Built for the BIP 2026 "Problem Solving Through Generative AI" challenge set by Avrora.
 
-The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine network map uses public OpenStreetMap data and is labelled accordingly.
+The operational store data in this repository is synthetic. It describes one fictional store and contains no real company data. The separate Ukraine supply map combines the official Avrora store locator, public company sources and OpenStreetMap infrastructure data.
 
 ## Structure
 
 - `backend/` – Python: synthetic dataset, analytics, action engine, AI layer, API
-- `frontend/` – Next.js web app for store managers, including the Ukraine commercial network map
+- `frontend/` – Next.js web app for store managers, including the Avrora stores and supply-infrastructure map
 - `docs/ukraine-commercial-map.md` – map scope, sources, methodology and licence
 - `cloudflare/` – Worker that hosts the app on Cloudflare, with decisions in D1
 
-## Ukraine commercial network map
+## Avrora stores and Ukraine supply infrastructure
 
-Open **Map** in the app to explore 6,211 public OpenStreetMap locations: 883 department stores, 5,320 warehouses and 8 logistics/distribution centres. The static map supports category filters, search, marker clustering, CSV/GeoJSON downloads and an embedding API. Its dated data snapshot and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
+Open **Map** in the app to explore 7,561 Ukraine-only points: 1,935 official Avrora stores, 5,320 warehouses, 8 logistics/distribution centres, 281 non-retail food-production/storage sites and 17 highlighted Avrora/partner/manufacturer nodes. No other grocery, supermarket or food-retail chains are included. The static map supports filters, search, marker clustering and GeoJSON downloads. Scope and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
 
 ## Backend quick start
 

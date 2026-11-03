@@ -1,33 +1,32 @@
 {
-  "generated_at": "2026-11-03T08:44:09.027860+00:00",
-  "source": "OpenStreetMap / Geofabrik Ukraine extract",
-  "source_file": "ukraine-2026-11-02.osm.pbf",
-  "source_sha256": "5b3e09c08ee819aa0b9047179c510aaab027eb477e3b2370e3ceba13d195fe35",
-  "license": "Open Database License (ODbL); © OpenStreetMap contributors",
-  "scope": "All matching OSM features in Ukraine; explicitly military/sensitive-tagged features excluded",
-  "total": 6211,
-  "counts_by_category": {
-    "department_store": 883,
+  "generated_at": "2026-11-03T09:51:57.070Z",
+  "data_cutoff": "2026-11-03",
+  "title": "Avrora stores and Ukraine supply infrastructure",
+  "total_core_nodes": 17,
+  "total_avrora_stores": 1935,
+  "total_warehouses": 5320,
+  "total_logistics_centres": 8,
+  "total_food_infrastructure": 281,
+  "total_map_points": 7561,
+  "non_avrora_retail_points": 0,
+  "counts_by_group": {
+    "avrora_logistics": 4,
+    "historic_avrora": 1,
+    "food_partners": 4,
+    "fine_eat_manufacturers": 1,
+    "assortment_manufacturers": 7,
+    "avrora_store": 1935,
     "logistics_center": 8,
-    "warehouse": 5320
+    "warehouse": 5320,
+    "beverage_production": 17,
+    "food_production": 160,
+    "grain_processing_storage": 104
   },
   "counts_by_status": {
-    "active_or_unknown": 6187,
-    "disused": 9,
-    "abandoned": 12,
-    "ruins": 3
+    "damaged": 1,
+    "active": 14,
+    "unclear": 1,
+    "destroyed_historic": 1
   },
-  "before_deduplication": 6212,
-  "duplicates_removed": 1,
-  "outside_ukraine_boundary_removed": 49,
-  "explicitly_sensitive_features_excluded": 0,
-  "boundary_found": true,
-  "matched_tags": [
-    "shop=department_store",
-    "building=warehouse",
-    "building:use=warehouse",
-    "industrial=warehouse",
-    "industrial=logistics",
-    "industrial=distribution"
-  ]
+  "caveat": "Retail locations are limited to official Avrora stores. Other layers contain warehouses, logistics and non-retail food infrastructure."
 }

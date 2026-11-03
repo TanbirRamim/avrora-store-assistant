@@ -190,10 +190,10 @@ test("Decisions log lists decisions and supports undo", async ({ page }) => {
   await expect(page.getByText("No decisions yet.", { exact: false })).toBeVisible();
 });
 
-test("Map embeds the public Ukraine location dataset", async ({ page }) => {
+test("Map embeds Avrora stores and Ukraine supply infrastructure", async ({ page }) => {
   await openNav(page, "Map");
-  await expect(page.getByRole("heading", { name: "Ukraine commercial network" })).toBeVisible();
-  const map = page.getByTitle("Ukraine department stores, warehouses and logistics centres");
+  await expect(page.getByRole("heading", { name: "Avrora stores & supply infrastructure" })).toBeVisible();
+  const map = page.getByTitle("Avrora stores and supply infrastructure in Ukraine");
   await expect(map).toBeVisible();
   await expect(map).toHaveAttribute("src", "/network-map/index.html");
 });

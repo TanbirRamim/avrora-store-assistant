@@ -129,7 +129,7 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        <p className="t-caption mt-auto px-2 text-label-2">Store demo data is fictional. Map data: OpenStreetMap.</p>
+        <p className="t-caption mt-auto px-2 text-label-2">Store demo data is fictional. Map data: official Avrora sources and OpenStreetMap.</p>
       </nav>
 
       <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 md:pb-0">
@@ -278,11 +278,11 @@ export default function Home() {
           {view === "map" && (
             <section className="h-full min-h-[640px]" aria-labelledby="network-map-heading">
               <div className="mb-3 px-1">
-                <h1 id="network-map-heading" className="t-title2">Ukraine commercial network</h1>
-                <p className="t-footnote mt-1 text-label-2">6,211 public OpenStreetMap locations: department stores, warehouses and logistics centres.</p>
+                <h1 id="network-map-heading" className="t-title2">Avrora stores & supply infrastructure</h1>
+                <p className="t-footnote mt-1 text-label-2">Ukraine only: 1,935 official Avrora stores, 5,320 warehouses, 8 logistics centres and 281 non-retail food-infrastructure sites.</p>
               </div>
               <iframe
-                title="Ukraine department stores, warehouses and logistics centres"
+                title="Avrora stores and supply infrastructure in Ukraine"
                 src="/network-map/index.html"
                 className="h-[calc(100%-62px)] min-h-[570px] w-full rounded-[14px] border border-separator bg-[#07111f]"
                 loading="lazy"
