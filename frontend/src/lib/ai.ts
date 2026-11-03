@@ -40,3 +40,6 @@ export function forgetKey() {
   write(KEY, null);
   write(BRIEFING, null);
 }
+
+/** The saved Open WebUI key, or an empty string. */
+export const savedKey = () => (read(KEY) ?? "").trim();

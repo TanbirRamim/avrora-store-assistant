@@ -6,9 +6,10 @@
  * not in that action's data falls back to the engine's text.
  */
 import type { Action, Briefing } from "./api";
+import { allowedNumbers, chatJson, grounded, ModelError } from "./ollama";
 
-const HOST = "https://im-kigs-openwebui.oth-regensburg.de/ollama";
-const MODEL = "qwen3:32b";
+export { ModelError };
+
 const CANDIDATES = 12;
 const TOP_N = 5;
 
@@ -38,29 +39,6 @@ const SCHEMA = {
   required: ["summary", "priorities"],
 };
 
-export class ModelError extends Error {}
-
-const NUM = /\d+(?:[.,]\d+)?/g;
-const round1 = (x: number) => Math.round(x * 10) / 10;
-
-function allowedNumbers(values: unknown[]): Set<number> {
-  const nums = new Set<number>();
-  for (const v of values)
-    for (const m of String(v).match(NUM) ?? []) {
-      const x = Number(m.replace(",", "."));
-      nums.add(x).add(Math.round(x)).add(round1(x));
-    }
-  return nums;
-}
-
-function grounded(text: string, allowed: Set<number>): boolean {
-  for (const m of text.replace(/[  ]/g, "").match(NUM) ?? []) {
-    const x = Number(m.replace(",", "."));
-    if (!allowed.has(x) && !allowed.has(Math.round(x)) && !(x <= 7 && Number.isInteger(x))) return false;
-  }
-  return text.split(/\s+/).length <= 40;
-}
-
 const valuesOf = (a: Action): unknown[] => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah];
 
 export async function draftBriefing(key: string, actions: Action[], notices: Action[]): Promise<Briefing> {
@@ -72,30 +50,9 @@ export async function draftBriefing(key: string, actions: Action[], notices: Act
     store_notes: notices.map((n) => n.reason),
   });
 
-  let res: Response;
-  try {
-    res = await fetch(`${HOST}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: MODEL, stream: false, think: false, format: SCHEMA, options: { temperature: 0 },
-        messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: payload }],
-      }),
-      signal: AbortSignal.timeout(180_000),
-    });
-  } catch {
-    throw new ModelError("The OTH server could not be reached. It only answers on the university network, so connect to the OTH VPN and try again.");
-  }
-  if (res.status === 401 || res.status === 403) throw new ModelError("The OTH server rejected this key. Check it in Open WebUI under Settings, Account.");
-  if (res.status === 404) throw new ModelError(`The OTH server has no model called ${MODEL}.`);
-  if (!res.ok) throw new ModelError(`The OTH server answered with an error (${res.status}). Try again.`);
-
-  let draft: { summary: string; priorities: { action_id: string; reason: string }[] };
-  try {
-    draft = JSON.parse(((await res.json()) as { message: { content: string } }).message.content);
-  } catch {
-    throw new ModelError("The AI answer could not be used. Try again.");
-  }
+  const draft = await chatJson<{ summary: string; priorities: { action_id: string; reason: string }[] }>(
+    key, SYSTEM_PROMPT, payload, SCHEMA,
+  );
 
   const byId = new Map(cands.map((a) => [a.id, a]));
   const chosen: Action[] = [];

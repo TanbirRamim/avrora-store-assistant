@@ -3,13 +3,13 @@
  *
  * The store data is synthetic and fixed, so the read-only routes serve a snapshot that
  * `python -m avrora.export` writes at build time. Decisions are the only runtime state
- * and live in D1. Routes and payloads match the FastAPI backend.
+ * and live in D1. Routes and payloads match the FastAPI backend. Push notifications
+ * (/api/push/* and the cron trigger) exist only here.
  */
+import { handlePush, sendUrgent, type PushEnv } from "./push";
 import snapshot from "./snapshot.json";
 
-interface Env {
-  DB: D1Database;
-}
+type Env = PushEnv;
 
 type DecisionKind = "approve" | "reject" | "change";
 
@@ -87,6 +87,8 @@ export default {
       }
     }
 
+    if (pathname.startsWith("/api/push/")) return (await handlePush(req, env, pathname)) ?? fail(404, "Not found");
+
     if (method === "POST" && pathname === "/api/decisions") return decide(req, env);
 
     const undo = pathname.match(/^\/api\/decisions\/([^/]+)$/);
@@ -96,5 +98,10 @@ export default {
     }
 
     return fail(404, "Not found");
+  },
+
+  // Every 15 minutes: push new urgent signals to subscribed phones.
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(sendUrgent(env).then((r) => console.log("push run", r)));
   },
 } satisfies ExportedHandler<Env>;

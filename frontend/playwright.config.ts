@@ -8,7 +8,9 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: [["list"]],
-  use: { baseURL: BASE_URL, colorScheme: "light", trace: "retain-on-failure" },
+  use: { baseURL: BASE_URL, colorScheme: "light",
+    // a registered service worker hides network calls from page.route mocks
+    serviceWorkers: "block", trace: "retain-on-failure" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 960 } } },
     { name: "iphone", use: { ...devices["iPhone 15"] } },

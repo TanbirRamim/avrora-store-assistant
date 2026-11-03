@@ -190,12 +190,35 @@ test("Decisions log lists decisions and supports undo", async ({ page }) => {
   await expect(page.getByText("No decisions yet.", { exact: false })).toBeVisible();
 });
 
-test("Map embeds the public Ukraine location dataset", async ({ page }) => {
+test("Map shows the OpenStreetMap network with filters and search", async ({ page }, info) => {
+  const errors = watchConsole(page);
   await openNav(page, "Map");
-  await expect(page.getByRole("heading", { name: "Ukraine commercial network" })).toBeVisible();
-  const map = page.getByTitle("Ukraine department stores, warehouses and logistics centres");
-  await expect(map).toBeVisible();
-  await expect(map).toHaveAttribute("src", "/network-map/index.html");
+  await expect(page.getByRole("heading", { name: "Supply network" })).toBeVisible();
+  await expect(page.getByText("6,211 places in Ukraine from OpenStreetMap")).toBeVisible();
+  await expect(page.getByText("6,211 shown")).toBeVisible();
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await expect(page.getByLabel("Avrora Store #417, Vinnytsia")).toBeVisible();
+
+  await page.getByRole("tab", { name: "Stores" }).click();
+  await expect(page.getByText("883 shown")).toBeVisible();
+  await page.getByRole("tab", { name: "Logistics" }).click();
+  await expect(page.getByText("8 shown")).toBeVisible();
+
+  await page.getByRole("tab", { name: "All" }).click();
+  await page.getByLabel("Search places").fill("Ungurian");
+  const hits = page.getByRole("list", { name: "Search results" }).getByRole("button");
+  await expect(hits.first()).toBeVisible();
+  await hits.first().click();
+  await expect(page.locator(".nm-popup")).toContainText("Ungurian Trans", { timeout: 8000 });
+  await expect(page.locator(".nm-popup").getByRole("link", { name: "View on OpenStreetMap" })).toBeVisible();
+  await page.waitForTimeout(2500); // let the flight land and the street tiles load
+  await expect(page.locator(".nm-popup")).toBeInViewport({ ratio: 1 });
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-map-place.png` });
+
+  await page.getByRole("button", { name: "Your store" }).click();
+  await page.waitForTimeout(2000);
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-map-store.png` });
+  expect(errors).toEqual([]);
 });
 
 test("switching sections starts at the top", async ({ page }) => {

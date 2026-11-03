@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Store Assistant",
   description: "Today's priorities for your store",
+  // iOS reads these when the app is added to the Home Screen (needed for notifications on iPhone).
+  appleWebApp: { capable: true, title: "Store", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

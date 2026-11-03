@@ -6,6 +6,7 @@ import useSWR from "swr";
 import type { Action, Decision, DecisionKind, ProductDetail } from "@/lib/api";
 import { fetcher } from "@/lib/api";
 import { adjustable, money, proposalText, TYPE_META } from "@/lib/format";
+import { AskSection, SupplierDraft } from "./AiAssist";
 import { Chart } from "./Chart";
 import { CloseIcon, TypeIcon } from "./icons";
 
@@ -32,6 +33,8 @@ interface Props {
   onClose: () => void;
   onDecide: (kind: DecisionKind, opts?: { reason?: string; value?: number }) => Promise<void>;
   onUndo: () => Promise<void>;
+  /** Opens the key sheet; without it the AI sections show a short hint instead. */
+  onAddKey?: () => void;
 }
 
 function formatFact(key: string, v: number | string) {
@@ -42,7 +45,7 @@ function formatFact(key: string, v: number | string) {
   return `${v}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`;
 }
 
-export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Props) {
+export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAddKey }: Props) {
   const meta = TYPE_META[action.type];
   const adj = adjustable(action);
   const [mode, setMode] = useState<"idle" | "adjust" | "dismiss">("idle");
@@ -134,6 +137,10 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo }: Pro
             ))}
           </dl>
         </section>
+
+        <AskSection action={action} product={product} onAddKey={onAddKey} />
+
+        {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={action} onAddKey={onAddKey} />}
 
         <section aria-busy={!product}>
           <h3 className="group-header">Trend</h3>

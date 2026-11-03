@@ -1,12 +1,14 @@
 "use client";
 
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { ActionRow } from "@/components/ActionRow";
 import { AiSheet } from "@/components/AiSheet";
 import { DetailPanel } from "@/components/DetailPanel";
-import { BoltIcon, BoxIcon, ClockIcon, ListIcon, MapIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
+import { NotificationsSheet } from "@/components/NotificationsSheet";
+import { NetworkMap } from "@/components/NetworkMap";
+import { BellIcon, BoltIcon, BoxIcon, ChevronIcon, ClockIcon, ListIcon, MapIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
 import { Ring } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview } from "@/lib/api";
 import { useAi } from "@/lib/ai";
@@ -39,6 +41,23 @@ export default function Home() {
   const ai = useAi();
   const briefing = ai.briefing ?? baseBriefing;
   const [aiOpen, setAiOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  // Notification taps open the app at /?action=<id>, or message an already open window.
+  // The service worker is registered when notifications are turned on and stays registered.
+  useEffect(() => {
+    const openUrl = (href: string) => {
+      const id = new URL(href, location.href).searchParams.get("action");
+      if (!id) return;
+      setViewState("today");
+      setSelectedId(id);
+    };
+    openUrl(location.href);
+    if (location.search) history.replaceState(null, "", location.pathname);
+    const onMessage = (e: MessageEvent) => e.data?.type === "open-url" && openUrl(e.data.url);
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
+  }, []);
   const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
   const { data: decisions, mutate: mutateDecisions } = useSWR<Decision[]>("/api/decisions", fetcher);
 
@@ -129,11 +148,19 @@ export default function Home() {
             </li>
           ))}
         </ul>
-        <p className="t-caption mt-auto px-2 text-label-2">Store demo data is fictional. Map data: OpenStreetMap.</p>
+        <button
+          onClick={() => setNotifOpen(true)}
+          className="t-subhead mt-auto flex w-full items-center gap-2.5 rounded-[6px] px-2 py-[5px] hover:bg-fill"
+        >
+          <BellIcon size={17} className="text-tint" />
+          Notifications
+        </button>
+        <p className="t-caption mt-3 px-2 text-label-2">Store data is fictional. Map data: OpenStreetMap.</p>
       </nav>
 
-      <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto pb-24 md:pb-0">
-        <div className={view === "map" ? "h-full p-3 md:p-4" : "mx-auto max-w-[720px] px-4 pb-16 pt-6 md:px-8 md:pt-10"}>
+      <main ref={mainRef} className={`relative min-w-0 flex-1 ${view === "map" ? "overflow-hidden pb-[calc(56px+env(safe-area-inset-bottom))] md:pb-0" : "overflow-y-auto pb-24 md:pb-0"}`}>
+        {view === "map" && <NetworkMap />}
+        <div className={view === "map" ? "hidden" : "mx-auto max-w-[720px] px-4 pb-16 pt-6 md:px-8 md:pt-10"}>
           {view === "today" && (
             <>
               {header(
@@ -228,6 +255,20 @@ export default function Home() {
                   </dl>
                 </section>
               )}
+
+              {/* phones have no sidebar: settings live at the end of Today, as in iOS */}
+              <section className="mt-8 md:hidden">
+                <h2 className="group-header">Settings</h2>
+                <div className="group-list">
+                  <button onClick={() => setNotifOpen(true)} className="cell flex w-full items-center gap-3 px-4 py-[9px] text-left">
+                    <span className="icon-tile size-[30px]" style={{ background: "var(--order)" }}>
+                      <BellIcon size={17} />
+                    </span>
+                    <span className="t-body flex-1">Notifications</span>
+                    <ChevronIcon className="text-label-3" />
+                  </button>
+                </div>
+              </section>
             </>
           )}
 
@@ -275,20 +316,6 @@ export default function Home() {
             </>
           )}
 
-          {view === "map" && (
-            <section className="h-full min-h-[640px]" aria-labelledby="network-map-heading">
-              <div className="mb-3 px-1">
-                <h1 id="network-map-heading" className="t-title2">Ukraine commercial network</h1>
-                <p className="t-footnote mt-1 text-label-2">6,211 public OpenStreetMap locations: department stores, warehouses and logistics centres.</p>
-              </div>
-              <iframe
-                title="Ukraine department stores, warehouses and logistics centres"
-                src="/network-map/index.html"
-                className="h-[calc(100%-62px)] min-h-[570px] w-full rounded-[14px] border border-separator bg-[#07111f]"
-                loading="lazy"
-              />
-            </section>
-          )}
 
           {view === "log" && (
             <>
@@ -353,6 +380,8 @@ export default function Home() {
         ))}
       </nav>
 
+      <AnimatePresence>{notifOpen && <NotificationsSheet onClose={() => setNotifOpen(false)} />}</AnimatePresence>
+
       <AnimatePresence>{aiOpen && (
           <AiSheet
             hasKey={ai.hasKey}
@@ -382,6 +411,7 @@ export default function Home() {
                 onClose={() => setSelectedId(null)}
                 onDecide={(kind, opts) => decide(selected.id, kind, opts)}
                 onUndo={() => undo(selected.id)}
+                onAddKey={() => setAiOpen(true)}
               />
             </div>
           </>

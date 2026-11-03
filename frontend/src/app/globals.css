@@ -91,3 +91,27 @@ html {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Map (MapLibre): popup card, store pin and controls in the app's style */
+.nm-popup .maplibregl-popup-content {
+  padding: 12px 14px 10px; border-radius: 12px; font-family: var(--font-sans);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+.nm-popup .maplibregl-popup-tip { display: none; }
+.nm-kind { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 600; }
+.nm-dot { width: 8px; height: 8px; border-radius: 999px; }
+.nm-name { margin-top: 2px; font-size: 16px; line-height: 21px; font-weight: 600; color: var(--label); letter-spacing: -0.02em; }
+.nm-row { margin-top: 2px; font-size: 13px; line-height: 18px; color: var(--label-2); }
+.nm-status { color: var(--order-text); }
+.nm-link { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 500; color: var(--tint); }
+.nm-store {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: var(--order);
+  border: 2.5px solid #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important; overflow: hidden; }
+.maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.maplibregl-ctrl-attrib { font-family: var(--font-sans); }
+/* phones: pinch to zoom, so the +/- buttons go (as in Apple Maps) */
+@media (max-width: 767px) { .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; } }
+.nm-store { z-index: 1; }
+.maplibregl-popup.nm-popup { z-index: 2; }

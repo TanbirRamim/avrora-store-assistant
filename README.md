@@ -9,12 +9,12 @@ The operational store data in this repository is synthetic. It describes one fic
 
 - `backend/` – Python: synthetic dataset, analytics, action engine, AI layer, API
 - `frontend/` – Next.js web app for store managers, including the Ukraine commercial network map
-- `docs/ukraine-commercial-map.md` – map scope, sources, methodology and licence
+- `docs/ukraine-commercial-map.md` – map implementation, data files, sources, methodology and licence
 - `cloudflare/` – Worker that hosts the app on Cloudflare, with decisions in D1
 
 ## Ukraine commercial network map
 
-Open **Map** in the app to explore 6,211 public OpenStreetMap locations: 883 department stores, 5,320 warehouses and 8 logistics/distribution centres. The static map supports category filters, search, marker clustering, CSV/GeoJSON downloads and an embedding API. Its dated data snapshot and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
+Open **Map** in the app to explore 6,211 public OpenStreetMap locations: 883 department stores, 5,320 warehouses and 8 logistics/distribution centres. The map is a MapLibre component (`frontend/src/components/NetworkMap.tsx`) with category filters, search and clustering. The full export is in `frontend/public/map/` as CSV and GeoJSON. Its dated data snapshot and methodology are documented in [`docs/ukraine-commercial-map.md`](docs/ukraine-commercial-map.md).
 
 ## Backend quick start
 
