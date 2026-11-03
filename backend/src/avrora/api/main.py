@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import closing
 from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
 
+import httpx
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -211,3 +213,37 @@ def evaluation() -> EvaluationOut:
     s = evaluate(_plan())
     return EvaluationOut(planted=s.planted, found=s.found, precision=s.precision, recall=s.recall,
                          missed=s.missed, extra=s.extra)
+
+
+ALERTS_URL = "https://api.alerts.in.ua/v1/alerts/active.json"
+
+
+def summarise_alerts(alerts: list[dict], fetched_at: str) -> dict:
+    """Oblast-level (and Kyiv city) titles versus community titles, as cloudflare/src/wartime.ts does."""
+    oblasts: set[str] = set()
+    hromadas: set[str] = set()
+    for a in alerts:
+        title, kind = a.get("location_title"), a.get("location_type")
+        if not title:
+            continue
+        if kind in ("oblast", "city"):
+            oblasts.add(title)
+        elif kind in ("hromada", "community"):
+            hromadas.add(title)
+    return {"connected": True, "source": "alerts.in.ua", "fetched_at": fetched_at,
+            "oblasts": sorted(oblasts), "hromadas": sorted(hromadas)}
+
+
+@app.get("/api/wartime/alerts")
+def wartime_alerts() -> dict:
+    """Live air-raid alerts for the map's war-time mode. Needs ALERTS_IN_UA_TOKEN; never simulated."""
+    token = os.getenv("ALERTS_IN_UA_TOKEN", "")
+    if not token:
+        return {"connected": False, "reason": "no_token"}
+    try:
+        r = httpx.get(ALERTS_URL, headers={"Authorization": f"Bearer {token}"}, timeout=8)
+        r.raise_for_status()
+        alerts = r.json().get("alerts", [])
+    except (httpx.HTTPError, ValueError):
+        return {"connected": False, "reason": "unavailable"}
+    return summarise_alerts(alerts, datetime.now(UTC).isoformat())

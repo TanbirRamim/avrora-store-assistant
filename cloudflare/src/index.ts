@@ -8,8 +8,9 @@
  */
 import { handlePush, sendUrgent, type PushEnv } from "./push";
 import snapshot from "./snapshot.json";
+import { wartimeAlerts } from "./wartime";
 
-type Env = PushEnv;
+type Env = PushEnv & { ALERTS_IN_UA_TOKEN?: string };
 
 type DecisionKind = "approve" | "reject" | "change";
 
@@ -73,6 +74,8 @@ export default {
         case "/api/actions":
         case "/api/evaluation":
           return json(snapshot[pathname.slice(5) as "overview" | "briefing" | "actions" | "evaluation"]);
+        case "/api/wartime/alerts":
+          return json(await wartimeAlerts(env.ALERTS_IN_UA_TOKEN));
         case "/api/decisions": {
           const { results } = await env.DB.prepare(
             "SELECT action_id, decision, reason, value, decided_at FROM decisions ORDER BY decided_at DESC",
