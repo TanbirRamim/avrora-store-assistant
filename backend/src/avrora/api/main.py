@@ -338,3 +338,32 @@ def wartime_alerts() -> dict:
     except (httpx.HTTPError, ValueError):
         return {"connected": False, "reason": "unavailable"}
     return summarise_alerts(alerts, datetime.now(UTC).isoformat())
+
+
+MAPA_CURRENT_URL = "https://mapa.ua/api/v1/current"
+
+
+@app.get("/api/wartime/threats")
+def wartime_threats() -> dict:
+    """Sanitised public aerial-threat reports for defensive supply-chain planning."""
+    try:
+        response = httpx.get(MAPA_CURRENT_URL, timeout=8)
+        response.raise_for_status()
+        body = response.json()
+    except (httpx.HTTPError, ValueError):
+        return {"connected": False, "reason": "unavailable"}
+    threats = []
+    for item in body.get("objects", []):
+        if not isinstance(item.get("lat"), (int, float)) or not isinstance(item.get("lon"), (int, float)):
+            continue
+        threats.append({
+            "id": str(item.get("id", "")),
+            "kind": item.get("kind", "unknown"),
+            "title": item.get("title", "Active aerial threat"),
+            "lat": item["lat"],
+            "lon": item["lon"],
+            "amount": item.get("amount", 1),
+            "status": item.get("status", "active"),
+        })
+    fetched = datetime.fromtimestamp(body.get("ts", datetime.now(UTC).timestamp()), UTC).isoformat()
+    return {"connected": True, "source": "mapa.ua", "fetched_at": fetched, "threats": threats}
