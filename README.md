@@ -51,6 +51,10 @@ npm install
 npm run deploy                  # export snapshot, build the web app, apply D1 migrations, deploy
 ```
 
+AI briefing on the live site: open **Write with AI** under the day's summary and paste an Open WebUI API key. The
+browser calls the OTH server directly, so the key never reaches Cloudflare. The OTH server only accepts connections
+from the university network, so this needs campus Wi-Fi or the OTH VPN; without it the app uses the rules text.
+
 To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright test`.
 
 ## How it decides

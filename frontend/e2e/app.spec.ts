@@ -52,6 +52,48 @@ test("Today shows the date, summary, store note and five priorities", async ({ p
   expect(errors).toEqual([]);
 });
 
+test("AI briefing: add a key, see the model's text, remove the key", async ({ page }) => {
+  // The browser calls the OTH server directly; answer for it so the test needs no VPN or key.
+  let sentKey = "";
+  await page.route("https://im-kigs-openwebui.oth-regensburg.de/ollama/api/chat", async (route) => {
+    sentKey = route.request().headers()["authorization"] ?? "";
+    if (sentKey === "Bearer sk-wrong-key") return route.fulfill({ status: 401, body: "" });
+    const { candidates } = JSON.parse(JSON.parse(route.request().postData()!).messages[1].content);
+    const content = JSON.stringify({
+      summary: "Restock the mugs first; the rest can follow.",
+      priorities: candidates.slice(0, 5).map((c: { id: string }) => ({ action_id: c.id, reason: "Plain reason from the model." })),
+    });
+    await route.fulfill({ json: { message: { content } } });
+  });
+
+  await expect(page.getByText("Ranked by rules.")).toBeVisible();
+  await page.getByRole("button", { name: "Write with AI" }).click();
+  const dialog = page.getByRole("dialog", { name: "AI briefing" });
+  const submit = dialog.getByRole("button", { name: "Save and write briefing" });
+  await expect(submit).toBeDisabled();
+
+  await dialog.getByLabel("Open WebUI API key").fill("sk-wrong-key");
+  await submit.click();
+  await expect(dialog.getByRole("alert")).toContainText("rejected this key");
+
+  await dialog.getByLabel("Open WebUI API key").fill("sk-test-key-123");
+  await submit.click();
+  await expect(dialog).toBeHidden();
+  expect(sentKey).toBe("Bearer sk-test-key-123");
+  await expect(todayList(page).getByText("Plain reason from the model.")).toHaveCount(5);
+  await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
+  await expect(page.getByText("Written by the OTH model, numbers checked.")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
+
+  await page.getByRole("button", { name: "AI settings" }).click();
+  await expect(dialog.getByLabel("Open WebUI API key")).toHaveAttribute("placeholder", "Saved in this browser");
+  await dialog.getByRole("button", { name: "Remove key and use rules" }).click();
+  await expect(page.getByText("Ranked by rules.")).toBeVisible();
+  expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("avrora.")))).toEqual([]);
+});
+
 test("light appearance uses Apple grouped background", async ({ page }) => {
   const bg = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
   expect(bg).toBe("rgb(242, 242, 247)");
@@ -180,6 +222,9 @@ test("no accessibility violations on Today, All suggestions and the detail panel
   await page.keyboard.press("Escape");
   await openNav(page, "All suggestions");
   await scan("all");
+  await openNav(page, "Today");
+  await page.getByRole("button", { name: "Write with AI" }).click();
+  await scan("ai sheet");
 });
 
 test("screens for review", async ({ page }, info) => {
@@ -197,4 +242,8 @@ test("screens for review", async ({ page }, info) => {
   await openNav(page, "All suggestions");
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${dir}/${info.project.name}-all.png` });
+  await openNav(page, "Today");
+  await page.getByRole("button", { name: "Write with AI" }).click();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${dir}/${info.project.name}-ai.png` });
 });

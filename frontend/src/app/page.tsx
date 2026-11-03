@@ -4,10 +4,12 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { ActionRow } from "@/components/ActionRow";
+import { AiSheet } from "@/components/AiSheet";
 import { DetailPanel } from "@/components/DetailPanel";
-import { BoltIcon, BoxIcon, ClockIcon, ListIcon, SunIcon, TypeIcon } from "@/components/icons";
+import { BoltIcon, BoxIcon, ClockIcon, ListIcon, SparkleIcon, SunIcon, TypeIcon } from "@/components/icons";
 import { Ring } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview } from "@/lib/api";
+import { useAi } from "@/lib/ai";
 import { api, fetcher } from "@/lib/api";
 import { longDate, money, TYPE_META } from "@/lib/format";
 
@@ -32,7 +34,10 @@ export default function Home() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
 
   const { data: overview, error: overviewError } = useSWR<Overview>("/api/overview", fetcher);
-  const { data: briefing } = useSWR<Briefing>("/api/briefing", fetcher);
+  const { data: baseBriefing } = useSWR<Briefing>("/api/briefing", fetcher);
+  const ai = useAi();
+  const briefing = ai.briefing ?? baseBriefing;
+  const [aiOpen, setAiOpen] = useState(false);
   const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
   const { data: decisions, mutate: mutateDecisions } = useSWR<Decision[]>("/api/decisions", fetcher);
 
@@ -136,6 +141,15 @@ export default function Home() {
                 priorities.length > 0 ? <Ring done={handled.length} total={priorities.length} /> : null,
               )}
               <p className="t-body mt-2 px-1 text-label-2">{briefing?.summary ?? "Preparing today's priorities…"}</p>
+              {briefing && (
+                <p className="t-footnote mt-2 flex flex-wrap items-center gap-x-1.5 px-1 text-label-2">
+                  <SparkleIcon size={13} className={briefing.source === "model" ? "text-tint" : ""} />
+                  {briefing.source === "model" ? "Written by the OTH model, numbers checked." : "Ranked by rules."}
+                  <button onClick={() => setAiOpen(true)} className="font-medium text-tint">
+                    {briefing.source === "model" ? "AI settings" : "Write with AI"}
+                  </button>
+                </p>
+              )}
 
               {briefing?.notices.map((n) => (
                 <div key={n.id} className="group-list mt-6 flex items-start gap-3 px-4 py-3">
@@ -322,6 +336,15 @@ export default function Home() {
           </button>
         ))}
       </nav>
+
+      <AnimatePresence>{aiOpen && (
+          <AiSheet
+            hasKey={ai.hasKey}
+            actions={actions ?? []}
+            notices={baseBriefing?.notices ?? []}
+            onClose={() => setAiOpen(false)}
+          />
+        )}</AnimatePresence>
 
       {/* Inspector (desktop) / sheet (mobile) */}
       <AnimatePresence>
