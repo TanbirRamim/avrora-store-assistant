@@ -77,7 +77,19 @@ const FILTERS: { id: Filter; label: string; cats: Category[] }[] = [
 const inFilter = (filter: Filter, c: Category) => FILTERS.find((f) => f.id === filter)!.cats.includes(c);
 
 type Mode = "network" | "war";
-const NETWORK_LAYERS = ["clusters", "cluster-count", "points", "key-points"];
+type NetworkGroup = "avrora" | "supply" | "storage" | "food";
+const NETWORK_GROUPS: NetworkGroup[] = ["avrora", "supply", "storage", "food"];
+const NETWORK_GROUP_CONFIG: Record<NetworkGroup, { letter: string; color: string; cats: Category[] }> = {
+  avrora: { letter: "A", color: CATEGORIES.avrora.color, cats: ["avrora"] },
+  supply: { letter: "S", color: CATEGORIES.supply.color, cats: ["supply"] },
+  storage: { letter: "S", color: CATEGORIES.warehouse.color, cats: ["warehouse", "logistics"] },
+  food: { letter: "F", color: CATEGORIES.food.color, cats: ["food"] },
+};
+const NETWORK_LAYERS = NETWORK_GROUPS.flatMap((group) => [
+  `${group}-clusters`,
+  `${group}-cluster-letter`,
+  `${group}-points`,
+]);
 const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-halo", "war-stores"];
 
 const fmt = new Intl.NumberFormat("en-US");
@@ -247,78 +259,61 @@ export function NetworkMap() {
 
       map.on("error", (e) => console.error("map:", e.error?.message));
       map.on("load", () => {
-        map.addSource("places", {
-          type: "geojson",
-          data: { type: "FeatureCollection", features: [] },
-          cluster: true,
-          clusterRadius: 44,
-          clusterMaxZoom: 13,
-          promoteId: "id",
-        });
-        // supply partners are few and the reason to open the map, so they are never folded into clusters
-        map.addSource("key", { type: "geojson", data: { type: "FeatureCollection", features: [] }, promoteId: "id" });
-        map.addLayer({
-          id: "clusters",
-          type: "circle",
-          source: "places",
-          filter: ["has", "point_count"],
-          paint: {
-            "circle-color": "rgba(28,28,30,0.86)",
-            "circle-radius": ["step", ["get", "point_count"], 13, 25, 16, 150, 19, 600, 23],
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#ffffff",
-            "circle-radius-transition": { duration: 300 },
-          },
-        });
-        map.addLayer({
-          id: "cluster-count",
-          type: "symbol",
-          source: "places",
-          filter: ["has", "point_count"],
-          layout: {
-            "text-field": ["get", "point_count_abbreviated"],
-            "text-font": ["Noto Sans Bold"],
-            "text-size": ["step", ["get", "point_count"], 11, 150, 12],
-            "text-allow-overlap": true,
-          },
-          paint: { "text-color": "#ffffff" },
-        });
-        map.addLayer({
-          id: "points",
-          type: "circle",
-          source: "places",
-          filter: ["!", ["has", "point_count"]],
-          paint: {
-            "circle-color": [
-              "match",
-              ["get", "c"],
-              "avrora",
-              CATEGORIES.avrora.color,
-              "logistics",
-              CATEGORIES.logistics.color,
-              "food",
-              CATEGORIES.food.color,
-              CATEGORIES.warehouse.color,
-            ],
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8],
-            "circle-stroke-width": 1.5,
-            "circle-stroke-color": "#ffffff",
-            "circle-opacity": ["case", ["has", "s"], 0.45, 1],
-            "circle-stroke-opacity": ["case", ["has", "s"], 0.45, 1],
-          },
-        });
-        map.addLayer({
-          id: "key-points",
-          type: "circle",
-          source: "key",
-          paint: {
-            "circle-color": CATEGORIES.supply.color,
-            "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 5.5, 12, 8, 16, 10],
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#ffffff",
-            "circle-opacity": ["case", ["has", "s"], 0.6, 1],
-          },
-        });
+        for (const group of NETWORK_GROUPS) {
+          const config = NETWORK_GROUP_CONFIG[group];
+          const sourceId = `network-${group}`;
+          map.addSource(sourceId, {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+            cluster: true,
+            clusterRadius: 44,
+            clusterMaxZoom: 13,
+            promoteId: "id",
+          });
+          map.addLayer({
+            id: `${group}-clusters`,
+            type: "circle",
+            source: sourceId,
+            filter: ["has", "point_count"],
+            paint: {
+              "circle-color": config.color,
+              "circle-radius": ["step", ["get", "point_count"], 13, 25, 16, 150, 19, 600, 23],
+              "circle-stroke-width": 2,
+              "circle-stroke-color": "#ffffff",
+              "circle-radius-transition": { duration: 300 },
+            },
+          });
+          map.addLayer({
+            id: `${group}-cluster-letter`,
+            type: "symbol",
+            source: sourceId,
+            filter: ["has", "point_count"],
+            layout: {
+              "text-field": config.letter,
+              "text-font": ["Noto Sans Bold"],
+              "text-size": 13,
+              "text-allow-overlap": true,
+            },
+            paint: { "text-color": "#ffffff" },
+          });
+          map.addLayer({
+            id: `${group}-points`,
+            type: "circle",
+            source: sourceId,
+            filter: ["!", ["has", "point_count"]],
+            paint: {
+              "circle-color":
+                group === "storage"
+                  ? ["match", ["get", "c"], "logistics", CATEGORIES.logistics.color, CATEGORIES.warehouse.color]
+                  : config.color,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8],
+              "circle-stroke-width": 1.5,
+              "circle-stroke-color": "#ffffff",
+              "circle-opacity": ["case", ["has", "s"], 0.45, 1],
+              "circle-stroke-opacity": ["case", ["has", "s"], 0.45, 1],
+            },
+          });
+        }
 
         // war-time layers; visibility follows the checkmarks
         map.addSource("war-lines", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -376,12 +371,6 @@ export function NetworkMap() {
           if (typeof id === "string") setWarId(id);
         });
 
-        map.on("click", "clusters", async (e: MapLayerMouseEvent) => {
-          const f = e.features?.[0];
-          if (!f) return;
-          const zoom = await (map.getSource("places") as GeoJSONSource).getClusterExpansionZoom(f.properties.cluster_id);
-          map.easeTo({ center: (f.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: zoom + 0.3, duration: 600 });
-        });
         const open = (e: MapLayerMouseEvent) => {
           const f = e.features?.[0];
           if (!f) return;
@@ -389,15 +378,24 @@ export function NetworkMap() {
           popupCat.current = (f.properties as Props).c;
           popupRef.current?.setLngLat(coords).setHTML(popupHtml(f.properties as Props)).addTo(map);
         };
-        map.on("click", "points", (e: MapLayerMouseEvent) => {
-          // a supply partner drawn on top of a point wins the click
-          if (!map.queryRenderedFeatures(e.point, { layers: ["key-points"] }).length) open(e);
-        });
-        map.on("click", "key-points", open);
-        for (const layer of ["clusters", "points", "key-points", "war-stores"]) {
-          map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
-          map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+        for (const group of NETWORK_GROUPS) {
+          const sourceId = `network-${group}`;
+          const clusterLayer = `${group}-clusters`;
+          const pointLayer = `${group}-points`;
+          map.on("click", clusterLayer, async (e: MapLayerMouseEvent) => {
+            const f = e.features?.[0];
+            if (!f) return;
+            const zoom = await (map.getSource(sourceId) as GeoJSONSource).getClusterExpansionZoom(f.properties.cluster_id);
+            map.easeTo({ center: (f.geometry as unknown as { coordinates: [number, number] }).coordinates, zoom: zoom + 0.3, duration: 600 });
+          });
+          map.on("click", pointLayer, open);
+          for (const layer of [clusterLayer, pointLayer]) {
+            map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+            map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+          }
         }
+        map.on("mouseenter", "war-stores", () => (map.getCanvas().style.cursor = "pointer"));
+        map.on("mouseleave", "war-stores", () => (map.getCanvas().style.cursor = ""));
         setReady(true);
       });
     })();
@@ -412,9 +410,13 @@ export function NetworkMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
-    const key = (f: Feature) => f.properties.c === "supply";
-    (map.getSource("places") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible.filter((f) => !key(f)) });
-    (map.getSource("key") as GeoJSONSource).setData({ type: "FeatureCollection", features: visible.filter(key) });
+    for (const group of NETWORK_GROUPS) {
+      const categories = NETWORK_GROUP_CONFIG[group].cats;
+      (map.getSource(`network-${group}`) as GeoJSONSource).setData({
+        type: "FeatureCollection",
+        features: visible.filter((f) => categories.includes(f.properties.c)),
+      });
+    }
     // close the popup only if its place has just been filtered out
     if (popupCat.current && !inFilter(filter, popupCat.current)) popupRef.current?.remove();
   }, [ready, visible, filter]);
