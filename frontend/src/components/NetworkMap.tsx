@@ -703,7 +703,7 @@ export function NetworkMap() {
               <>
                 {[
                   ["A", "Avrora", CATEGORIES.avrora.color],
-                  ["S", "Storage", CATEGORIES.warehouse.color],
+                  ["S", "Storage & logistics", CATEGORIES.warehouse.color],
                   ["F", "Food", CATEGORIES.food.color],
                 ].map(([letter, label, color]) => (
                   <span key={label} className="t-caption inline-flex items-center gap-1 text-label-2">
