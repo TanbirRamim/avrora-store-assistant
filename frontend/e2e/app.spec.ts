@@ -583,3 +583,14 @@ test("screens for review", async ({ page }, info) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${dir}/${info.project.name}-notifications.png` });
 });
+
+test("More shows the accuracy check against known issues", async ({ page }, info) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^More$/ }).filter({ visible: true }).first().click();
+  const row = page.getByRole("region", { name: "Accuracy check" });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("Checked against 20 known issues: all found, none wrong");
+  await expect(row).toContainText("20/20");
+  await expect(row).not.toContainText(/planted|demo|test/i);
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-more-accuracy.png` });
+});
