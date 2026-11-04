@@ -77,7 +77,7 @@ const rowNames = (page: Page) =>
 test("all clear is a quiet line; a failing feed hides the card", async ({ page }) => {
   await mockSignals(page, []);
   await open(page);
-  await expect(page.getByTestId("all-clear")).toHaveText(/All clear: no power cuts or severe weather ahead\. Air.raid alerts are not connected\./);
+  await expect(page.getByTestId("all-clear")).toHaveText("All clear: no power cuts or severe weather ahead.");
   await expect(live(page)).toHaveCount(0);
 
   await page.unroute("**/api/signals");
@@ -100,7 +100,7 @@ test("card lists power, alert and weather with simulated badges and sources", as
   // sources sit behind a quiet disclosure
   await card.getByText("Sources", { exact: true }).click();
   await expect(card.getByText(/Weather: Open.Meteo \(CC BY 4\.0\)\./)).toBeVisible();
-  await expect(card.getByText(/Air.raid alerts: not connected yet, simulated only\./)).toBeVisible();
+  await expect(card.getByText(/not connected/i)).toHaveCount(0);
   // the card sits above the store note
   const cardBox = (await card.boundingBox())!;
   const noteBox = (await page.getByText("Store note", { exact: true }).boundingBox())!;

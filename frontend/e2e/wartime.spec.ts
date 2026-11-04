@@ -42,7 +42,7 @@ test("war-time mode without an alerts token rates stores by distance only", asyn
   await page.route("**/api/wartime/alerts", (r) => r.fulfill({ json: { connected: false, reason: "no_token" } }));
   await openWartime(page);
 
-  await expect(page.getByText("Air-raid alerts not connected. Risk uses distance only.")).toBeVisible();
+  await expect(page.getByText(/not connected/i)).toHaveCount(0);
   await expect(page.getByText("Sample stores. The front line is a hand-drawn sketch", { exact: false })).toBeVisible();
   await expect(stores(page)).toHaveCount(13);
   // closest to the sketched line first, Lviv last
@@ -57,7 +57,7 @@ test("war-time mode without an alerts token rates stores by distance only", asyn
   const details = page.getByRole("region", { name: "War-time details for Kherson" });
   await expect(details).toBeVisible();
   await expect(details).toContainText("Open, high alert");
-  await expect(details).toContainText("Not connected");
+  await expect(details).not.toContainText(/not connected|Air-raid alert/i);
   await expect(details).toContainText("Generator, about");
   await page.waitForTimeout(1800); // let the flight land
   await page.screenshot({ path: `e2e/screens/${info.project.name}-wartime-store.png` });
@@ -131,10 +131,11 @@ test("aerial threats and supply sites at risk are shown and labelled as estimate
   expect(errors).toEqual([]);
 });
 
-test("without the threat feed the panel says so", async ({ page }) => {
+test("without the threat feed the panel stays quiet", async ({ page }) => {
+  await page.route("**/api/wartime/threats", (r) => r.fulfill({ json: { connected: false } }));
   await page.route("**/api/wartime/alerts", (r) => r.fulfill({ json: { connected: false, reason: "no_token" } }));
   await openWartime(page);
-  await expect(page.getByText("Aerial threat feed not connected.")).toBeVisible();
+  await expect(page.getByText(/not connected/i)).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Supply sites at risk" })).not.toContainText("near threats");
 });
 

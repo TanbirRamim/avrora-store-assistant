@@ -48,23 +48,18 @@ export function WartimePanel({
   onSelect: (id: string | null) => void;
   onExposure: (x: Exposure) => void;
 }) {
-  const alertLine = !alerts
-    ? "Checking air-raid alerts…"
-    : alerts.connected
-      ? `Air-raid alerts live from alerts.in.ua, ${time(alerts.fetched_at)}`
-      : "Air-raid alerts not connected. Risk uses distance only.";
-  const threatLine = !threats
-    ? "Checking aerial threats…"
-    : threats.connected
-      ? `${threats.threats.length ? `${threats.threats.length} aerial threats` : "No aerial threats"} reported, mapa.ua ${time(threats.fetched_at)}. Unofficial estimates.`
-      : "Aerial threat feed not connected.";
+  // Feeds that are off stay out of the UI; only live sources are named.
+  const alertLine = alerts?.connected ? `Air-raid alerts live from alerts.in.ua, ${time(alerts.fetched_at)}` : null;
+  const threatLine = threats?.connected
+    ? `${threats.threats.length ? `${threats.threats.length} aerial threats` : "No aerial threats"} reported, mapa.ua ${time(threats.fetched_at)}. Unofficial estimates.`
+    : null;
   const nearThreat = exposures?.filter((x) => x.threatKm !== null).length ?? 0;
 
   if (selected) {
     const { store: s, a } = selected;
     const rows: [string, string][] = [
       ["Front line", `${a.km} km (${ZONES[a.zone].label.toLowerCase()})`],
-      ["Air-raid alert", ALERT_LABEL[a.alert]],
+      ...(a.alert === "unknown" ? [] : [["Air-raid alert", ALERT_LABEL[a.alert]] as [string, string]]),
       ["Shelter", s.shelter_nearby],
       ["Power", s.power_status === "generator" ? `Generator, about ${a.runtimeHours} h of fuel` : POWER[s.power_status] ?? s.power_status],
       ["Connection", COMMS[s.comms_status] ?? s.comms_status],
@@ -107,10 +102,12 @@ export function WartimePanel({
 
   return (
     <>
-      <p className="t-footnote px-1 text-[var(--text-3)]" aria-live="polite">
-        {failed ? "The war-time data could not be loaded." : alertLine}
-      </p>
-      {!failed && (
+      {(failed || alertLine) && (
+        <p className="t-footnote px-1 text-[var(--text-3)]" aria-live="polite">
+          {failed ? "The war-time data could not be loaded." : alertLine}
+        </p>
+      )}
+      {!failed && threatLine && (
         <p className="t-footnote mt-0.5 flex items-center gap-1.5 px-1 text-[var(--text-3)]">
           <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#9333ea]" />
           {threatLine}
@@ -124,7 +121,7 @@ export function WartimePanel({
                 <span className="min-w-0 flex-1">
                   <span className="t-subhead block truncate">{s.city}</span>
                   <span className="t-caption num block truncate text-[var(--text-3)]">
-                    {a.km} km from the line, {ALERT_LABEL[a.alert] === "Not connected" ? a.mode : ALERT_LABEL[a.alert]}
+                    {a.km} km from the line, {a.alert === "unknown" ? a.mode : ALERT_LABEL[a.alert]}
                   </span>
                 </span>
                 <Grade a={a} />

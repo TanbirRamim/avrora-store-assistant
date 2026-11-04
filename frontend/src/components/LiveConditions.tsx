@@ -72,7 +72,6 @@ const badge = (s: Signal) => (s.source.includes("example") ? "Example" : "Simula
 export function LiveConditions({ data, replan, busy, error, hasKey, lang, onReplan, onRevert }: Props) {
   const now = useNow();
   const { signals, feeds } = data;
-  const alertsLive = feeds.find((f) => f.kind === "air_alert")?.live ?? false;
 
   if (signals.length === 0) {
     return (
@@ -80,7 +79,6 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
         <CheckCircleIcon size={17} className="mt-[1.5px] shrink-0 text-green" />
         <span>
           All clear: no power cuts or severe weather ahead.
-          {!alertsLive && nb(" Air-raid alerts are not connected.")}
         </span>
       </p>
     );
@@ -188,7 +186,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
             Sources
           </summary>
           <p className="t-footnote px-4 pb-3 text-muted">
-            {nb(feeds.map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" "))}
+            {nb(feeds.filter((f) => f.live).map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" "))}
           </p>
         </details>
       </div>
