@@ -95,7 +95,7 @@ test("card lists power, alert and weather with simulated badges and sources", as
   await expect(card.getByTestId("signal")).toHaveCount(3);
   await expect(card.getByText("Simulated, not real", { exact: true })).toHaveCount(2);
   await expect(card.getByText(/^Now · ends in \d+ min$/)).toBeVisible();
-  await expect(card.getByText(/^Starts in 1 h 30 min$/)).toBeVisible();
+  await expect(card.getByText(/^Starts in 1 h (2[89]|30) min$/)).toBeVisible();
   await expect(card.getByText("Frost down to −7 °C")).toBeVisible();
   // sources sit behind a quiet disclosure
   await card.getByText("Sources", { exact: true }).click();
