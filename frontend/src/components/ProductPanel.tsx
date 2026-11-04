@@ -8,6 +8,7 @@ import { fetcher } from "@/lib/api";
 import { money, proposalText, TYPE_META } from "@/lib/format";
 import { Chart } from "./Chart";
 import { CloseIcon, TruckIcon } from "./icons";
+import { ProductThumb } from "./CategoryIcon";
 import { ProductPurchases } from "./ProductPurchases";
 import { coverText, dayLabel, signed, STATUS_META, StatusChip, UPDATE_COLOR } from "./ProductStatus";
 
@@ -19,8 +20,8 @@ interface Props {
 }
 
 const units = (n: number) => `${n} ${n === 1 ? "unit" : "units"}`;
-const LIST = "overflow-hidden rounded-[14px] bg-paper";
-const H3 = "t-headline mb-2 px-1";
+const LIST = "overflow-hidden rounded-[12px] border border-[var(--border)] bg-paper shadow-[0_1px_2px_rgba(16,24,40,0.04)]";
+const H3 = "mb-2 px-1 text-[15px] font-semibold leading-[20px]";
 
 function Rows({ items }: { items: [string, React.ReactNode, string?][] }) {
   return (
@@ -42,7 +43,7 @@ function Stat({ label, value, unit, color, i }: { label: string; value: React.Re
   return (
     <div className={`px-4 py-3 ${i % 2 === 1 ? "border-l border-[var(--rule)]" : ""} ${i > 1 ? "border-t border-[var(--rule)]" : ""}`}>
       <dt className="t-footnote text-muted">{label}</dt>
-      <dd className="num mt-0.5 text-[20px] font-semibold leading-[26px]" style={color ? { color } : undefined}>
+      <dd className="num mt-0.5 text-[20px] font-semibold leading-[26px] tracking-[-0.02em]" style={color ? { color } : undefined}>
         {value}
         {unit && <span className="t-subhead font-normal text-muted"> {unit}</span>}
       </dd>
@@ -83,31 +84,32 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
       animate={{ y: 0, opacity: 1 }}
       exit={reduce ? { opacity: 0 } : { y: 24, opacity: 0 }}
       transition={reduce ? { duration: 0.15 } : { type: "spring", stiffness: 420, damping: 38 }}
-      className="float flex h-full flex-col overflow-hidden rounded-t-[18px] bg-floor lg:rounded-[18px]"
+      className="flex h-full flex-col overflow-hidden rounded-t-[16px] border border-[var(--border)] bg-floor shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] lg:rounded-[12px]"
       aria-label={`Product ${row.name}`}
     >
       <div className="flex justify-center pt-2 lg:hidden" aria-hidden>
-        <span className="h-[5px] w-9 rounded-full bg-[rgba(0,0,0,0.2)]" />
+        <span className="h-[5px] w-9 rounded-full bg-[#d4d4d8]" />
       </div>
-      <header className="flex items-start gap-3 px-5 pb-4 pt-2 lg:pt-5">
+      <header className="flex items-start gap-3 border-b border-[var(--border)] bg-paper px-5 pb-4 pt-2 lg:pt-5">
+        <ProductThumb category={row.category} size={48} />
         <div className="min-w-0 flex-1">
           <p className="t-footnote text-muted">
             {row.category}, from {row.supplier}
           </p>
-          <h2 className="t-title2 mt-1">{row.name}</h2>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="font-display num text-[26px] font-bold leading-[30px]">₴{row.price.toFixed(2)}</span>
+          <h2 className="mt-0.5 text-[20px] font-semibold leading-[26px] tracking-[-0.02em]">{row.name}</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="num text-[24px] font-semibold leading-[30px] tracking-[-0.02em]">₴{row.price.toFixed(2)}</span>
             <StatusChip status={row.status} />
           </div>
         </div>
         <button type="button" onClick={onClose} aria-label="Close product" className="-mr-2 -mt-1 grid size-[44px] shrink-0 place-items-center">
-          <span className="grid size-[32px] place-items-center rounded-full bg-fill text-ink transition-colors hover:bg-fill-2">
+          <span className="grid size-[32px] place-items-center rounded-full bg-[#f4f4f5] text-muted transition-colors hover:bg-[#e4e4e7] hover:text-ink">
             <CloseIcon />
           </span>
         </button>
       </header>
 
-      <div tabIndex={0} aria-label="Product details" className="flex-1 space-y-7 overflow-y-auto overscroll-contain px-4 pb-[max(env(safe-area-inset-bottom),24px)] pt-1 focus-visible:outline-none">
+      <div tabIndex={0} aria-label="Product details" className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-4 pb-[max(env(safe-area-inset-bottom),24px)] pt-4 focus-visible:outline-none">
         {row.actions.length > 0 && (
           <section>
             <h3 className={H3}>{row.actions.length > 1 ? "Open suggestions" : "Open suggestion"}</h3>
@@ -116,14 +118,15 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
                 const a = full.get(ref.id);
                 const tm = TYPE_META[ref.type];
                 return (
-                  <li key={ref.id} className="cell relative border-l-[6px] border-yellow px-4 py-3.5">
+                  <li key={ref.id} className="cell relative px-4 py-3.5 pl-5">
+                    <span aria-hidden className="absolute bottom-3 left-[6px] top-3 w-[3px] rounded-full bg-ink" />
                     <p className="t-footnote font-semibold" style={{ color: tm.text }}>
                       {tm.label}
                     </p>
-                    <p className="t-body mt-0.5 font-semibold">{a ? proposalText(a) : tm.label}</p>
+                    <p className="mt-0.5 text-[16px] font-semibold leading-[22px]">{a ? proposalText(a) : tm.label}</p>
                     <p className="t-footnote num text-muted">{money(ref.risk_uah)} at stake</p>
                     {onOpenAction && (
-                      <button type="button" onClick={() => open(ref.id)} className={`${i === 0 ? "btn-ink" : "btn-ghost"} mt-3 w-full sm:w-auto`}>
+                      <button type="button" onClick={() => open(ref.id)} className={`mt-3 inline-flex min-h-[44px] w-full items-center justify-center rounded-[10px] px-4 text-[15px] font-medium sm:w-auto ${i === 0 ? "bg-ink text-white hover:bg-[#27272a]" : "border border-[var(--border)] bg-paper text-ink hover:bg-[#fafafa]"}`}>
                         Review suggestion
                       </button>
                     )}
@@ -143,12 +146,12 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
             <Stat i={3} label="Sold this week" value={row.sold_7d} unit={row.sold_7d === 1 ? "unit" : "units"} />
           </dl>
           <div className={`${LIST} mt-3 flex min-h-[56px] items-center gap-3 px-4 py-3`}>
-            <span className="shrink-0" style={{ color: nd?.late ? "var(--orange)" : "var(--ink)" }}>
+            <span className="shrink-0" style={{ color: nd?.late ? "var(--orange)" : "#71717a" }}>
               <TruckIcon size={20} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="t-footnote block text-muted">Next delivery</span>
-              <span className="t-body num block font-medium" style={nd?.late ? { color: "var(--orange)" } : undefined}>
+              <span className="num block text-[15px] font-medium leading-[20px]" style={nd?.late ? { color: "var(--orange)" } : undefined}>
                 {nd ? `${units(nd.qty)}, ${nd.late ? `was due ${relative(dayLabel(nd.date, today))}` : relative(dayLabel(nd.date, today))}` : "None booked"}
               </span>
             </span>
@@ -177,7 +180,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
               {(product.updates ?? []).map((u, i, all) => (
                 <li key={i} className="relative flex items-start gap-3 py-2">
                   {i < all.length - 1 && <span className="absolute bottom-[-8px] left-[4px] top-[24px] w-[1.5px] bg-[var(--rule)]" aria-hidden />}
-                  <span className="mt-[6px] size-[10px] shrink-0 rounded-full" style={{ background: UPDATE_COLOR[u.kind] }} aria-hidden />
+                  <span className="relative mt-[6px] size-[10px] shrink-0 rounded-full ring-[3px] ring-[var(--floor)]" style={{ background: UPDATE_COLOR[u.kind] }} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="t-subhead block">{u.text}</span>
                     <span className="t-footnote block text-muted">{dayLabel(u.date, today)}</span>
@@ -203,7 +206,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
                 <Chart title="Stock on hand" unit="units" kind="line" color="var(--chart-mark)" data={stock} />
               </>
             ) : (
-              <div className="h-[340px] animate-pulse rounded-lg bg-fill" />
+              <div className="h-[340px] animate-pulse rounded-lg bg-[#f4f4f5]" />
             )}
           </div>
         </section>

@@ -15,6 +15,7 @@ import {
   BORDER_URL,
   type Exposure,
   exposure,
+  haversineKm,
   GRADES,
   LINES_URL,
   type LineFeature,
@@ -99,7 +100,7 @@ const NETWORK_LAYERS = ["clusters", "cluster-letter", "points", "key-points"];
 const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-exposed", "war-threat-halo", "war-threats", "war-halo", "war-stores"];
 /** Distribution sites whose exposure matters for deliveries; shops and food producers are left out. */
 const DISTRIBUTION: Category[] = ["supply", "warehouse", "logistics"];
-const THREAT_COLOR = "#af52de";
+const THREAT_COLOR = "#9333ea";
 
 /** Clusters take the colour of the category most of their places belong to (count per category). */
 const CLUSTER_COUNTS = {
@@ -200,11 +201,14 @@ export function NetworkMap() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [failed, setFailed] = useState(false);
+  // phones: the controls fold into one bar so the map itself gets the screen
+  const [controlsOpen, setControlsOpen] = useState(false);
   // both layers show by default; the checkmarks narrow the map to one of them (never to none)
   const [show, setShow] = useState<Record<Mode, boolean>>({ network: true, war: true });
   const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
   const [warFailed, setWarFailed] = useState(false);
   const [warId, setWarId] = useState<string | null>(null);
+  const [siteId, setSiteId] = useState<string | null>(null);
   const { data: alerts, error: alertsError } = useSWR<Alerts>(show.war ? ALERTS_URL : null, fetcher, {
     refreshInterval: 60_000,
   });
@@ -241,6 +245,13 @@ export function NetworkMap() {
     [war, alertState],
   );
   const selectedWar = rated?.find((r) => r.store.id === warId) ?? null;
+  // a site picked on the map shows its details in the controls card: unfold it on phones
+  const picked = warId ?? siteId;
+  const [lastPicked, setLastPicked] = useState(picked);
+  if (picked !== lastPicked) {
+    setLastPicked(picked);
+    if (picked) setControlsOpen(true);
+  }
 
   // data
   useEffect(() => {
@@ -265,8 +276,18 @@ export function NetworkMap() {
     return features
       .flatMap((f) => {
         const p = f.properties;
-        if (!DISTRIBUTION.includes(p.c) || p.s) return [];
-        const x = exposure({ id: p.id, name: p.n ?? p.o ?? CATEGORIES[p.c].one, kind: kind(p), coordinates: f.geometry.coordinates }, fronts, active);
+        // named sites, logistics centres and supply partners only; unnamed generic warehouses add noise
+        if (!DISTRIBUTION.includes(p.c) || p.s || (!p.n && p.c === "warehouse")) return [];
+        const c = f.geometry.coordinates;
+        let name = p.n ?? p.o;
+        if (!name) {
+          const town = war.stores.reduce<{ city: string; km: number } | null>((best, st) => {
+            const km = haversineKm(c, [st.lon, st.lat]);
+            return !best || km < best.km ? { city: st.city, km } : best;
+          }, null);
+          name = town ? `${kind(p)} near ${town.city}` : kind(p);
+        }
+        const x = exposure({ id: p.id, name, kind: kind(p), coordinates: c }, fronts, active);
         return x ? [x] : [];
       })
       .sort((a, b) => rank[a.grade] - rank[b.grade] || (a.threatKm ?? a.frontKm) - (b.threatKm ?? b.frontKm));
@@ -447,8 +468,9 @@ export function NetworkMap() {
           filter: ["!=", ["get", "kind"], "band"],
           layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": "#d70015",
-            "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.5, 10, 3],
+            "line-color": "#b91c1c",
+            "line-opacity": 0.85,
+            "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.25, 10, 2.25],
             "line-dasharray": ["case", ["==", ["get", "kind"], "front"], ["literal", [1, 0]], ["literal", [2, 1.5]]],
           },
         });
@@ -462,9 +484,9 @@ export function NetworkMap() {
           layout: { visibility: "none" },
           paint: {
             "circle-color": ["get", "color"],
-            "circle-opacity": 0.14,
+            "circle-opacity": 0.1,
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 12, 11],
-            "circle-stroke-width": 2,
+            "circle-stroke-width": 1.25,
             "circle-stroke-color": ["get", "color"],
           },
         });
@@ -507,7 +529,7 @@ export function NetworkMap() {
           source: "war-stores",
           filter: ["==", ["get", "selected"], true],
           layout: { visibility: "none" },
-          paint: { "circle-color": "#ffde00", "circle-opacity": 0.85, "circle-stroke-width": 1.5, "circle-stroke-color": "#000000", "circle-radius": 15 },
+          paint: { "circle-color": "#ffffff", "circle-opacity": 1, "circle-stroke-width": 2, "circle-stroke-color": "#18181b", "circle-radius": 14 },
         });
         map.addLayer({
           id: "war-stores",
@@ -579,6 +601,15 @@ export function NetworkMap() {
     if (!ready || !map) return;
     for (const id of NETWORK_LAYERS) map.setLayoutProperty(id, "visibility", show.network ? "visible" : "none");
     for (const id of WAR_LAYERS) map.setLayoutProperty(id, "visibility", show.war ? "visible" : "none");
+    // with war-time on, the network steps back so threats and store risk read first
+    const calm = show.war && show.network;
+    map.setPaintProperty("points", "circle-opacity", calm ? 0.35 : ["case", ["has", "s"], 0.45, 1]);
+    map.setPaintProperty("points", "circle-stroke-opacity", calm ? 0.35 : ["case", ["has", "s"], 0.45, 1]);
+    map.setPaintProperty("points", "circle-radius", calm ? ["interpolate", ["linear"], ["zoom"], 6, 2.5, 12, 4.5, 16, 6] : ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8]);
+    map.setPaintProperty("clusters", "circle-opacity", calm ? 0.35 : 1);
+    map.setPaintProperty("clusters", "circle-stroke-opacity", calm ? 0.35 : 1);
+    map.setPaintProperty("cluster-letter", "text-opacity", calm ? 0.6 : 1);
+    map.setPaintProperty("key-points", "circle-opacity", calm ? 0.5 : ["case", ["has", "s"], 0.6, 1]);
   }, [ready, show]);
 
   useEffect(() => {
@@ -600,7 +631,8 @@ export function NetworkMap() {
     if (!ready || !map) return;
     (map.getSource("war-exposed") as GeoJSONSource).setData({
       type: "FeatureCollection",
-      features: (exposures ?? []).map((x) => ({
+      // rings only for the five listed sites and the one opened; the rest stay unmarked
+      features: (exposures ?? []).filter((x, i) => i < 5 || x.id === siteId).map((x) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: x.coordinates },
         properties: { id: x.id, color: GRADES[x.grade].color, x: JSON.stringify(x) },
@@ -614,11 +646,12 @@ export function NetworkMap() {
         properties: { id: t.id, kind: t.kind, amount: t.amount, seen: t.seen_at ? time(t.seen_at) : "" },
       })),
     });
-  }, [ready, exposures, threatState]);
+  }, [ready, exposures, threatState, siteId]);
 
   const focusExposure = (x: Exposure) => {
     const map = mapRef.current;
     if (!map) return;
+    setSiteId(x.id);
     requestAnimationFrame(() => {
       map.flyTo({ center: x.coordinates, zoom: 11, duration: 1200, essential: true, offset: cardOffset(container.current, card.current) });
       popupCat.current = null;
@@ -653,7 +686,7 @@ export function NetworkMap() {
   const toStore = () => mapRef.current?.flyTo({ center: STORE, zoom: 11, duration: 1400, essential: true, offset: cardOffset(container.current, card.current) });
 
   return (
-    <div className="relative h-full w-full bg-[#f2efe9]">
+    <div className="relative h-full w-full bg-[#f4f4f5]">
       <div className="absolute inset-0">
         <div ref={container} className="h-full w-full" aria-label="Map of the Ukraine supply network" role="region" />
       </div>
@@ -663,9 +696,22 @@ export function NetworkMap() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        className="absolute left-3 right-3 top-3 z-10 rounded-[14px] bg-[rgba(255,255,255,0.92)] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl max-h-[46%] overflow-y-auto overscroll-contain md:left-4 md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]"
+        className={`absolute left-3 right-3 top-[calc(env(safe-area-inset-top)+12px)] z-10 rounded-[12px] border border-[var(--border)] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] ${controlsOpen ? "max-h-[60%] overflow-y-auto" : "overflow-hidden"} overscroll-contain md:left-4 md:overflow-y-auto md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]`}
       >
-        <div aria-label="Show on map" role="group" className="mb-3 flex gap-2">
+        <button
+          type="button"
+          aria-expanded={controlsOpen}
+          aria-controls="map-controls"
+          onClick={() => setControlsOpen((o) => !o)}
+          className={`-m-1 flex min-h-[44px] w-[calc(100%+8px)] items-center justify-between rounded-[8px] px-2 text-left md:hidden ${controlsOpen ? "mb-2" : ""}`}
+        >
+          <span className="text-[15px] font-medium">Map layers and search</span>
+          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={`text-muted transition-transform duration-200 ${controlsOpen ? "rotate-180" : ""}`}>
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </button>
+        <div id="map-controls" className={controlsOpen ? "" : "hidden md:block"}>
+        <div aria-label="Show on map" role="group" className="mb-3 flex rounded-[10px] bg-[#f4f4f5] p-[3px]">
           {(["network", "war"] as const).map((m) => {
             const on = show[m];
             const last = on && !show[m === "network" ? "war" : "network"];
@@ -681,13 +727,13 @@ export function NetworkMap() {
                   if (on) popupRef.current?.remove();
                   setShow((v) => ({ ...v, [m]: !on }));
                 }}
-                className={`t-footnote flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 font-medium transition-colors ${
-                  on ? "bg-ink text-white" : "bg-fill text-label-2 hover:text-label"
+                className={`flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-[8px] px-2 text-[13px] font-medium transition-colors ${
+                  on ? "bg-white text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_3px_rgba(16,24,40,0.06)]" : "text-muted hover:text-ink"
                 }`}
               >
                 <span
                   aria-hidden
-                  className={`grid size-[16px] place-items-center rounded-full transition-colors ${on ? "bg-yellow text-ink" : "border-[1.5px] border-muted"}`}
+                  className={`grid size-[16px] place-items-center rounded-[4px] transition-colors ${on ? "bg-ink text-white" : "border-[1.5px] border-[#a1a1aa] bg-white"}`}
                 >
                   {on && <CheckIcon size={10} />}
                 </span>
@@ -749,24 +795,24 @@ export function NetworkMap() {
 
         {show.network && (
           <>
-        <h1 className="t-headline px-1">Supply network</h1>
-        <p className="t-footnote px-1 text-label-2">
+        <h1 className="px-1 text-[15px] font-semibold leading-[20px]">Supply network</h1>
+        <p className="t-footnote px-1 text-[var(--text-3)]">
           {features ? `${fmt.format(total)} places in Ukraine from Avrora and OpenStreetMap` : failed ? "Can't load the map. Check your connection and try again." : "Loading places…"}
         </p>
 
-        <div role="tablist" aria-label="Show on map" className="mt-3 flex rounded-[9px] bg-fill p-[2px]">
+        <div role="tablist" aria-label="Show on map" className="mt-3 flex rounded-[10px] bg-[#f4f4f5] p-[3px]">
           {FILTERS.map(({ id: f, label, cats }) => (
             <button
               key={f}
               role="tab"
               aria-selected={filter === f}
               onClick={() => setFilter(f)}
-              className={`t-caption relative flex min-h-[32px] flex-1 items-center justify-center gap-1 rounded-[7px] px-1 py-[5px] font-medium transition-colors ${filter === f ? "text-white" : "text-label"}`}
+              className={`t-caption relative flex min-h-[32px] flex-1 items-center justify-center gap-1 rounded-[8px] px-1 py-[5px] font-medium transition-colors ${filter === f ? "text-ink" : "text-muted hover:text-ink"}`}
             >
               {filter === f && (
                 <motion.span
                   layoutId="map-seg"
-                  className="absolute inset-0 rounded-[7px] bg-ink"
+                  className="absolute inset-0 rounded-[8px] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_3px_rgba(16,24,40,0.06)]"
                   transition={{ type: "spring", stiffness: 500, damping: 40 }}
                 />
               )}
@@ -775,7 +821,7 @@ export function NetworkMap() {
             </button>
           ))}
         </div>
-        <p className="t-caption num mt-1.5 px-1 text-label-2" aria-live="polite">
+        <p className="t-caption num mt-1.5 px-1 text-[var(--text-3)]" aria-live="polite">
           {features && `${fmt.format(visible.length)} shown`}
         </p>
 
@@ -786,24 +832,24 @@ export function NetworkMap() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search store, address or partner"
             aria-label="Search places"
-            className="t-subhead w-full rounded-[10px] bg-fill px-3 py-[7px] outline-none placeholder:text-label-2"
+            className="min-h-[40px] w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-[16px] outline-none transition-shadow placeholder:text-[var(--text-3)] focus:border-ink focus:shadow-[0_0_0_3px_rgba(24,24,27,0.12)] focus-visible:outline-none"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
               aria-label="Clear search"
-              className="absolute right-2 top-1/2 grid size-[18px] -translate-y-1/2 place-items-center rounded-full bg-[#8e8e93] text-white"
+              className="absolute right-2 top-1/2 grid size-[18px] -translate-y-1/2 place-items-center rounded-full bg-[#e4e4e7] text-ink"
             >
               <CloseIcon size={9} />
             </button>
           )}
         </div>
         {query.trim().length >= 2 && (
-          <ul className="mt-2 overflow-hidden rounded-[10px] bg-white" aria-label="Search results">
+          <ul className="mt-2 overflow-hidden rounded-[10px] border border-[var(--border)] bg-white" aria-label="Search results">
             {results.length === 0 && <li className="t-subhead px-3 py-2.5 text-label-2">No places match.</li>}
             {results.map((f) => (
               <li key={f.properties.id} className="cell [--inset:12px]">
-                <button onClick={() => focus(f)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-fill">
+                <button onClick={() => focus(f)} className="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-[#fafafa]">
                   <span className="size-2 shrink-0 rounded-full" style={{ background: CATEGORIES[f.properties.c].color }} />
                   <span className="min-w-0">
                     <span className="t-subhead block truncate">{f.properties.n ?? kind(f.properties)}</span>
@@ -818,8 +864,8 @@ export function NetworkMap() {
         )}
 
         {show.war && (
-          <div className={show.network ? "mt-3 border-t border-separator pt-3" : ""}>
-            {!selectedWar && (show.network ? <h2 className="t-headline px-1">War-time risk</h2> : <h1 className="t-headline px-1">War-time risk</h1>)}
+          <div className={show.network ? "mt-3 border-t border-[var(--divider)] pt-3" : ""}>
+            {!selectedWar && (show.network ? <h2 className="px-1 text-[15px] font-semibold leading-[20px]">War-time risk</h2> : <h1 className="px-1 text-[15px] font-semibold leading-[20px]">War-time risk</h1>)}
             <WartimePanel
               rated={rated}
               alerts={alertState}
@@ -832,14 +878,15 @@ export function NetworkMap() {
             />
           </div>
         )}
+        </div>
       </motion.div>
 
       <button
         onClick={toStore}
-        className="t-subhead float absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+124px)] z-10 flex min-h-[44px] items-center gap-2 rounded-full bg-ink py-1.5 pl-1.5 pr-4 font-semibold text-white"
+        className="absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+124px)] z-10 flex min-h-[44px] items-center gap-2 rounded-[10px] border border-[var(--border)] bg-white py-1.5 pl-2 pr-3.5 text-[14px] font-medium text-ink shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] hover:bg-[#fafafa]"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
-        <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-7 rounded-full bg-yellow p-[3px]" />
+        <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-6 rounded-full" />
         Your store
       </button>
     </div>

@@ -7,7 +7,9 @@
  * (/api/push/* and the cron trigger) exist only here. /api/signals reports power cuts,
  * air-raid alerts and notable weather (see external.ts). /api/workforce/* is the staffing
  * agent (see workforce.ts); its plan approvals and audit trail also live in D1.
+ * /api/ai/* proxies the store's own AI model (see ai.ts).
  */
+import { aiChat, aiStatus, type AiEnv } from "./ai";
 import { externalSignals, simulatedSignal, type SimRow } from "./external";
 import { handlePush, sendUrgent, type PushEnv } from "./push";
 import { kyivClock, staffingFromDb } from "./signals";
@@ -15,7 +17,7 @@ import snapshot from "./snapshot.json";
 import { wartimeAlerts, wartimeThreats } from "./wartime";
 import { handleWorkforce } from "./workforce";
 
-interface Env extends PushEnv {
+interface Env extends PushEnv, AiEnv {
   /** Guards the demo simulation routes; requests send it as X-Demo-Key. */
   DEMO_KEY?: string;
   ALERTS_IN_UA_TOKEN?: string;
@@ -179,6 +181,8 @@ export default {
 
     if (method === "GET") {
       switch (pathname) {
+        case "/api/ai/status":
+          return aiStatus(env);
         case "/api/health":
           return json({ status: "ok" });
         case "/api/overview":
@@ -221,6 +225,8 @@ export default {
     if (pathname.startsWith("/api/workforce/")) return (await handleWorkforce(req, env.DB, pathname)) ?? fail(404, "Not found");
 
     if (pathname.startsWith("/api/push/")) return (await handlePush(req, env, pathname)) ?? fail(404, "Not found");
+
+    if (method === "POST" && pathname === "/api/ai/chat") return aiChat(req, env);
 
     if (method === "POST" && pathname === "/api/decisions") return decide(req, env);
 

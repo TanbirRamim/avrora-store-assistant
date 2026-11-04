@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import type { Action, Decision, DecisionKind, ProductDetail } from "@/lib/api";
 import { fetcher } from "@/lib/api";
-import { adjustable, money, proposalText, TYPE_META } from "@/lib/format";
+import { adjustable, money, proposalText } from "@/lib/format";
 import { AskSection, SupplierDraft } from "./AiAssist";
+import { TypeBadge } from "./ActionRow";
+import { ProductThumb } from "./CategoryIcon";
 import { Chart } from "./Chart";
-import { CheckIcon, CloseIcon, TypeIcon } from "./icons";
+import { CheckIcon, CloseIcon } from "./icons";
 
 const FACT_LABELS: Record<string, [string, string?]> = {
   stock: ["In stock", "units"],
@@ -24,6 +26,11 @@ const FACT_LABELS: Record<string, [string, string?]> = {
   overdue_days: ["Days late", "days"],
   supplier: ["Supplier"],
 };
+
+const CARD = "rounded-[12px] border border-[var(--border)] bg-paper shadow-[0_1px_2px_rgba(16,24,40,0.04)]";
+const PRIMARY = "inline-flex items-center justify-center gap-2 rounded-[10px] bg-ink px-5 text-[15px] font-medium text-white transition-colors hover:bg-[#27272a] active:bg-[#3f3f46]";
+const SECONDARY = "inline-flex items-center justify-center gap-2 rounded-[10px] border border-[var(--border)] bg-paper px-4 text-[15px] font-medium text-ink transition-colors hover:bg-[#fafafa] active:bg-[#f4f4f5]";
+const H3 = "mb-2 px-1 text-[15px] font-semibold leading-[20px]";
 
 const DISMISS_REASONS = ["Not needed", "Supplier unavailable", "Already handled"];
 
@@ -57,7 +64,6 @@ function formatFact(key: string, v: number | string) {
 }
 
 export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAddKey, onGrab }: Props) {
-  const meta = TYPE_META[action.type];
   const adj = adjustable(action);
   const [mode, setMode] = useState<"idle" | "adjust" | "dismiss">("idle");
   const [value, setValue] = useState(adj?.value ?? 0);
@@ -100,57 +106,56 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
       initial={reduce ? false : { opacity: 0, x: 12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
-      className="flex h-full flex-col overflow-hidden rounded-t-[20px] bg-floor lg:rounded-none"
+      className="flex h-full flex-col overflow-hidden rounded-t-[16px] bg-floor lg:rounded-none"
       aria-label={`Details for ${action.product_name}`}
     >
       <div onPointerDown={onGrab} className="touch-none lg:touch-auto">
         <div className="flex justify-center pt-2 lg:hidden" aria-hidden>
-          <span className="h-[5px] w-9 rounded-full bg-[rgba(0,0,0,0.2)]" />
+          <span className="h-[5px] w-9 rounded-full bg-[#d4d4d8]" />
         </div>
-        <header className="flex items-start gap-3 px-5 pb-3 pt-2 lg:pt-6">
-          <span
-            className="grid size-[40px] shrink-0 place-items-center rounded-full"
-            style={
-              action.type === "CHECK_DELIVERY"
-                ? { boxShadow: "inset 0 0 0 1.5px var(--ink)", color: "var(--ink)" }
-                : { background: meta.color, color: "#fff" }
-            }
-          >
-            <TypeIcon type={action.type} size={20} />
-          </span>
+        <header className="flex items-start gap-3 border-b border-[var(--border)] bg-paper px-5 pb-4 pt-2 lg:pt-5">
+          {/* same anatomy as the product sheet: thumb, category, name, then the figure and a badge */}
+          <ProductThumb category={action.category} size={48} />
           <div className="min-w-0 flex-1">
-            <p className="t-footnote font-semibold" style={{ color: meta.text }}>
-              {meta.label}
-              <span className="font-normal text-muted">, {action.category}</span>
-            </p>
-            <h2 className="t-title3 line-clamp-2">{action.product_name}</h2>
+            <p className="t-footnote text-muted">{action.category}</p>
+            <h2 className="mt-0.5 text-[20px] font-semibold leading-[26px] tracking-[-0.02em]">{action.product_name}</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="num text-[24px] font-semibold leading-[30px] tracking-[-0.02em]">
+                {money(action.risk_uah)}
+                <span className="ml-1.5 text-[14px] font-normal tracking-normal text-muted">at stake</span>
+              </span>
+              <TypeBadge type={action.type} />
+            </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Close details" className="-mr-2 -mt-1 grid size-[44px] shrink-0 place-items-center">
-            <span className="grid size-[32px] place-items-center rounded-full bg-fill text-ink hover:bg-fill-2">
+            <span className="grid size-[32px] place-items-center rounded-full bg-[#f4f4f5] text-muted hover:bg-[#e4e4e7] hover:text-ink">
               <CloseIcon />
             </span>
           </button>
         </header>
       </div>
 
-      <div tabIndex={0} aria-label="Details" className="flex-1 space-y-7 overflow-y-auto px-4 pb-8 pt-1 focus-visible:outline-none">
-        <section aria-label="Suggestion" className="price-tag">
-          <p className="t-footnote pl-3 font-semibold">Suggestion</p>
-          <p className="t-title2 mt-1 pl-3">{proposalText(action)}</p>
-          <p className="t-subhead mt-1.5 pl-3">{action.reason}</p>
-          <div className="mt-4 flex items-baseline justify-between gap-3 border-t border-[rgba(0,0,0,0.15)] pl-3 pt-3">
-            <span className="t-subhead font-medium">At stake</span>
-            <span className="font-display num text-[24px] font-bold leading-7">{money(action.risk_uah)}</span>
+      <div tabIndex={0} aria-label="Details" className="flex-1 space-y-6 overflow-y-auto px-4 pb-8 pt-4 focus-visible:outline-none">
+        <section aria-label="Suggestion" className={`${CARD} overflow-hidden`}>
+          <div className="border-l-[3px] border-ink px-4 py-4">
+            <p className="t-footnote font-medium text-muted">Suggestion</p>
+            <p className="mt-1 text-[20px] font-semibold leading-[26px] tracking-[-0.02em]">{proposalText(action)}</p>
+            <p className="mt-1.5 text-[14px] leading-[20px] text-muted">{action.reason}</p>
           </div>
         </section>
 
         <section aria-label="The numbers behind this">
-          <h3 className="t-headline mb-2 px-1">Why</h3>
-          <dl className="overflow-hidden rounded-[14px] bg-paper">
-            {facts.map(([k, v]) => (
-              <div key={k} className="cell flex min-h-[44px] items-center justify-between gap-4 px-4 py-[11px]">
-                <dt className="t-subhead shrink-0 text-muted">{FACT_LABELS[k]?.[0] ?? k}</dt>
-                <dd className="t-body num min-w-0 text-right font-semibold">{formatFact(k, v)}</dd>
+          <h3 className={H3}>Why</h3>
+          <dl className={`${CARD} grid grid-cols-2 overflow-hidden`}>
+            {facts.map(([k, v], i) => (
+              <div
+                key={k}
+                className={`min-w-0 px-4 py-3 ${i % 2 === 1 ? "border-l border-[var(--divider)]" : ""} ${i > 1 ? "border-t border-[var(--divider)]" : ""} ${
+                  i === facts.length - 1 && i % 2 === 0 ? "col-span-2" : ""
+                }`}
+              >
+                <dt className="t-footnote text-muted">{FACT_LABELS[k]?.[0] ?? k}</dt>
+                <dd className="num mt-0.5 truncate text-[17px] font-semibold leading-[22px] tracking-[-0.01em]">{formatFact(k, v)}</dd>
               </div>
             ))}
           </dl>
@@ -161,8 +166,8 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
         {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={action} onAddKey={onAddKey} />}
 
         <section aria-busy={!product} aria-label="Sales and stock">
-          <h3 className="t-headline mb-2 px-1">Sales and stock</h3>
-          <div className="space-y-7 rounded-[14px] bg-paper p-4">
+          <h3 className={H3}>Sales and stock</h3>
+          <div className={`${CARD} space-y-7 p-4`}>
             {product ? (
               <>
                 <div>
@@ -174,13 +179,13 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
                 <Chart title="Stock on hand" unit="units" kind="line" color="var(--chart-mark)" data={stock} />
               </>
             ) : (
-              <div className="h-[340px] animate-pulse rounded-[12px] bg-fill" />
+              <div className="h-[340px] animate-pulse rounded-[10px] bg-[#f4f4f5]" />
             )}
           </div>
         </section>
       </div>
 
-      <footer className="border-t border-[var(--rule)] bg-paper px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-3 lg:pb-4">
+      <footer className="border-t border-[var(--border)] bg-paper px-4 pb-[max(env(safe-area-inset-bottom),14px)] pt-3 lg:pb-4">
         {decision ? (
           <div className="flex min-h-[50px] items-center justify-between gap-3">
             <span className="t-subhead flex items-center gap-2 font-medium">
@@ -193,7 +198,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
               </span>
               {decision.decision === "reject" ? `Dismissed: ${decision.reason}` : decision.decision === "change" ? `Approved with ${decision.value} ${adj?.unit ?? ""}` : "Approved"}
             </span>
-            <button onClick={onUndo} className="btn-ghost min-h-[44px] px-5 text-[15px]">
+            <button onClick={onUndo} className={`${SECONDARY} min-h-[44px]`}>
               Undo
             </button>
           </div>
@@ -205,7 +210,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
               onDecide("change", { value });
             }}
           >
-            <label className="t-subhead flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-[14px] bg-floor px-3.5 shadow-[inset_0_0_0_1.5px_var(--ink)]">
+            <label className="t-subhead flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-[10px] border border-ink bg-paper px-3 shadow-[0_0_0_3px_rgba(24,24,27,0.12)]">
               <span className="shrink-0 text-muted">{adj.label}</span>
               <input
                 type="number"
@@ -214,23 +219,23 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
                 value={value}
                 onChange={(e) => setValue(Number(e.target.value))}
                 inputMode="numeric"
-                className="num w-full min-w-0 bg-transparent text-right text-[17px] font-semibold outline-none"
+                className="num w-full min-w-0 bg-transparent text-right text-[16px] font-semibold outline-none"
                 autoFocus
               />
               <span className="shrink-0 text-muted">{adj.unit}</span>
             </label>
-            <button type="button" onClick={() => setMode("idle")} className="t-subhead min-h-[44px] px-2 font-semibold underline underline-offset-4">
+            <button type="button" onClick={() => setMode("idle")} className="min-h-[44px] px-2 text-[15px] font-medium text-muted hover:text-ink">
               Cancel
             </button>
-            <button className="btn-ink px-5">
+            <button className={`${PRIMARY} min-h-[48px]`}>
               Approve
             </button>
           </form>
         ) : mode === "dismiss" ? (
           <div>
             <div className="mb-2 flex items-center justify-between px-1">
-              <span className="t-subhead font-semibold">Why dismiss it?</span>
-              <button onClick={() => setMode("idle")} className="t-subhead min-h-[44px] px-1 font-semibold underline underline-offset-4">
+              <span className="text-[15px] font-semibold">Why dismiss it?</span>
+              <button onClick={() => setMode("idle")} className="min-h-[44px] px-1 text-[15px] font-medium text-muted hover:text-ink">
                 Cancel
               </button>
             </div>
@@ -240,10 +245,10 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
                   key={r}
                   onClick={() => onDecide("reject", { reason: r })}
                   aria-keyshortcuts={String(i + 1)}
-                  className="btn-ghost justify-between px-5 text-left"
+                  className={`${SECONDARY} min-h-[48px] justify-between text-left`}
                 >
                   {r}
-                  <kbd className="t-caption hidden rounded-[5px] bg-fill px-1.5 py-0.5 font-sans text-muted lg:inline">{i + 1}</kbd>
+                  <kbd className="t-caption hidden rounded-[5px] border border-[var(--border)] bg-[#fafafa] px-1.5 py-0.5 font-sans text-muted lg:inline">{i + 1}</kbd>
                 </button>
               ))}
             </div>
@@ -253,7 +258,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
             <button
               onClick={() => onDecide("approve")}
               aria-keyshortcuts="A"
-              className="btn-ink min-h-[52px] flex-1"
+              className={`${PRIMARY} min-h-[48px] flex-1`}
             >
               <CheckIcon size={15} />
               Approve
@@ -261,7 +266,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
             {adj && (
               <button
                 onClick={() => setMode("adjust")}
-                className="btn-ghost min-h-[52px] px-5"
+                className={`${SECONDARY} min-h-[48px]`}
               >
                 Adjust
               </button>
@@ -269,7 +274,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
             <button
               onClick={() => setMode("dismiss")}
               aria-keyshortcuts="D"
-              className="btn-ghost min-h-[52px] px-5"
+              className={`${SECONDARY} min-h-[48px]`}
             >
               Dismiss
             </button>

@@ -2,30 +2,30 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { savedKey, useAi } from "@/lib/ai";
+import { aiRoute, useAi } from "@/lib/ai";
 import { fetcher } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { Change, Employee, Plan } from "@/lib/workforce";
 import { askTeam, explainPlan, SOURCE_LABEL, type Source, type TeamAnswer } from "@/lib/workforce-ai";
 import { SparkleIcon } from "./icons";
+import { Badge, CARD, H2, ROW } from "./TeamSheet";
 
 export function SourceTag({ source, lang, error }: { source: Source; lang: "en" | "uk"; error?: string }) {
   return (
-    <span className="t-footnote inline-flex items-center gap-1.5 text-label-2" title={error}>
+    <span className="inline-flex items-center gap-1.5 px-1 text-[12px] leading-4 text-muted" title={error}>
       <SparkleIcon size={13} />
       {SOURCE_LABEL[lang][source]}
     </span>
   );
 }
 
-const H2 = "px-1 pb-2 text-[17px] font-semibold leading-[22px]";
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 /** "Why this plan": the model's rewrite when a key is saved, the fixed rules otherwise. */
 export function WhyThisPlan({ plan }: { plan: Plan }) {
   const ai = useAi();
   const { data } = useSWR(["explain", plan.date, String(plan.version), plan.status, ai.lang, ai.hasKey], () =>
-    explainPlan(plan, { key: savedKey(), lang: ai.lang }),
+    explainPlan(plan, { key: aiRoute(), lang: ai.lang }),
   );
   const sentences = data?.sentences ?? plan.explain;
   if (!sentences.length) return null;
@@ -37,11 +37,11 @@ export function WhyThisPlan({ plan }: { plan: Plan }) {
         </h2>
         {data && <SourceTag source={data.source} lang={data.lang} error={data.error} />}
       </div>
-      <div className="rounded-[14px] bg-paper px-4 py-1" data-testid="why">
-        <ol className="text-[16px] leading-[22px]" lang={data?.lang}>
+      <div className={`px-4 ${CARD}`} data-testid="why">
+        <ol className="text-[14px] leading-[21px]" lang={data?.lang}>
           {sentences.map((s, i) => (
-            <li key={s} className="flex gap-3 border-t border-rule py-3 first:border-t-0">
-              <span aria-hidden className="num w-4 shrink-0 font-semibold text-muted">
+            <li key={s} className={`flex gap-3 py-3 ${ROW}`}>
+              <span aria-hidden className="num w-4 shrink-0 font-medium text-muted">
                 {i + 1}
               </span>
               <span>{s}</span>
@@ -49,16 +49,16 @@ export function WhyThisPlan({ plan }: { plan: Plan }) {
           ))}
         </ol>
         {data && data.watchOut.length > 0 && (
-          <div className="border-t border-rule py-3">
-            <h3 className="text-[15px] font-semibold text-orange">Watch out</h3>
-            <ul className="t-subhead mt-1 space-y-1">
+          <div className="border-t border-[var(--divider)] py-3">
+            <Badge tone="warning">Watch out</Badge>
+            <ul className="mt-2 space-y-1 text-[14px] leading-5">
               {data.watchOut.map((w) => (
                 <li key={w}>{w}</li>
               ))}
             </ul>
           </div>
         )}
-        <p className="border-t border-rule py-3 text-[13px] leading-[18px] text-muted">
+        <p className="border-t border-[var(--divider)] py-3 text-[13px] leading-[18px] text-muted">
           {data?.error ? "The AI answer couldn't be used, so fixed rules wrote this. " : ""}You decide; nothing goes to staff before approval.
         </p>
       </div>
@@ -78,7 +78,7 @@ export function AskTeam({ plan, employees }: { plan: Plan; employees: Employee[]
     if (!question.trim()) return;
     setQ(question);
     setBusy(true);
-    setAnswer(await askTeam(question.trim(), plan, employees, { key: savedKey(), lang: ai.lang }));
+    setAnswer(await askTeam(question.trim(), plan, employees, { key: aiRoute(), lang: ai.lang }));
     setBusy(false);
   };
   return (
@@ -86,7 +86,7 @@ export function AskTeam({ plan, employees }: { plan: Plan; employees: Employee[]
       <h2 id="ask-h" className={H2}>
         Ask about the team
       </h2>
-      <div className="rounded-[14px] bg-paper p-4">
+      <div className={`p-4 ${CARD}`}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -104,17 +104,17 @@ export function AskTeam({ plan, employees }: { plan: Plan; employees: Employee[]
             placeholder="Who can stay late tonight?"
             maxLength={200}
             enterKeyHint="send"
-            className="min-h-[48px] min-w-0 flex-1 rounded-[999px] bg-floor px-4 text-[16px] focus:shadow-[inset_0_0_0_1.5px_var(--ink)] focus:outline-none"
+            className="min-h-[44px] min-w-0 flex-1 rounded-[10px] border border-[var(--border)] bg-paper px-3 text-[16px] focus:border-ink focus:shadow-[0_0_0_3px_rgba(24,24,27,0.12)] focus:outline-none"
           />
-          <button type="submit" disabled={busy || !q.trim()} className="btn-ink shrink-0 px-5 disabled:opacity-40">
+          <button type="submit" disabled={busy || !q.trim()} className="btn-ink min-h-[44px] shrink-0 px-4 text-[15px] disabled:opacity-40">
             {busy ? "…" : "Ask"}
           </button>
         </form>
         {!answer && (
-          <ul className="-mx-1 mt-2 flex gap-x-4 overflow-x-auto px-1 [scrollbar-width:none]" aria-label="Suggested questions">
+          <ul className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]" aria-label="Suggested questions">
             {SUGGESTED.map((s) => (
               <li key={s} className="shrink-0">
-                <button onClick={() => void ask(s)} className="min-h-[44px] whitespace-nowrap text-[15px] font-medium underline decoration-rule underline-offset-4 active:opacity-60">
+                <button onClick={() => void ask(s)} className="min-h-[44px] whitespace-nowrap rounded-[10px] border border-[var(--border)] bg-paper px-3.5 text-[14px] font-medium text-[#3f3f46] transition-colors duration-150 hover:bg-[var(--surface-2)] active:bg-[var(--neutral-bg)]">
                   {s}
                 </button>
               </li>
@@ -122,8 +122,8 @@ export function AskTeam({ plan, employees }: { plan: Plan; employees: Employee[]
           </ul>
         )}
         {answer && (
-          <div className="mt-3 border-t border-rule pt-3" aria-live="polite" data-testid="ask-answer">
-            <p className="text-[16px] leading-[22px]" lang={answer.lang}>
+          <div className="mt-3 border-t border-[var(--divider)] pt-3" aria-live="polite" data-testid="ask-answer">
+            <p className="text-[14px] leading-[21px]" lang={answer.lang}>
               {answer.answer}
             </p>
             <div className="mt-2 flex items-center justify-between gap-3">
@@ -152,7 +152,7 @@ interface Kpis {
   decisions: { approved: number; rejected: number; replans: number; approval_rate_pct: number | null };
 }
 
-/** Thin ink line over a few points; the last point is marked. */
+/** Thin zinc line over a few points; the last point is marked. */
 export function Spark({ values, w = 72, h = 22, dashedLast = false }: { values: number[]; w?: number; h?: number; dashedLast?: boolean }) {
   if (values.length < 2) return <svg width={w} height={h} aria-hidden />;
   const min = Math.min(...values);
@@ -164,9 +164,9 @@ export function Spark({ values, w = 72, h = 22, dashedLast = false }: { values: 
   const last = pts[pts.length - 1];
   return (
     <svg width={w} height={h} aria-hidden className="shrink-0">
-      <path d={line(solid)} fill="none" stroke="var(--ink)" strokeWidth={1.25} strokeLinejoin="round" strokeLinecap="round" />
-      {dashedLast && <path d={line(pts.slice(-2))} fill="none" stroke="var(--ink)" strokeWidth={1.25} strokeDasharray="2 2" />}
-      <circle cx={last[0]} cy={last[1]} r={2.25} fill="var(--ink)" />
+      <path d={line(solid)} fill="none" stroke="#71717a" strokeWidth={1.25} strokeLinejoin="round" strokeLinecap="round" />
+      {dashedLast && <path d={line(pts.slice(-2))} fill="none" stroke="#a1a1aa" strokeWidth={1.25} strokeDasharray="2 2" />}
+      <circle cx={last[0]} cy={last[1]} r={2} fill="#18181b" />
     </svg>
   );
 }
@@ -186,7 +186,7 @@ export function KpiCard() {
       vals: rows.map((r) => r.coverage_pct),
     },
     {
-      label: "Sales per labour hour",
+      label: "Sales per staff hour",
       value: money(data.this_week.sales_per_labour_hour_uah),
       vs: prev ? delta(prev.sales_per_labour_hour_uah, data.this_week.sales_per_labour_hour_uah, money) : "",
       vals: rows.map((r) => r.sales_per_labour_hour_uah),
@@ -204,22 +204,22 @@ export function KpiCard() {
         <h2 id="kpi-h" className={H2}>
           Last 4 weeks
         </h2>
-        <span className="px-1 text-[13px] text-muted">This week is the plan</span>
+        <span className="px-1 text-[12px] text-muted">This week is the plan</span>
       </div>
-      <div className="rounded-[14px] bg-paper px-4" data-testid="kpi-card">
+      <div className={`px-4 ${CARD}`} data-testid="kpi-card">
         <ul>
           {lines.map((l) => (
-            <li key={l.label} className="flex min-h-[56px] items-center gap-3 border-t border-rule py-2 first:border-t-0">
+            <li key={l.label} className={`flex min-h-[56px] items-center gap-3 py-2 ${ROW}`}>
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] leading-5">{l.label}</span>
-                {l.vs && <span className="num block text-[13px] leading-[18px] text-muted">{l.vs}</span>}
+                <span className="block text-[14px] leading-5">{l.label}</span>
+                {l.vs && <span className="num block text-[12px] leading-4 text-muted">{l.vs}</span>}
               </span>
               <Spark values={l.vals} dashedLast />
-              <span className="num w-[76px] shrink-0 text-right text-[17px] font-semibold">{l.value}</span>
+              <span className="num-col w-[76px] shrink-0 text-right text-[15px] font-semibold">{l.value}</span>
             </li>
           ))}
         </ul>
-        <p className="num border-t border-rule py-3 text-[13px] leading-[18px] text-muted">
+        <p className="num border-t border-[var(--divider)] py-3 text-[13px] leading-[18px] text-muted">
           Decisions in 28 days: {data.decisions.approved} approved, {data.decisions.rejected} rejected, {data.decisions.replans} replans.
         </p>
       </div>
@@ -237,14 +237,14 @@ export function ChangeLog({ changes }: { changes: Change[] }) {
         </h2>
         <span className="num px-1 text-[13px] text-muted">{changes.length}</span>
       </div>
-      <ol className="rounded-[14px] bg-paper px-4" data-testid="audit">
+      <ol className={`px-4 ${CARD}`} data-testid="audit">
         {[...changes].reverse().map((c, i) => (
-          <li key={c.at + i} className="flex gap-3 border-t border-rule py-3 first:border-t-0">
-            <span className="num w-[44px] shrink-0 text-[15px] leading-5 text-muted">{time(c.at)}</span>
-            <div className="min-w-0">
-              <p className="text-[15px] leading-5">{c.summary}</p>
-              <p className={`text-[13px] leading-[18px] ${c.by === "manager" ? "font-semibold text-ink" : "text-muted"}`}>{c.by === "manager" ? "Manager" : "Agent"}</p>
-            </div>
+          <li key={c.at + i} className={`flex items-start gap-3 py-3 ${ROW}`}>
+            <span className="num-col w-[40px] shrink-0 text-[13px] leading-5 text-muted">{time(c.at)}</span>
+            <p className="min-w-0 flex-1 text-[14px] leading-5">{c.summary}</p>
+            <Badge dot={false} className={c.by === "manager" ? "!bg-zinc-900 !text-white" : ""}>
+              {c.by === "manager" ? "Manager" : "Agent"}
+            </Badge>
           </li>
         ))}
       </ol>

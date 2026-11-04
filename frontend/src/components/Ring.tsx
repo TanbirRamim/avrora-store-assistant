@@ -1,6 +1,6 @@
 "use client";
 
-/** Slim ink progress bar for the yellow tag: how many of today's priorities have a decision. */
+/** Thin zinc progress bar for the summary header: how many of today's priorities have a decision. */
 export function TagProgress({ done, total }: { done: number; total: number }) {
   const frac = total ? done / total : 0;
   return (
@@ -8,7 +8,7 @@ export function TagProgress({ done, total }: { done: number; total: number }) {
       <div className="tag-bar flex-1" aria-hidden>
         <span style={{ width: `${frac * 100}%` }} />
       </div>
-      <span aria-hidden className="num shrink-0 text-[13px] font-semibold leading-[18px]">
+      <span aria-hidden className="num shrink-0 text-[13px] font-medium leading-[18px] text-muted">
         {done} of {total} done
       </span>
     </div>

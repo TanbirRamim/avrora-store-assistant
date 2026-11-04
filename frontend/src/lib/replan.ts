@@ -7,7 +7,7 @@
  */
 import type { Action, ActionType, Signal } from "./api";
 import type { Lang } from "./assist";
-import { allowedNumbers, chatJson, grounded } from "./ollama";
+import { allowedNumbers, chatJson, grounded } from "./model";
 
 export interface Replan {
   signalId: string;
@@ -90,7 +90,7 @@ const SCHEMA = {
   required: ["order", "note"],
 };
 
-/** Asks the OTH model; falls back to the rules when its answer breaks the checks. */
+/** Asks the AI model; falls back to the rules when its answer breaks the checks. */
 export async function replanWithModel(key: string, s: Signal, priorities: Action[], lang: Lang): Promise<Replan> {
   const { start, end, active } = times(s);
   const payload = {

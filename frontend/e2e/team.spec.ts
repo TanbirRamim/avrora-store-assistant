@@ -116,7 +116,7 @@ test("plan renders and matches the API numbers", async ({ page }, info) => {
   await expect(page.getByTestId("kpi-cost")).toHaveText(money(plan.kpis.labour_cost_uah));
   await expect(page.getByTestId("kpi-gaps")).toHaveText(`${plan.gaps.length}`);
   await expect(page.getByTestId("plan-status")).toHaveText(plan.status === "approved" ? "Approved" : "Draft");
-  await expect(page.getByTestId("tag-sentence")).toHaveText(plan.gaps.length ? / short: / : /enough people/);
+  await expect(page.getByTestId("tag-sentence")).toHaveText(plan.gaps.length ? / short \d/ : /enough people/);
   await page.screenshot({ path: `e2e/screens/${info.project.name}-team-top.png` });
   await page.getByTestId("rota-board").scrollIntoViewIfNeeded();
   await page.screenshot({ path: `e2e/screens/${info.project.name}-team-board.png` });
@@ -129,7 +129,12 @@ test("plan renders and matches the API numbers", async ({ page }, info) => {
   // task allocation: tap a block for the reason, then the station view
   const first = plan.shifts[0] as unknown as { name: string; tasks: { from: string; reason: string }[] };
   const row = page.getByTestId("roster").locator("li", { has: page.getByRole("button", { name: new RegExp(`^${first.name.replace(".", "\\.")}, `) }) });
-  await row.getByRole("button", { name: new RegExp(`^[A-Za-z &/]+ ${first.tasks[0].from} to [\\d:]+$`) }).click();
+  if (page.viewportSize()!.width < 768) {
+    // phones: shift cards; the slim day bar opens that person's tasks
+    await row.getByRole("button", { name: `Tasks for ${first.name}` }).click();
+  } else {
+    await row.getByRole("button", { name: new RegExp(`^[A-Za-z &/]+ ${first.tasks[0].from} to [\\d:]+$`) }).click();
+  }
   await expect(page.getByTestId("task-reason")).toContainText(first.tasks[0].reason);
   await page.waitForTimeout(300);
   await page.getByTestId("task-reason").scrollIntoViewIfNeeded();
@@ -158,8 +163,8 @@ test("approve the plan", async ({ page }, info) => {
   await page.getByRole("button", { name: "Approve plan" }).click();
   await expect(page.getByTestId("plan-status")).toHaveText("Approved");
   await expect(page.getByTestId("plan-actions")).toContainText("Plan approved");
-  // after approval the action is "Something changed", not Approve
-  await expect(page.getByTestId("plan-actions").getByRole("button", { name: "Something changed" })).toBeVisible();
+  // after approval the only action left is Replan, in the header
+  await expect(page.getByRole("button", { name: "Replan", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Approve plan" })).toHaveCount(0);
   await expect(page.getByTestId("audit")).toContainText("Approved: ");
   expect(calls).toEqual([{ path: "/api/workforce/plan/approve", body: { date: plan.date, version: plan.version } }]);
@@ -190,7 +195,7 @@ test("replan for a sick call shows a diff and applies only on approve", async ({
   const plan = await expected();
   const proposal = fx("workforce-replan-sick.json") as Plan;
   await openTeam(page);
-  await page.getByRole("button", { name: "Something changed" }).click();
+  await page.getByRole("button", { name: "Replan", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Something changed" });
   await sheet.getByText("Someone's off sick").click();
   const who = plan.shifts[0];
@@ -216,7 +221,7 @@ test("replan for a sick call shows a diff and applies only on approve", async ({
 test("keep current leaves the plan unchanged", async ({ page }) => {
   const calls = await mockWorkforce(page, { draft: true });
   await openTeam(page);
-  await page.getByRole("button", { name: "Something changed" }).click();
+  await page.getByRole("button", { name: "Replan", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Something changed" });
   await sheet.getByText("Power cut").click();
   await sheet.getByRole("button", { name: "Show new plan" }).click();
@@ -225,6 +230,27 @@ test("keep current leaves the plan unchanged", async ({ page }) => {
   expect(calls.filter((c) => c.path.endsWith("/approve"))).toEqual([]);
   expect(calls[0].body.event).toEqual({ kind: "power", from: "12:00" });
   await expect(page.getByTestId("plan-status")).toBeVisible();
+});
+
+test("a gap's Fix with replan opens Replan prefilled for that window", async ({ page }, info) => {
+  const calls = await mockWorkforce(page, { draft: true });
+  const plan = (await expected()) as unknown as { gaps: { from: string; to: string }[] };
+  test.skip(!plan.gaps.length, "no gaps in today's plan");
+  await openTeam(page);
+  const gaps = page.getByTestId("gap-list").getByTestId("gap");
+  await expect(gaps).toHaveCount(plan.gaps.length);
+  const last = gaps.last();
+  await expect(last).toContainText(`${plan.gaps.at(-1)!.from}–${plan.gaps.at(-1)!.to}`);
+  await last.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-team-gaps.png` });
+  await last.getByRole("button", { name: "Fix with replan" }).click();
+  const sheet = page.getByRole("dialog", { name: "Something changed" });
+  const from = `${plan.gaps.at(-1)!.from.slice(0, 2)}:00`;
+  await expect(sheet.getByRole("radio", { name: /Busier than expected/ })).toBeChecked();
+  await expect(sheet.getByLabel("Starts at")).toHaveValue(from);
+  await sheet.getByRole("button", { name: "Show new plan" }).click();
+  await expect(page.getByTestId("replan-proposal")).toBeVisible();
+  expect(calls[0].body.event).toEqual({ kind: "traffic_spike", from });
 });
 
 test("profile sheet and the people list", async ({ page }, info) => {
@@ -260,14 +286,14 @@ test("no accessibility violations on Team, the sheets and the people list", asyn
     expect(r.violations.map((v) => `${label}: ${v.id} (${v.nodes.length}) ${v.nodes[0]?.target}`)).toEqual([]);
   };
   await scan("team");
-  await page.getByRole("button", { name: "Something changed" }).click();
+  await page.getByRole("button", { name: "Replan", exact: true }).click();
   await page.getByText("Someone's off sick").click();
   await scan("replan");
   await page.getByRole("button", { name: "Show new plan" }).click();
   await expect(page.getByTestId("replan-proposal")).toBeVisible();
   await scan("diff");
   await page.getByRole("button", { name: "Keep current" }).click();
-  await page.getByRole("button", { name: "Reject", exact: true }).click();
+  await page.getByTestId("plan-actions").getByRole("button", { name: "Reject", exact: true }).click();
   await scan("reject");
   await page.keyboard.press("Escape");
   await page.getByRole("tab", { name: "People" }).click();
@@ -289,16 +315,18 @@ test("nothing hides behind the tab bar or the decision bar, no sideways scroll",
   await main.evaluate((m) => m.scrollTo({ top: m.scrollHeight }));
   await page.waitForTimeout(300);
   await main.evaluate((m) => m.scrollTo({ top: m.scrollHeight }));
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(400);
+  const bar = page.getByTestId("plan-actions-bar");
+  await expect(bar).toBeVisible();
   const dock = (await tabBar(page).locator("ul").boundingBox())!;
-  const actions = (await page.getByTestId("plan-actions").boundingBox())!;
+  const actions = (await bar.boundingBox())!;
   expect(actions.y + actions.height).toBeLessThanOrEqual(dock.y);
   const last = page.getByText(/^Demo data: staff/);
   await expect(last).toBeInViewport();
   const box = (await last.boundingBox())!;
   expect(box.y + box.height).toBeLessThanOrEqual(actions.y);
   // primary action within thumb reach: bottom third of the screen
-  const approve = (await page.getByRole("button", { name: "Approve plan" }).boundingBox())!;
+  const approve = (await bar.getByRole("button", { name: "Approve plan" }).boundingBox())!;
   expect(approve.height).toBeGreaterThanOrEqual(44);
   expect(approve.y).toBeGreaterThan(vp.height * 0.6);
   // every control in the roster and switcher is at least 44pt
@@ -311,17 +339,28 @@ test("nothing hides behind the tab bar or the decision bar, no sideways scroll",
     [...document.querySelectorAll("main *")].filter((el) => el.getBoundingClientRect().right > window.innerWidth + 1 && !el.parentElement?.closest(".overflow-x-auto")).map((el) => el.className.toString().slice(0, 60)),
   );
   expect(wide).toEqual([]);
+  // bottom chrome (tab bar + action bar) stays within a fifth of the screen
+  expect(vp.height - actions.y).toBeLessThanOrEqual(vp.height * 0.2);
+  await page.screenshot({ path: `e2e/screens/${test.info().project.name}-team-bar.png` });
+  // back at the top the bar steps aside: Approve lives in the summary card
+  await main.evaluate((m) => m.scrollTo({ top: 0 }));
+  await expect(bar).toBeHidden();
+  await expect(page.getByTestId("plan-actions").getByRole("button", { name: "Approve plan" })).toBeVisible();
   // inputs at 16px so iOS doesn't zoom
-  await page.getByRole("button", { name: "Reject", exact: true }).click();
+  await page.getByTestId("plan-actions").getByRole("button", { name: "Reject", exact: true }).click();
   expect(await page.locator("#reject-reason").evaluate((e) => getComputedStyle(e).fontSize)).toBe("16px");
 });
 
-const OTH = "https://im-kigs-openwebui.oth-regensburg.de/ollama/api/chat";
+const AI = "**/api/ai/chat";
+/** The store server reports its AI as set up (or not). */
+const storeAi = (page: Page, on = true) =>
+  page.route("**/api/ai/status", (r) => r.fulfill({ json: on ? { configured: true, model: "test-model" } : { configured: false, model: null } }));
 
-/** Answers the OTH model by prompt: plan explanation, replan messages, team question, coaching. */
+
+/** Answers the store AI by prompt: plan explanation, replan messages, team question, coaching. */
 async function mockModel(page: Page) {
   const asked: string[] = [];
-  await page.route(OTH, async (route) => {
+  await page.route(AI, async (route) => {
     const body = JSON.parse(route.request().postData()!);
     const system: string = body.messages[0].content;
     const user = JSON.parse(body.messages[1].content);
@@ -340,9 +379,9 @@ async function mockModel(page: Page) {
       asked.push("explain");
       answer = { sentences: ["Model sentence one about the plan.", "Model sentence two about the peak.", "Model sentence three about cover."], watch_out: [] };
     }
-    await route.fulfill({ json: { message: { content: JSON.stringify(answer) } } });
+    await route.fulfill({ json: { content: JSON.stringify(answer) } });
   });
-  await page.addInitScript(() => localStorage.setItem("avrora.webuiKey", "sk-test-key"));
+  await storeAi(page);
   return asked;
 }
 
@@ -359,7 +398,7 @@ test("AI texts: plan explanation, ask, replan messages and coaching, labelled", 
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.getByTestId("ask-answer")).toContainText("Model answer: the evening team can cover it.");
 
-  await page.getByRole("button", { name: "Something changed" }).click();
+  await page.getByRole("button", { name: "Replan", exact: true }).click();
   await page.getByText("Someone's off sick").click();
   await page.getByRole("button", { name: "Show new plan" }).click();
   await expect(page.getByTestId("replan-summary")).toContainText(/summary|cover/i);
@@ -376,6 +415,9 @@ test("AI texts: plan explanation, ask, replan messages and coaching, labelled", 
 });
 
 test("without a key the fixed rules write the texts", async ({ page }) => {
+  // pin "store AI off" whatever the server running the tests has configured
+  await page.route("**/api/ai/status", (route) => route.fulfill({ json: { configured: false, model: null } }));
+  await page.route("**/api/ai/chat", (route) => route.fulfill({ status: 503, json: { detail: "AI is not set up" } }));
   await mockWorkforce(page);
   const plan = await expected();
   await openTeam(page);

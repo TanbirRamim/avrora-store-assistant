@@ -1,10 +1,10 @@
 /**
- * Workforce agent texts written by the OTH model in the browser, with fixed-rule fallbacks.
+ * Workforce agent texts written by the store's AI model, with fixed-rule fallbacks.
  *
  * Integration note (Team UI):
- * - Every function is a plain async function: `await explainPlan(plan, { key: savedKey(), lang })`.
- *   `key` comes from `savedKey()` in ./ai; with an empty key the fixed rules answer at once, offline.
- *   They never throw: a model failure (off the OTH network, bad key, ungrounded answer) returns the
+ * - Every function is a plain async function: `await explainPlan(plan, { key: aiRoute(), lang })`.
+ *   `key` comes from `aiRoute()` in ./ai ("server", "own" or ""); with "" the fixed rules answer at once, offline.
+ *   They never throw: a model failure (AI not reachable, bad key, ungrounded answer) returns the
  *   rules result with `error` set to a message you may show quietly.
  * - Show `SOURCE_LABEL[lang][result.source]` next to every text ("Written by AI" / "Fixed rules").
  * - explainPlan(plan): `sentences` (3-5) + `watchOut` list for the plan header.
@@ -16,11 +16,11 @@
  * - SWR-friendly: `useSWR(["explain", plan.date, plan.version, lang], () => explainPlan(plan, {key, lang}))`.
  *
  * Checks (same idea as briefing.ts / replan.ts): temperature 0, a JSON schema, every number the model
- * writes must appear in the data it was given (ollama.grounded), every "Name X." it writes must be a
+ * writes must appear in the data it was given (model.grounded), every "Name X." it writes must be a
  * real employee, and word limits. Any failure uses the fixed rules for the whole result.
  */
 import type { Lang } from "./assist";
-import { allowedNumbers, chatJson, grounded } from "./ollama";
+import { allowedNumbers, chatJson, grounded } from "./model";
 import type { DiffRow, Employee, Plan, Profile } from "./workforce";
 
 export type Source = "model" | "rules";
@@ -31,7 +31,7 @@ export const SOURCE_LABEL: Record<Lang, Record<Source, string>> = {
 };
 
 export interface AiOptions {
-  /** Open WebUI key; empty or missing = fixed rules only. */
+  /** AI route from aiRoute(); empty or missing = fixed rules only. */
   key?: string;
   lang?: Lang;
 }

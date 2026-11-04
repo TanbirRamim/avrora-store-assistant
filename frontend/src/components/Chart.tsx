@@ -93,10 +93,9 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
                 x2={width - PAD.right}
                 y1={y(t)}
                 y2={y(t)}
-                stroke={t === 0 ? "var(--separator)" : "var(--chart-grid)"}
-                strokeDasharray={t === 0 ? undefined : "2 4"}
+                stroke={t === 0 ? "#e4e4e7" : "#f0f0f2"}
               />
-              <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--muted)" className="num">
+              <text x={PAD.left - 6} y={y(t) + 4} textAnchor="end" fontSize={11} fill="#71717a" className="num">
                 {Math.round(t)}
               </text>
             </g>
@@ -109,14 +108,14 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
                 width={width - PAD.right - (x(firstProjected) - step / 2)}
                 height={height - PAD.top - PAD.bottom + 14}
                 rx={6}
-                fill="rgba(0,0,0,0.05)"
+                fill="#f4f4f5"
               />
               <text
                 x={x(firstProjected) - step / 2 + 6}
                 y={PAD.top - 3}
                 fontSize={10}
-                fontWeight={600}
-                fill="var(--muted)"
+                fontWeight={500}
+                fill="#71717a"
               >
                 Forecast
               </text>
@@ -151,14 +150,14 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
                   height={Math.max(0, base - top)}
                   width={bw}
                   rx={Math.min(2, bw / 2)}
-                  fill={color}
-                  opacity={hover === null || hover === d.i ? 0.9 : 0.35}
+                  fill={color === "var(--chart-mark)" ? (hover === d.i ? "#18181b" : "#a1a1aa") : color}
+                  opacity={hover === null || hover === d.i ? 1 : 0.5}
                 />
               );
             })}
 
           {kind === "line" && actual.length > 1 && (
-            <path d={linePath(actual)} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+            <path d={linePath(actual)} fill="none" stroke={color} strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />
           )}
 
           {/* shortfall: days the shelf was empty are marked red */}
@@ -171,15 +170,15 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
             <path
               d={linePath(actual.length && kind === "line" ? [actual[actual.length - 1], ...projected] : projected)}
               fill="none"
-              stroke="var(--muted)"
-              strokeWidth={2}
+              stroke="#a1a1aa"
+              strokeWidth={1.5}
               strokeDasharray="4 4"
             />
           )}
 
           {data.map((d, i) =>
             i % labelEvery === 0 ? (
-              <text key={d.date} x={x(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="var(--muted)">
+              <text key={d.date} x={x(i)} y={height - 6} textAnchor="middle" fontSize={11} fill="#71717a">
                 {shortDate(d.date)}
               </text>
             ) : null,
@@ -192,10 +191,10 @@ export function Chart({ title, unit, data, kind, color, reference, height = 150 
                 x2={x(hover!)}
                 y1={PAD.top}
                 y2={height - PAD.bottom}
-                stroke="var(--muted)"
+                stroke="#d4d4d8"
                 strokeWidth={1}
               />
-              <circle cx={x(hover!)} cy={y(h.value)} r={4.5} fill={color} stroke="var(--surface)" strokeWidth={2} />
+              <circle cx={x(hover!)} cy={y(h.value)} r={4.5} fill={kind === "bars" ? "#18181b" : color} stroke="var(--surface)" strokeWidth={2} />
             </g>
           )}
         </svg>

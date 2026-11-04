@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import type { Signal, Signals } from "@/lib/api";
 import type { Lang } from "@/lib/assist";
 import type { Replan } from "@/lib/replan";
@@ -40,12 +40,18 @@ const span = (ms: number) => {
 
 function look(s: Signal, now: number) {
   const active = Date.parse(s.starts_at) <= now;
-  if (s.kind === "weather") return { Icon: CloudIcon, tile: "var(--ink)", text: "var(--ink)", timing: null };
+  if (s.kind === "weather") return { Icon: CloudIcon, tile: "#71717a", badge: "badge-neutral", timing: null };
   const ends = s.ends_at ? ` · ends in ${span(Date.parse(s.ends_at) - now)}` : "";
-  if (s.kind === "air_alert") return { Icon: AlertIcon, tile: "var(--order)", text: "var(--order-text)", timing: `Now${ends}` };
+  if (s.kind === "air_alert") return { Icon: AlertIcon, tile: "var(--red)", badge: "badge-critical", timing: `Now${ends}` };
   return active
-    ? { Icon: BoltIcon, tile: "var(--order)", text: "var(--order-text)", timing: `Now${ends}` }
-    : { Icon: BoltIcon, tile: "var(--discount)", text: "var(--discount-text)", timing: `Starts in ${span(Date.parse(s.starts_at) - now)}` };
+    ? { Icon: BoltIcon, tile: "var(--red)", badge: "badge-critical", timing: `Now${ends}` }
+    : { Icon: BoltIcon, tile: "#71717a", badge: "badge-warning", timing: `Starts in ${span(Date.parse(s.starts_at) - now)}` };
+}
+
+/** Time ranges like "09:00–13:00" never split across lines. */
+const RANGE = /(\d{1,2}:\d{2}\s*[–—-]\s*\d{1,2}:\d{2})/;
+export function keepRanges(t: string): ReactNode {
+  return t.split(RANGE).map((part, i) => (i % 2 ? <span key={i} className="nowrap">{part}</span> : <Fragment key={i}>{part}</Fragment>));
 }
 
 /** Repeated power cuts read as one row with their times; everything else keeps its own row. */
@@ -70,7 +76,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
 
   if (signals.length === 0) {
     return (
-      <p className="t-subhead flex items-start gap-2.5 border-y border-rule px-1 py-3 text-muted" data-testid="all-clear">
+      <p className="card t-subhead flex items-start gap-2.5 px-4 py-3 text-muted" data-testid="all-clear">
         <CheckCircleIcon size={17} className="mt-[1.5px] shrink-0 text-green" />
         <span>
           All clear: no power cuts or severe weather ahead.
@@ -90,7 +96,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
         <ul>
           {group(signals).map((items) => {
             const s = items[0];
-            const { Icon, tile, text, timing } = look(s, now);
+            const { Icon, tile, badge: tone, timing } = look(s, now);
             const many = items.length > 1;
             return (
               <li key={s.id} className="cell flex items-start gap-3 px-4 py-3.5 [--inset:48px]" data-testid="signal">
@@ -99,16 +105,16 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="t-headline">{many ? `${items.length} power cuts` : s.title}</span>
+                    <span className="t-headline">{many ? `${items.length} power cuts` : keepRanges(s.title)}</span>
                     {s.simulated && (
-                      <span className="t-caption mt-[2px] shrink-0 whitespace-nowrap rounded-[6px] bg-fill px-1.5 py-px font-medium text-muted">
+                      <span className="badge badge-neutral" data-nodot="">
                         {badge(s)}
                       </span>
                     )}
                   </div>
                   {!many && timing && (
-                    <p className="t-footnote num mt-[2px] font-semibold" style={{ color: text }}>
-                      {timing}
+                    <p className="num mt-1.5">
+                      <span className={`badge ${tone}`}>{timing}</span>
                     </p>
                   )}
                   {many && (
@@ -116,15 +122,15 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                       {items.map((p) => {
                         const l = look(p, now);
                         return (
-                          <li key={p.id} className="t-footnote num flex flex-wrap items-baseline gap-x-2">
-                            <span className="font-semibold" style={{ color: l.text }}>{l.timing}</span>
-                            <span className="text-muted">{p.title.replace(/^Power cut\s*/, "").replace(/^./, (c) => c.toUpperCase())}</span>
+                          <li key={p.id} className="t-footnote num flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className={`badge ${l.badge}`}>{l.timing}</span>
+                            <span className="text-muted">{keepRanges(p.title.replace(/^Power cut\s*/, "").replace(/^./, (c) => c.toUpperCase()))}</span>
                           </li>
                         );
                       })}
                     </ul>
                   )}
-                  <p className="t-subhead mt-1 text-muted">{s.detail}</p>
+                  <p className="t-subhead mt-1.5 text-muted">{keepRanges(s.detail)}</p>
                 </div>
               </li>
             );
@@ -141,7 +147,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                 <span className="shrink-0 text-ink" aria-hidden>
                   <SparkleIcon size={20} />
                 </span>
-                <span className="t-body flex-1 font-semibold text-ink underline-offset-4 hover:underline">{busy ? "Re-planning, about 20 seconds…" : "Re-plan for this"}</span>
+                <span className="t-subhead flex-1 font-semibold text-ink underline-offset-4 hover:underline">{busy ? "Re-planning, about 20 seconds…" : "Re-plan for this"}</span>
                 <span className="t-footnote whitespace-nowrap text-muted">{hasKey ? "With AI" : "Fixed rules"}</span>
               </button>
               {error && (
@@ -153,7 +159,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
           )}
 
           {replan && (
-            <li className="cell border-l-4 border-ink bg-floor px-4 py-3.5 [--inset:0px]" data-testid="replan">
+            <li className="cell edge-accent bg-[#fafafa] px-4 py-3.5 [--inset:0px]" data-testid="replan">
               <div className="flex items-start gap-3">
                 <span className="mt-[1px] shrink-0 text-ink" aria-hidden>
                   <SparkleIcon size={20} />
@@ -161,7 +167,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="t-headline">What changes</span>
-                    <button type="button" onClick={onRevert} className="hit t-subhead shrink-0 font-semibold text-ink underline underline-offset-4">
+                    <button type="button" onClick={onRevert} className="t-subhead inline-flex min-h-[44px] shrink-0 items-center px-1 font-semibold text-ink underline underline-offset-4">
                       Revert
                     </button>
                   </div>

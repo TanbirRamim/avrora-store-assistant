@@ -1,13 +1,12 @@
 /**
- * Model-written briefing, called from the browser so the Open WebUI key never leaves it.
- * The OTH server only answers on the university network (campus or VPN), and it allows
- * cross-origin calls. Same prompt and checks as backend/src/avrora/ai/briefing.py: the model
+ * Model-written briefing (store AI through /api/ai/chat, or this device's own provider).
+ * Same prompt and checks as backend/src/avrora/ai/briefing.py: the model
  * only picks and explains actions the engine computed, and any reason with a number that is
  * not in that action's data falls back to the engine's text.
  */
 import type { Action, Briefing } from "./api";
 import type { Lang } from "./assist";
-import { allowedNumbers, chatJson, grounded, ModelError } from "./ollama";
+import { allowedNumbers, chatJson, grounded, ModelError, type Route } from "./model";
 
 export { ModelError };
 
@@ -42,7 +41,7 @@ const SCHEMA = {
 
 const valuesOf = (a: Action): unknown[] => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah];
 
-export async function draftBriefing(key: string, actions: Action[], notices: Action[], lang: Lang = "en"): Promise<Briefing> {
+export async function draftBriefing(key: Route, actions: Action[], notices: Action[], lang: Lang = "en"): Promise<Briefing> {
   const cands = actions.slice(0, CANDIDATES);
   const payload = JSON.stringify({
     candidates: cands.map((a) => ({

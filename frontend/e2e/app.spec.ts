@@ -23,11 +23,20 @@ const todayList = (page: Page) => page.locator("section", { has: page.getByRole(
 const handledList = (page: Page) => page.locator("section", { has: page.getByRole("heading", { name: "Handled" }) });
 const panel = (page: Page) => page.getByRole("complementary", { name: /Details for/ });
 
+/** Phones fold the map controls into one bar; open it so the panel can be used. */
+async function openMapControls(page: Page) {
+  const bar = page.getByRole("button", { name: "Map layers and search" });
+  if (await bar.isVisible()) {
+    if ((await bar.getAttribute("aria-expanded")) !== "true") await bar.click();
+    await expect(bar).toHaveAttribute("aria-expanded", "true");
+  }
+}
+
 async function openNav(page: Page, name: string) {
   const re = new RegExp(`^${name}( \\d+ to decide)?$`);
   const target = page.getByRole("button", { name: re }).filter({ visible: true });
   // All suggestions and the settings sit under More in the tab bar
-  if (["All suggestions", "Decisions", "Notifications", "AI briefing"].includes(name) && !(await target.count()))
+  if (["All suggestions", "Decisions", "Notifications", "AI settings"].includes(name) && !(await target.count()))
     await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "More", exact: true }).click();
   await target.first().click();
 }
@@ -62,34 +71,50 @@ test("Today shows the date, summary, store note and five priorities", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("AI briefing: add a key, see the model's text, remove the key", async ({ page }) => {
-  // The browser calls the OTH server directly; answer for it so the test needs no VPN or key.
+test("AI settings: store AI status, own key add (bad, good) and remove", async ({ page }) => {
+  // The store AI is off here; the manager's own provider is called straight from the browser (mocked).
   let sentKey = "";
-  await page.route("https://im-kigs-openwebui.oth-regensburg.de/ollama/api/chat", async (route) => {
+  let storeCalls = 0;
+  // pin "store AI off" whatever the server running the tests has configured
+  await page.route("**/api/ai/status", (route) => route.fulfill({ json: { configured: false, model: null } }));
+  await page.reload(); // the status was read on the first load
+  await page.route("**/api/ai/chat", (route) => {
+    storeCalls++;
+    return route.fulfill({ status: 503, json: { detail: "AI is not set up" } });
+  });
+  await page.route("https://ai.example.test/v1/chat/completions", async (route) => {
     sentKey = route.request().headers()["authorization"] ?? "";
     if (sentKey === "Bearer sk-wrong-key") return route.fulfill({ status: 401, body: "" });
-    const { candidates } = JSON.parse(JSON.parse(route.request().postData()!).messages[1].content);
+    const body = JSON.parse(route.request().postData()!);
+    expect(body.model).toBe("my-model");
+    const { candidates } = JSON.parse(body.messages[1].content);
     const content = JSON.stringify({
       summary: "Restock the mugs first; the rest can follow.",
       priorities: candidates.slice(0, 5).map((c: { id: string }) => ({ action_id: c.id, reason: "Plain reason from the model." })),
     });
-    await route.fulfill({ json: { message: { content } } });
+    await route.fulfill({ json: { choices: [{ message: { content } }] } });
   });
 
   await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
   await page.getByRole("button", { name: "Write with AI" }).click();
-  const dialog = page.getByRole("dialog", { name: "AI briefing" });
+  const dialog = page.getByRole("dialog", { name: "AI settings" });
+  await expect(dialog.getByTestId("ai-status")).toHaveText("Not set up");
+  await expect(dialog.getByRole("button", { name: "Write briefing", exact: true })).toBeDisabled();
+
+  await dialog.getByRole("button", { name: "Use my own key" }).click();
   const submit = dialog.getByRole("button", { name: "Save and write briefing" });
   await expect(submit).toBeDisabled();
-
-  await dialog.getByLabel("Open WebUI key").fill("sk-wrong-key");
+  await dialog.getByLabel("Base URL").fill("https://ai.example.test/v1");
+  await dialog.getByLabel("Model").fill("my-model");
+  await dialog.getByLabel("API key").fill("sk-wrong-key");
   await submit.click();
   await expect(dialog.getByRole("alert")).toContainText("This key didn't work");
 
-  await dialog.getByLabel("Open WebUI key").fill("sk-test-key-123");
+  await dialog.getByLabel("API key").fill("sk-test-key-123");
   await submit.click();
   await expect(dialog).toBeHidden();
   expect(sentKey).toBe("Bearer sk-test-key-123");
+  expect(storeCalls).toBe(0);
   await expect(todayList(page).getByText("Plain reason from the model.")).toHaveCount(5);
   await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
   await expect(page.getByText("Written by AI. Numbers checked against store data.")).toBeVisible();
@@ -98,15 +123,39 @@ test("AI briefing: add a key, see the model's text, remove the key", async ({ pa
   await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
 
   await page.getByRole("button", { name: "AI settings" }).click();
-  await expect(dialog.getByLabel("Open WebUI key")).toHaveAttribute("placeholder", "Saved in this browser");
-  await dialog.getByRole("button", { name: "Remove key and stop using AI" }).click();
+  await expect(dialog.getByTestId("ai-status")).toHaveText("Using your own key · my-model");
+  await expect(dialog.getByLabel("API key")).toHaveAttribute("placeholder", "Saved in this browser");
+  await dialog.getByRole("button", { name: "Remove my key" }).click();
+  await expect(dialog.getByTestId("ai-status")).toHaveText("Not set up");
+  await page.keyboard.press("Escape");
   await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
   expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("avrora.")))).toEqual([]);
 });
 
-test("light appearance uses the shop-floor background", async ({ page }) => {
+test("AI settings: store AI connected writes through /api/ai/chat", async ({ page }) => {
+  await page.route("**/api/ai/status", (r) => r.fulfill({ json: { configured: true, model: "store-model" } }));
+  await page.route("**/api/ai/chat", async (route) => {
+    const body = JSON.parse(route.request().postData()!);
+    expect(route.request().headers()["authorization"]).toBeUndefined();
+    const { candidates } = JSON.parse(body.messages[1].content);
+    const content = JSON.stringify({
+      summary: "Store AI summary.",
+      priorities: candidates.slice(0, 5).map((c: { id: string }) => ({ action_id: c.id, reason: "Store AI reason." })),
+    });
+    await route.fulfill({ json: { content, model: "store-model" } });
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "Write with AI" }).click();
+  const dialog = page.getByRole("dialog", { name: "AI settings" });
+  await expect(dialog.getByTestId("ai-status")).toHaveText("Store AI connected · store-model");
+  await dialog.getByRole("button", { name: "Write briefing", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText("Store AI summary.")).toBeVisible();
+});
+
+test("light appearance uses the neutral canvas background", async ({ page }) => {
   const bg = await page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
-  expect(bg).toBe("rgb(242, 242, 238)");
+  expect(bg).toBe("rgb(246, 246, 247)");
   const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme);
   expect(scheme).toBe("light");
 });
@@ -209,6 +258,7 @@ test("Decisions log lists decisions and supports undo", async ({ page }) => {
 test("Map shows Avrora stores, supply partners and OpenStreetMap infrastructure", async ({ page }, info) => {
   const errors = watchConsole(page);
   await openNav(page, "Map");
+  await openMapControls(page);
   await expect(page.getByRole("heading", { name: "Supply network" })).toBeVisible();
   await expect(page.getByText("7,561 places in Ukraine from Avrora and OpenStreetMap")).toBeVisible();
   await expect(page.getByText("7,561 shown")).toBeVisible();
@@ -396,9 +446,9 @@ test("tab bar: five tabs, badge, More holds settings, nothing hides behind it", 
   await expect(page.getByRole("heading", { name: "All suggestions", level: 1 })).toBeVisible();
   await expect(bar.getByRole("button", { name: "More", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByRole("main").getByRole("button", { name: "More", exact: true }).click();
-  await page.getByRole("button", { name: "AI briefing" }).click();
-  await expect(page.getByRole("dialog", { name: "AI briefing" })).toBeVisible();
-  await page.getByRole("button", { name: "Close AI briefing" }).click();
+  await page.getByRole("button", { name: "AI settings" }).click();
+  await expect(page.getByRole("dialog", { name: "AI settings" })).toBeVisible();
+  await page.getByRole("button", { name: "Close AI settings" }).click();
   await page.getByRole("button", { name: "Notifications" }).click();
   await expect(page.getByRole("dialog", { name: "Notifications" })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -540,7 +590,7 @@ test("screens for review", async ({ page }, info) => {
   await page.locator("main").evaluate((m) => m.scrollTo({ top: 400 }));
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${dir}/${info.project.name}-today-scrolled.png` });
-  await todayList(page).getByRole("listitem").first().getByRole("button").nth(1).click();
+  await todayList(page).getByRole("listitem").first().getByRole("button").first().click(); // the row (opens the sheet)
   await panel(page).getByRole("button", { name: "Dismiss" }).click();
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${dir}/${info.project.name}-detail-dismiss.png` });

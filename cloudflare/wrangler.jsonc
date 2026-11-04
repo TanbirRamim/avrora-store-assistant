@@ -1,4 +1,5 @@
 {
+  "account_id": "d7adc56ae0b48c02f351bb3e7ca6b9bc",
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "avrora-store-assistant",
   "main": "src/index.ts",
@@ -7,7 +8,12 @@
   // Static export of the Next.js app; /api/* is answered by the Worker.
   "assets": { "directory": "../frontend/out", "run_worker_first": ["/api/*"] },
   // Web Push: the public key is not secret. VAPID_PRIVATE_KEY is a secret (wrangler secret put; .dev.vars locally).
+  // Store AI (OpenAI-compatible): set AI_BASE_URL (e.g. https://your-host/v1) and AI_MODEL here,
+  // the key as a secret: npx wrangler secret put AI_API_KEY. Empty base URL = AI off, rules only.
   "vars": {
+    "AI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "AI_MODEL": "gemini-3.5-flash,gemini-3.8-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite",
+    "AI_REASONING_EFFORT": "low",
     "VAPID_PUBLIC_KEY": "BMBwgn1PASUjf5SzOLqsrnSra7hZzhmb4QzcBYyxmkXfthwlacvp8J-N5am1CJraXNN1pBMRK3IPnT5JEisCu2A",
     "VAPID_SUBJECT": "mailto:contact.tanbirramim@gmail.com"
   },

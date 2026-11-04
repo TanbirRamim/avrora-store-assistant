@@ -1,10 +1,10 @@
 /**
- * Questions about one action and supplier drafts, written by the OTH model in the browser.
+ * Questions about one action and supplier drafts, written by the store's AI model.
  * The model only sees that action and the product's history; any answer with a number that is
  * not in that data is replaced by a safe fallback.
  */
 import type { Action, ProductDetail } from "./api";
-import { allowedNumbers, chatJson, grounded } from "./ollama";
+import { allowedNumbers, chatJson, grounded } from "./model";
 
 export const FALLBACK = "I can't answer that from the store data.";
 export const OUT_OF_SCOPE = "I can only help with this store's stock, sales, orders and deliveries.";

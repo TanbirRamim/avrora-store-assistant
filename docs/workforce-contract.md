@@ -158,3 +158,10 @@ The Worker's cron pushes the same signals (`staffing` source in cloudflare/src/s
 employees, opts)`, `coachingNote(profile, opts)`: never throw; each returns `source: "model"|"rules"`
 (label with `SOURCE_LABEL[lang][source]`), plus `error` when the model answer was not usable. Shift
 messages are text to copy, never sent. See the note at the top of the file.
+
+`key` is the AI route from `aiRoute()` in `frontend/src/lib/ai.ts`: `"server"` sends the chat to
+`POST /api/ai/chat` (body `{messages:[{role,content}], schema?, max_tokens?}` → `{content, model}`; the
+server adds `AI_API_KEY` and forwards to the OpenAI-compatible `AI_BASE_URL`), `"own"` calls the
+provider saved on this device, `""` means rules only. `GET /api/ai/status` → `{configured, model}`.
+Proxy errors: 503 not set up, 413 body over 64 KB, 422 bad body, 429 over 20 requests a minute per
+client, 502 provider failed. `max_tokens` is capped at 1500.

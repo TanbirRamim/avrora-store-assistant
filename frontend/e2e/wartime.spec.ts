@@ -12,11 +12,21 @@ const THREATS = {
   ],
 };
 
+/** Phones fold the map controls into one bar; open it so the panel can be used. */
+async function openMapControls(page: Page) {
+  const bar = page.getByRole("button", { name: "Map layers and search" });
+  if (await bar.isVisible()) {
+    if ((await bar.getAttribute("aria-expanded")) !== "true") await bar.click();
+    await expect(bar).toHaveAttribute("aria-expanded", "true");
+  }
+}
+
 async function openWartime(page: Page, threats: object = { connected: false, reason: "unavailable" }) {
   await page.route("**/api/wartime/threats", (r) => r.fulfill({ json: threats }));
   await page.goto("/");
   await page.getByRole("button", { name: /^Map$/ }).filter({ visible: true }).first().click();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await openMapControls(page);
   // both layers show together by default
   await expect(page.getByRole("checkbox", { name: "Supply network" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("checkbox", { name: "War-time risk" })).toHaveAttribute("aria-checked", "true");
@@ -126,4 +136,21 @@ test("without the threat feed the panel says so", async ({ page }) => {
   await openWartime(page);
   await expect(page.getByText("Aerial threat feed not connected.")).toBeVisible();
   await expect(page.getByRole("region", { name: "Supply sites at risk" })).not.toContainText("near threats");
+});
+
+test("phones: map controls start folded so the map gets the screen", async ({ page }, info) => {
+  test.skip(info.project.name === "desktop", "the controls are always open on wide screens");
+  await page.route("**/api/wartime/threats", (r) => r.fulfill({ json: { connected: false, reason: "unavailable" } }));
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Map$/ }).filter({ visible: true }).first().click();
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  const bar = page.getByRole("button", { name: "Map layers and search" });
+  await expect(bar).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("checkbox", { name: "Supply network" })).toBeHidden();
+  const folded = await page.locator("#map-controls").evaluate((el) => el.parentElement!.getBoundingClientRect().height);
+  expect(folded, "folded bar stays small").toBeLessThan(80);
+  await bar.click();
+  await expect(page.getByRole("checkbox", { name: "Supply network" })).toBeVisible();
+  await bar.click();
+  await expect(page.getByRole("checkbox", { name: "Supply network" })).toBeHidden();
 });
