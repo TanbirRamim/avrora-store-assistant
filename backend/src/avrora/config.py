@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
+
+
+def _csv(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    items = tuple(x.strip() for x in os.getenv(name, "").split(",") if x.strip())
+    return items or default
 
 
 @dataclass(frozen=True)
@@ -29,6 +35,15 @@ class Settings:
     visibility_drop_ratio: float = 0.4
     visibility_min_baseline: float = 1.5
     anomaly_drop_ratio: float = 0.3
+
+    # HTTP surface (read when the settings are created; see backend/.env.example)
+    allowed_hosts: tuple[str, ...] = field(
+        default_factory=lambda: _csv("AVRORA_ALLOWED_HOSTS", ("localhost", "127.0.0.1", "testserver")))
+    cors_origins: tuple[str, ...] = field(
+        default_factory=lambda: _csv("AVRORA_CORS_ORIGINS", ("http://localhost:3000", "http://127.0.0.1:3000")))
+    # Header that carries the client address behind a reverse proxy (e.g. CF-Connecting-IP); empty = socket peer.
+    # Only set it when the proxy overwrites that header, otherwise clients can spoof it.
+    client_ip_header: str = field(default_factory=lambda: os.getenv("AVRORA_CLIENT_IP_HEADER", "").strip())
 
     # Output
     top_n: int = 5
