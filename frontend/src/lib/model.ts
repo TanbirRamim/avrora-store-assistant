@@ -53,6 +53,9 @@ export function allowedNumbers(values: unknown[]): Set<number> {
       const x = Number(m.replace(",", "."));
       nums.add(x).add(Math.round(x)).add(round1(x));
     }
+  // "17:00" may be written "5 pm"
+  for (const v of values)
+    for (const m of String(v).matchAll(/\b([01]?\d|2[0-3]):[0-5]\d\b/g)) nums.add(Number(m[1]) % 12 || 12);
   return nums;
 }
 

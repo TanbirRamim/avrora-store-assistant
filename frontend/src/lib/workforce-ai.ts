@@ -97,9 +97,15 @@ export function namesKnown(text: string, known: Iterable<string>): boolean {
 const str = (x: unknown) => (typeof x === "string" ? x.trim() : "");
 const strs = (x: unknown) => (Array.isArray(x) ? x.map(str) : []);
 
+/** Names written in the data itself (e.g. "Oksana V. sick" in a gap reason), so the model may repeat them. */
+export function namesIn(values: unknown[]): string[] {
+  return values.flatMap((v) => (typeof v === "string" ? (v.match(NAME) ?? []) : []));
+}
+
 /** One text passes when it is non-empty, grounded in `allowed`, within `maxWords` and names only `names`. */
 export function textOk(text: string, allowed: Set<number>, names: Iterable<string>, maxWords: number): boolean {
-  return text.length > 0 && grounded(text, allowed, maxWords) && namesKnown(text, names);
+  // raw data keys ("coverage_pct") are not for the manager's eyes
+  return text.length > 0 && !/\b[a-z]+_[a-z_]+\b/.test(text) && grounded(text, allowed, maxWords) && namesKnown(text, names);
 }
 
 async function withModel<T extends Result>(opts: AiOptions, rules: () => T, ask: (key: string, lang: Lang) => Promise<T | null>): Promise<T> {
@@ -162,13 +168,15 @@ export function explainPlanByRules(plan: Plan, lang: Lang = "en"): PlanExplanati
 const PLAN_PROMPT = `You explain a store's staffing plan to its manager, a busy non-technical person.
 You receive the plan the scheduling agent drafted: hours with customers, required and scheduled staff, shifts with tasks,
 under-staffed gaps, store conditions and KPIs.
-Write 3 to 5 plain sentences (at most 30 words each) on what the plan does and why, then a "watch out" list of 0 to 4 short
-items (at most 15 words each) for the risks the manager should check. Use only numbers and names that appear in the plan,
-written exactly as given; never invent numbers or people. Write in the language given in the request. Return exactly the JSON requested.`;
+Write 3 to 5 plain sentences (at most 30 words each, each sentence its own array item) on what the plan does and why, then a "watch out" list of 0 to 4 short
+items (at most 15 words each) for the risks the manager should check. Use only numbers, times and names that appear in the
+plan, copied exactly as given (for example "90.4%", "46.5 labour hours", "10 supplier deliveries", "17:00-20:00"); never
+invent, add up, subtract or round numbers, and never invent people. Write plain words, never data field names or codes
+(write "coverage", not "coverage_pct"). Write in the language given in the request. Return exactly the JSON requested.`;
 
 const PLAN_SCHEMA = {
   type: "object",
-  properties: { sentences: { type: "array", items: { type: "string" } }, watch_out: { type: "array", items: { type: "string" } } },
+  properties: { sentences: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 }, watch_out: { type: "array", items: { type: "string" } } },
   required: ["sentences", "watch_out"],
 };
 
@@ -190,10 +198,14 @@ export function explainPlan(plan: Plan, opts: AiOptions = {}): Promise<PlanExpla
     const out = await chatJson<{ sentences: unknown; watch_out: unknown }>(
       key, PLAN_PROMPT, JSON.stringify({ language: LANGUAGE[lang], plan: planPayload(plan) }), PLAN_SCHEMA, 120_000,
     );
-    const sentences = strs(out.sentences);
+    // smaller models sometimes put the whole paragraph in one item: split it into its sentences
+    let sentences = strs(out.sentences);
+    if (sentences.length < 3) sentences = sentences.flatMap((s) => s.split(/(?<![\s(][A-ZА-ЯІЇЄҐ][.!?])(?<=[.!?])\s+/)).map(str).filter(Boolean);
     const watchOut = strs(out.watch_out);
-    const allowed = allowedNumbers(flatValues(plan));
-    const names = plan.shifts.map((s) => s.name);
+    const values = flatValues(planPayload(plan));
+    const allowed = allowedNumbers(values);
+    // people named anywhere in the plan (gap reasons, blocks) are real too, not only those on shift
+    const names = [...plan.shifts.map((s) => s.name), ...namesIn(values)];
     const ok =
       sentences.length >= 3 && sentences.length <= 5 && watchOut.length <= 4 &&
       sentences.every((s) => textOk(s, allowed, names, 35)) && watchOut.every((s) => textOk(s, allowed, names, 18));
@@ -334,12 +346,19 @@ export function askTeamByRules(question: string, plan: Plan, employees: Employee
   return refuse;
 }
 
-const ASK_PROMPT = `You answer a store manager's question about today's staffing plan and team. You receive the plan (hours,
-shifts with tasks and reasons, gaps, KPIs) and the employee list (skills, status today, hours this week, score).
-Answer in at most 60 words, plainly, using only people, numbers and times from the data, with names written exactly as given.
-If someone is suggested for cover, prefer people whose status today is "available", who are not on the plan, and have the
-needed skill. If the data does not answer the question, or it is not about this store's staffing, set "answer" to exactly
-"CANNOT_ANSWER". List the employee_id of everyone you name. Write in the language given in the request. Return exactly the JSON requested.`;
+const ASK_PROMPT = `You answer a store manager's question about today's staffing plan and team. You receive the plan (opening
+hours, hours with customers and required/scheduled staff, shifts with tasks and reasons, gaps with reasons, conditions, KPIs),
+day parts (morning, afternoon, evening as times) and the employee list: role, skills, strength, score, status today,
+today's shift on the plan (null = not working today), hours worked and hours left this week.
+Answer in at most 60 words, plainly, using only people, numbers and times from the data, copied exactly as given, with names
+written exactly as given. Never add up or invent numbers. Write plain words, never data field names or codes
+(write "day off", not "day_off").
+Cover questions: name people who could take that time. Good candidates are not sick or on vacation, are not already on shift
+then (status "available" or "day_off" and no overlapping shift today), have hours left this week and the needed skill. Also
+say who already works then and any gap. If nobody fits, say so and why.
+"Fastest on the till" means checkout speed: use the strength "Fast checkout", then the score.
+Answer every question about this store's plan, shifts, gaps, staff or skills, even if only partly. Set "answer" to exactly
+"CANNOT_ANSWER" only when the question is not about this store's staffing or team. List the employee_id of everyone you name. Write in the language given in the request. Return exactly the JSON requested.`;
 
 const ASK_SCHEMA = {
   type: "object",
@@ -347,23 +366,44 @@ const ASK_SCHEMA = {
   required: ["answer", "employee_ids"],
 };
 
+/** Morning / afternoon / evening as times, so "the evening" maps to plan hours. */
+export function dayParts(plan: Plan) {
+  const open = plan.hours[0]?.hour ?? "08:00";
+  const last = plan.hours[plan.hours.length - 1]?.hour ?? "20:00";
+  const close = `${String(hourNum(last) + 1).padStart(2, "0")}:00`;
+  return { morning: { from: open, to: "12:00" }, afternoon: { from: "12:00", to: "17:00" }, evening: { from: "17:00", to: close } };
+}
+
+/** What the model needs about each person to answer cover, skill and "why" questions. */
+export function teamPayload(plan: Plan, employees: Employee[]) {
+  return employees.map((e) => {
+    const s = plan.shifts.find((x) => x.employee_id === e.employee_id);
+    return {
+      employee_id: e.employee_id, name: e.name, role: e.role, skills: e.skills, strength: e.strength ?? null, score: e.score,
+      status_today: e.status_today,
+      shift_today: s ? { start: s.start, end: s.end, role: s.role } : null,
+      hours_this_week: e.hours_this_week, contract_hours_week: e.contract_hours_week,
+      hours_left_this_week: Math.max(0, Math.round((e.contract_hours_week - e.hours_this_week) * 10) / 10),
+      next_shift: e.next_shift,
+    };
+  });
+}
+
 /** A grounded answer about the plan and team; refuses rather than invent people or numbers. */
 export function askTeam(question: string, plan: Plan, employees: Employee[], opts: AiOptions = {}): Promise<TeamAnswer> {
   const lang = opts.lang ?? "en";
   const q = question.trim().slice(0, 300);
   return withModel(opts, () => askTeamByRules(q, plan, employees, lang), async (key) => {
-    const team = employees.map((e) => ({
-      employee_id: e.employee_id, name: e.name, role: e.role, skills: e.skills, status_today: e.status_today,
-      hours_this_week: e.hours_this_week, contract_hours_week: e.contract_hours_week, score: e.score, strength: e.strength,
-    }));
+    const team = teamPayload(plan, employees);
+    const parts = dayParts(plan);
     const out = await chatJson<{ answer: unknown; employee_ids: unknown }>(
-      key, ASK_PROMPT, JSON.stringify({ language: LANGUAGE[lang], question: q, plan: planPayload(plan), team }), ASK_SCHEMA, 120_000,
+      key, ASK_PROMPT, JSON.stringify({ language: LANGUAGE[lang], question: q, day_parts: parts, plan: planPayload(plan), team }), ASK_SCHEMA, 120_000,
     );
     const answer = str(out.answer);
     if (answer === "CANNOT_ANSWER") return { answer: TEAM_FALLBACK[lang], refused: true, employeeIds: [], source: "model", lang };
     const ids = new Set(employees.map((e) => e.employee_id));
     const employeeIds = strs(out.employee_ids).filter((id) => ids.has(id));
-    const allowed = allowedNumbers([...flatValues(planPayload(plan)), ...flatValues(team), ...flatValues(q)]);
+    const allowed = allowedNumbers([...flatValues(planPayload(plan)), ...flatValues(team), ...flatValues(parts), ...flatValues(q)]);
     if (!textOk(answer, allowed, employees.map((e) => e.name), 65)) return null;
     return { answer, refused: false, employeeIds, source: "model", lang };
   });
