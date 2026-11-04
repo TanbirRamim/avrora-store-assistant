@@ -65,6 +65,8 @@ def _products() -> ProductFacts:
 
 
 def _db() -> sqlite3.Connection:
+    # on a fresh clone data/ only exists once the data has been generated
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH)
     con.execute("""CREATE TABLE IF NOT EXISTS decisions (
         action_id TEXT PRIMARY KEY, decision TEXT NOT NULL, reason TEXT, value REAL, decided_at TEXT NOT NULL)""")

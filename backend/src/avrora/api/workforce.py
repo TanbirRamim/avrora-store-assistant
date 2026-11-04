@@ -36,6 +36,7 @@ AUDIT_SQL = """CREATE TABLE IF NOT EXISTS workforce_audit (
 def _db() -> sqlite3.Connection:
     from avrora.api import main  # DB_PATH is patched in tests
 
+    main.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(main.DB_PATH)
     con.execute(AUDIT_SQL)
     return con
