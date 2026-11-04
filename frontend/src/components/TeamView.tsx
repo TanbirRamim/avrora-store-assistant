@@ -422,9 +422,9 @@ function PlanBody({
             <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Conditions">
               {conditions.map((c, i) => (
                 <li key={i}>
-                  <Badge dot={false}>
+                  <Badge dot={false} className="h-auto min-h-[22px] max-w-full flex-wrap gap-x-1.5 gap-y-0 whitespace-normal py-0.5">
                     {c.label}
-                    <span className="num text-muted">{span(c.from, c.to, plan.opening.open, plan.opening.close)}</span>
+                    <span className="num whitespace-nowrap text-muted">{span(c.from, c.to, plan.opening.open, plan.opening.close)}</span>
                   </Badge>
                 </li>
               ))}

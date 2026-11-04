@@ -303,7 +303,12 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 /* ---- Yellow "shop floor" theme (restored from 8a01d07) ---- */
 :root { --selected: #fff6b8; }
 @theme inline { --color-yellow: var(--yellow); }
-.price-tag { background: var(--yellow); color: var(--ink); border: 0; border-radius: 14px; box-shadow: none; padding: 20px 20px 18px 20px; }
+.price-tag { background: var(--yellow); color: var(--ink); border: 0; border-radius: 14px; box-shadow: none; padding: 30px 20px 18px 20px; }
+@media (min-width: 768px) { .price-tag { padding: 32px 24px 20px 24px; } }
+/* on yellow: ink-tinted dividers and muted text, and a busy button that stays ink instead of fading to olive */
+.price-tag .text-muted { color: #3f3f46; }
+.price-tag [class*="border-t"] { border-color: rgba(0, 0, 0, 0.14); }
+.price-tag .btn-tag:disabled { opacity: 1; background: var(--ink); color: rgba(255, 255, 255, 0.8); }
 .price-tag::before { content: ""; position: absolute; top: 14px; left: 14px; width: 8px; height: 8px; border-radius: 999px; background: var(--floor); }
 .tag-figure { font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1; }
 @media (min-width: 768px) { .tag-figure { font-size: 56px; } }
