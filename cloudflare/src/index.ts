@@ -21,6 +21,8 @@ interface Env extends PushEnv, AiEnv {
   /** Guards the demo simulation routes; requests send it as X-Demo-Key. */
   DEMO_KEY?: string;
   ALERTS_IN_UA_TOKEN?: string;
+  /** Comma-separated origins allowed to send mutating requests; the Worker's own origin is always allowed. */
+  ALLOWED_ORIGINS?: string;
 }
 
 type DecisionKind = "approve" | "reject" | "change";
@@ -99,13 +101,41 @@ const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 const fail = (status: number, detail: string) => json({ detail }, status);
 
-async function decide(req: Request, env: Env): Promise<Response> {
-  let body: Partial<DecisionRow>;
+/**
+ * Same-origin guard for mutating browser requests (not a login): rejects cross-site requests
+ * and any Origin that is neither this Worker's own nor listed in ALLOWED_ORIGINS.
+ * Requests without Origin (curl, server to server) pass; they are not CSRF vectors.
+ */
+function originAllowed(req: Request, env: Env, url: URL): boolean {
+  const origin = req.headers.get("Origin");
+  const listed = (env.ALLOWED_ORIGINS ?? "").split(",").map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean);
+  const ok = origin !== null && (origin === url.origin || listed.includes(origin));
+  if (origin !== null && !ok) return false;
+  return !(req.headers.get("Sec-Fetch-Site") === "cross-site" && !ok);
+}
+
+/** Reads a JSON object body; null for anything else (including a JSON null). */
+async function readObject(req: Request): Promise<Record<string, unknown> | null> {
   try {
-    body = await req.json();
+    const b: unknown = await req.json();
+    return b !== null && typeof b === "object" && !Array.isArray(b) ? (b as Record<string, unknown>) : null;
   } catch {
-    return fail(422, "Body must be JSON");
+    return null;
   }
+}
+
+/** decodeURIComponent that returns null on malformed escapes instead of throwing. */
+function decodeSegment(s: string): string | null {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return null;
+  }
+}
+
+async function decide(req: Request, env: Env): Promise<Response> {
+  const body = (await readObject(req)) as Partial<DecisionRow> | null;
+  if (!body) return fail(400, "Body must be a JSON object");
   const { action_id, decision } = body;
   const reason = body.reason ?? null;
   const value = body.value ?? null;
@@ -143,12 +173,8 @@ const SIM_DEFAULTS = { power: { minutes: 240, starts_in: 90 }, air_alert: { minu
 
 /** POST /api/signals/simulate {kind, minutes, starts_in?}: a demo event, pushed to phones at once. */
 async function simulate(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-  let body: { kind?: unknown; minutes?: unknown; starts_in?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return fail(422, "Body must be JSON");
-  }
+  const body = await readObject(req);
+  if (!body) return fail(400, "Body must be a JSON object");
   const kind = body.kind;
   if (kind !== "power" && kind !== "air_alert") return fail(422, "kind must be power or air_alert");
   const minutes = body.minutes ?? SIM_DEFAULTS[kind].minutes;
@@ -178,6 +204,9 @@ export default {
   async fetch(req, env, ctx): Promise<Response> {
     const { pathname } = new URL(req.url);
     const method = req.method;
+
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && !originAllowed(req, env, new URL(req.url)))
+      return fail(403, "Cross-origin requests are not allowed");
 
     if (method === "GET") {
       switch (pathname) {
@@ -216,7 +245,8 @@ export default {
       }
       const product = pathname.match(/^\/api\/products\/([^/]+)$/);
       if (product) {
-        const id = decodeURIComponent(product[1]);
+        const id = decodeSegment(product[1]);
+        if (id === null) return fail(400, "Malformed product id");
         const detail = productDetail(id);
         return detail ? json(detail) : fail(404, `Unknown product ${id}`);
       }
@@ -239,7 +269,9 @@ export default {
 
     const undo = pathname.match(/^\/api\/decisions\/([^/]+)$/);
     if (method === "DELETE" && undo) {
-      await env.DB.prepare("DELETE FROM decisions WHERE action_id = ?").bind(decodeURIComponent(undo[1])).run();
+      const id = decodeSegment(undo[1]);
+      if (id === null) return fail(400, "Malformed action id");
+      await env.DB.prepare("DELETE FROM decisions WHERE action_id = ?").bind(id).run();
       return new Response(null, { status: 204 });
     }
 

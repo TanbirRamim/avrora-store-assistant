@@ -2,7 +2,8 @@
 
 Power cuts come from the hand-maintained cloudflare/src/outages.json, weather from Open-Meteo, and
 air-raid alerts only from the demo simulation (the live alerts.in.ua feed exists only in the Worker).
-Simulated events are kept in memory. Set AVRORA_DEMO_KEY to require an X-Demo-Key header locally.
+Simulated events are kept in memory. The simulate routes need AVRORA_DEMO_KEY and a matching X-Demo-Key
+header; without a configured key they answer 403.
 """
 
 from __future__ import annotations
@@ -20,6 +21,8 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException, Response
 from pydantic import BaseModel, Field
 
+from avrora.ai.provider import fetch
+
 router = APIRouter()
 
 KYIV = ZoneInfo("Europe/Kyiv")
@@ -30,6 +33,7 @@ SIM_SOURCE = "Simulated for the demo"
 WEATHER_SOURCE = "Open-Meteo (CC BY 4.0)"
 LOOKAHEAD = timedelta(hours=24)
 CACHE_S = 300
+MAX_SIMULATED = 50
 
 
 class Signal(BaseModel):
@@ -76,9 +80,12 @@ def _hm(d: datetime) -> str:
 
 def _schedule() -> dict:
     try:
-        return json.loads(OUTAGES.read_text())
+        s = json.loads(OUTAGES.read_text())
     except (OSError, ValueError):
+        s = None
+    if not isinstance(s, dict) or not isinstance(s.get("days"), dict):
         return {"queue": "", "example": True, "days": {}}
+    return {**s, "queue": str(s.get("queue", ""))}
 
 
 def power_signal(id_: str, start: datetime, end: datetime, now: datetime, queue: str, source: str, simulated: bool) -> Signal:
@@ -106,9 +113,14 @@ def scheduled_power(now: datetime, schedule: dict | None = None) -> list[Signal]
     source = f"{POWER_SOURCE} (example times)" if s.get("example") else POWER_SOURCE
     out = []
     for day in (today - timedelta(days=1), today, today + timedelta(days=1)):
-        for start_s, end_s in s.get("days", {}).get(day.isoformat(), []):
-            start = _at(day, start_s)
-            end = _at(day, end_s)
+        entries = s.get("days", {}).get(day.isoformat(), [])
+        for entry in entries if isinstance(entries, list) else []:
+            try:
+                start_s, end_s = entry
+                start = _at(day, start_s)
+                end = _at(day, end_s)
+            except (TypeError, ValueError, AttributeError):  # a bad hand-edited entry is skipped
+                continue
             if end <= start:
                 end += timedelta(days=1)
             if end <= now or start - now > LOOKAHEAD:
@@ -119,6 +131,8 @@ def scheduled_power(now: datetime, schedule: dict | None = None) -> list[Signal]
 
 def _at(day: date, hhmm: str) -> datetime:
     h, m = (int(x) for x in hhmm.split(":"))
+    if not (0 <= h <= 24 and 0 <= m < 60):
+        raise ValueError(f"bad time {hhmm}")
     return datetime(day.year, day.month, day.day, tzinfo=KYIV) + timedelta(hours=h, minutes=m)
 
 
@@ -151,15 +165,20 @@ def _weather(now: datetime) -> list[Signal] | None:
         daily = hit[1]
     else:
         try:
-            r = httpx.get("https://api.open-meteo.com/v1/forecast", timeout=8, params={
+            r = fetch("GET", "https://api.open-meteo.com/v1/forecast", timeout=8, params={
                 "latitude": STORE["lat"], "longitude": STORE["lon"], "timezone": "Europe/Kyiv", "forecast_days": 2,
                 "daily": "temperature_2m_min,temperature_2m_max,wind_gusts_10m_max,weather_code"})
             r.raise_for_status()
             daily = r.json()["daily"]
-        except (httpx.HTTPError, KeyError, ValueError):
+            out = notable_weather(daily, now)  # validates the payload before it is cached
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
             return None
         _cache["weather"] = (time.monotonic(), daily)
-    return notable_weather(daily, now)
+        return out
+    try:
+        return notable_weather(daily, now)
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
 
 
 def _simulated_signal(row: dict, now: datetime, queue: str) -> Signal:
@@ -192,8 +211,8 @@ def signals() -> SignalsOut:
 
 
 def _check_key(key: str | None) -> None:
-    want = os.environ.get("AVRORA_DEMO_KEY")
-    if want and not secrets.compare_digest(key or "", want):
+    want = os.environ.get("AVRORA_DEMO_KEY", "")
+    if not want or not secrets.compare_digest((key or "").encode(), want.encode()):  # fail closed without a key
         raise HTTPException(403, "Needs a valid X-Demo-Key header")
 
 
@@ -203,6 +222,8 @@ DEFAULTS = {"power": (240, 90), "air_alert": (45, 0)}
 @router.post("/api/signals/simulate", response_model=Signal, status_code=201)
 def simulate(body: SimulateIn, x_demo_key: str | None = Header(default=None)) -> Signal:
     _check_key(x_demo_key)
+    if len(_SIMULATED) >= MAX_SIMULATED:
+        raise HTTPException(429, "Too many simulated events. Clear them first.")
     minutes, starts_in = DEFAULTS[body.kind]
     now = datetime.now(UTC)
     start = now.replace(second=0, microsecond=0) + timedelta(minutes=body.starts_in if body.starts_in is not None else starts_in)

@@ -58,6 +58,20 @@ def test_every_replan_keeps_every_rule(day):
     for ev in wp.all_events(day):
         assert wp.violations(wp.replan_day(day, ev)) == [], ev
         assert wp.replan(day, ev)["kpis"]["rule_violations"] == 0
+        _assert_week_caps(day, wp.replan_day(day, ev))
+
+
+def _assert_week_caps(day, replanned):
+    """Paid hours over the whole week (replanned day + every other planned or past day) stay within the cap."""
+    sd = wp.staff()
+    base = wp.base_week()
+    total = {}
+    for d in wp._week(day):
+        shifts = replanned.shifts if d == day else wp._shifts_on(sd, base, d)
+        for eid, (s, t) in shifts.items():
+            total[eid] = total.get(eid, 0.0) + wp.paid_hours(t - s)
+    for eid, h in total.items():
+        assert h <= sd.employee(eid).week_cap + 1e-9, (day, eid, h)
 
 
 def test_required_follows_forecast():
@@ -179,3 +193,37 @@ def test_employees(client):
     assert prof["recent_shifts"] and prof["hours_this_week"] == by["E03"]["hours_this_week"]
     assert client.get("/api/workforce/employees/E99").status_code == 404
     assert employee_list()["demo_data"] is True
+
+
+def _person(eid, role="Cashier", contract=40):
+    from avrora.workforce.data import Employee
+    from avrora.workforce.scheduler import Person
+    e = Employee(eid, eid, role, (), contract, 100.0, "2020-01-01", True, True)
+    return Person(emp=e, window=(8, 21), cap_left=40.0)
+
+
+def test_break_counts_against_min_on_site():
+    from avrora.workforce.scheduler import check_rules
+    people = {"A": _person("A", "Shift lead"), "B": _person("B")}
+    out = check_rules({"A": (8, 16), "B": (8, 16)}, people, {}, {}, {})
+    assert any("on the floor" in v for v in out)
+
+
+def test_breaks_are_staggered():
+    from avrora.workforce.scheduler import assign_breaks
+    b = assign_breaks({"A": (8, 16), "B": (8, 16), "C": (8, 16)})
+    assert len(set(b.values())) == 3
+
+
+def test_overtime_sums_to_week_overtime(monkeypatch):
+    from dataclasses import replace
+    sd = wp.staff()
+    base = wp.base_week()
+    eid = max({e for p in base.values() for e in p.shifts}, key=lambda e: sum(e in p.shifts for p in base.values()))
+    fake = replace(sd, employees=[replace(e, contract_hours_week=10) if e.employee_id == eid else e
+                                  for e in sd.employees])
+    monkeypatch.setattr(wp, "staff", lambda: fake)
+    hours = sum(wp.paid_hours(t - s) for p in base.values() for e, (s, t) in p.shifts.items() if e == eid)
+    assert hours > 10
+    got = sum(wp.plan_document(p)["kpis"]["overtime_hours"] for p in base.values())
+    assert abs(got - (hours - 10)) <= 0.05 * len(base)  # each day is rounded to 0.1

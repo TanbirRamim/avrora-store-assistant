@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { SHEET_SPRING } from "@/lib/motion";
 import { useEffect } from "react";
 import useSWR from "swr";
 import type { Action, ProductDetail, ProductRow } from "@/lib/api";
@@ -83,7 +84,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
       initial={reduce ? { opacity: 0 } : { y: 24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={reduce ? { opacity: 0 } : { y: 24, opacity: 0 }}
-      transition={reduce ? { duration: 0.15 } : { type: "spring", stiffness: 420, damping: 38 }}
+      transition={reduce ? { duration: 0.15 } : SHEET_SPRING}
       className="flex h-full flex-col overflow-hidden rounded-t-[16px] border border-[var(--border)] bg-floor shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] lg:rounded-[12px]"
       aria-label={`Product ${row.name}`}
     >
@@ -118,7 +119,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
                 const a = full.get(ref.id);
                 const tm = TYPE_META[ref.type];
                 return (
-                  <li key={ref.id} className="cell relative px-4 py-3.5 pl-5">
+                  <li key={ref.id} className="cell relative border-l-[6px] border-yellow px-4 py-3.5">
                     <span aria-hidden className="absolute bottom-3 left-[6px] top-3 w-[3px] rounded-full bg-ink" />
                     <p className="t-footnote font-semibold" style={{ color: tm.text }}>
                       {tm.label}

@@ -6,8 +6,6 @@ GET /api/ai/status -> {configured, model}; POST /api/ai/chat -> {content, model}
 
 from __future__ import annotations
 
-import time
-from collections import defaultdict, deque
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -15,13 +13,15 @@ from pydantic import BaseModel, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from avrora.ai import provider
+from avrora.api.limits import RateLimiter, client_key, read_json_body
 
 router = APIRouter(prefix="/api/ai")
 
 MAX_BODY = 64 * 1024
 WINDOW_S = 60
 PER_WINDOW = 20
-_hits: dict[str, deque[float]] = defaultdict(deque)
+_limiter = RateLimiter(WINDOW_S, PER_WINDOW)
+_hits = _limiter.hits
 
 
 class Message(BaseModel):
@@ -51,26 +51,14 @@ def status() -> Status:
     return Status(configured=cfg is not None, model=cfg.model if cfg else None)
 
 
-def _limited(ip: str) -> bool:
-    now, q = time.monotonic(), _hits[ip]
-    while q and now - q[0] > WINDOW_S:
-        q.popleft()
-    if len(q) >= PER_WINDOW:
-        return True
-    q.append(now)
-    return False
-
-
 @router.post("/chat", response_model=ChatOut)
 async def chat(request: Request) -> ChatOut:
     cfg = provider.config()
     if cfg is None:
         raise HTTPException(503, "AI is not set up")
-    if _limited(request.client.host if request.client else "local"):
+    if _limiter.limited(client_key(request)):
         raise HTTPException(429, "Too many AI requests. Wait a minute.")
-    raw = await request.body()
-    if len(raw) > MAX_BODY:
-        raise HTTPException(413, "Request too large")
+    raw = await read_json_body(request, MAX_BODY)
     try:
         body = ChatIn.model_validate_json(raw)
     except ValidationError as e:

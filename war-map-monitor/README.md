@@ -2,7 +2,7 @@
 
 > **Система оперативного табелю загроз для 1,935 офіційних активних магазинів «Аврора» в Україні.**
 
-The dashboard reports source provenance explicitly: official alerts.in.ua provides oblast and hromada coverage when a token is configured; the public fallback is oblast-only; offline simulation is clearly labelled. Frontline status distinguishes a current feed from stale cache or baked sample data.
+The dashboard reports source provenance explicitly: official alerts.in.ua provides oblast and hromada coverage when a token is configured; the public fallback is oblast-only; when both alert feeds fail the system reports "alerts unavailable" (empty alert set, red banner in the dashboard) and never invents sirens; a random offline simulation exists only for demos and must be enabled explicitly with `MONITOR_ALLOW_SIMULATION=1` (then labelled as simulated in the banner). The dashboard also shows a banner when the frontline source is the built-in `baked_sample`. Frontline status distinguishes a current feed from stale cache or baked sample data.
 
 Ця система зчитує оперативні геопросторові дані лінії зіткнення (**DeepStateMap**) та сповіщення про повітряні загрози (**Alerts.in.ua**), розраховує дистанції до бойових дій для кожного магазину мережі та автоматично генерує **живий Data Sheet** (табель загроз) у форматах **CSV, Excel та JSON**, оптимізований як для роботи персоналу, так і для інтеграції в **AI-рідери, модулі прогнозування та системи тактичних підказок**.
 
@@ -85,7 +85,7 @@ The dashboard reports source provenance explicitly: official alerts.in.ua provid
 12. `emergency_demand`: Оцінка ажіотажного попиту (`NORMAL`, `ELEVATED`, `HIGH`, `CRITICAL`, `EXTREME`)
 13. `shelter_nearby`: Локація та відстань до найближчого бомбосховища
 14. `has_generator`, `generator_fuel_l`: Наявність та залишок пального для автономного живлення
-15. `manager_name`, `manager_phone`: Контактна особа для екстреного зв'язку
+15. `manager_name`, `manager_phone`: Контактна особа (зберігаються лише в `data/avrora_stores.json`; НЕ віддаються через публічні `/api/datasheet` та CSV/XLSX)
 16. `updated_at`: Часова мітка генерації запису
 
 ---
@@ -145,7 +145,7 @@ python ai/ai_reader_demo.py
 
 Створіть за потреби файл `.env` у корені проекту:
 ```env
-# Токен API alerts.in.ua (якщо відсутній — система використовує реалістичну імітаційну модель)
+# Токен API alerts.in.ua (якщо відсутній — публічний фід по областях; якщо недоступний — статус "alerts unavailable", без вигаданих тривог)
 ALERTS_IN_UA_TOKEN=your_token_here
 
 # Інтервал оновлення (секунди)
@@ -153,4 +153,19 @@ POLL_INTERVAL_SECONDS=45
 
 # Порт веб-сервера
 PORT=8000
+
+# Адреса прив'язки (за замовчуванням лише локально; 0.0.0.0 відкриває сервер у мережі — тоді обов'язково задайте MONITOR_TOKEN)
+MONITOR_HOST=127.0.0.1
+
+# Спільний токен для POST-запитів (заголовок X-Monitor-Token). Якщо не заданий — POST дозволені лише з loopback
+MONITOR_TOKEN=
+
+# Дозволені CORS-origin (через кому). За замовчуванням http://localhost:PORT і http://127.0.0.1:PORT
+MONITOR_CORS_ORIGINS=
+
+# Мінімальний інтервал між примусовими оновленнями /api/refresh (секунди)
+MONITOR_REFRESH_MIN_INTERVAL=10
+
+# Лише для демо: випадкова імітація тривог, коли фіди недоступні (за замовчуванням вимкнено)
+MONITOR_ALLOW_SIMULATION=0
 ```

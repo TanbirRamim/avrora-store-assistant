@@ -254,7 +254,7 @@ export const ALERT_LABEL: Record<AlertState, string> = {
   local: "Active in the community",
   regional: "Active in the region",
   clear: "No alert",
-  unknown: "Not connected",
+  unknown: "No alert data",
 };
 
 export const COMMS: Record<string, string> = { starlink: "Starlink", cellular: "Mobile network", online: "Fixed line" };

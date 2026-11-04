@@ -8,15 +8,41 @@ next one answers. AI_REASONING_EFFORT (optional, e.g. "low") keeps thinking mode
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import time
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import httpx
+
+log = logging.getLogger(__name__)
 
 MAX_TOKENS = 1500
 TIMEOUT_S = 45  # per model; the next fallback gets its own
 RETRY_PAUSE_S = 1.5  # one more pass over the models when all were busy
+MAX_RESPONSE = 1024 * 1024  # bytes read from any upstream answer
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
+
+
+class ResponseTooLarge(httpx.HTTPError):
+    """An upstream answer was bigger than we are willing to read."""
+
+
+def fetch(method: str, url: str, max_bytes: int = MAX_RESPONSE, **kwargs) -> httpx.Response:
+    """httpx request that stops reading after max_bytes; raises ResponseTooLarge (an httpx.HTTPError)."""
+    with httpx.stream(method, url, **kwargs) as r:
+        declared = r.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > max_bytes:
+            raise ResponseTooLarge("Upstream answer too large")
+        buf = bytearray()
+        for chunk in r.iter_bytes():
+            buf += chunk
+            if len(buf) > max_bytes:
+                raise ResponseTooLarge("Upstream answer too large")
+        headers = [(k, v) for k, v in r.headers.items() if k.lower() not in ("content-encoding", "content-length")]
+        return httpx.Response(r.status_code, headers=headers, content=bytes(buf), request=r.request)
 
 
 class ProviderError(Exception):
@@ -40,6 +66,10 @@ def config() -> AiConfig | None:
     models = tuple(m.strip() for m in os.getenv("AI_MODEL", "").split(",") if m.strip())
     if not base or not models:
         return None
+    url = urlparse(base)
+    if url.scheme != "https" and not (url.scheme == "http" and url.hostname in LOCAL_HOSTS):
+        log.warning("AI_BASE_URL ignored: it must use https (http only for localhost)")
+        return None
     return AiConfig(base.rstrip("/"), models, os.getenv("AI_API_KEY", "").strip(),
                     os.getenv("AI_REASONING_EFFORT", "").strip())
 
@@ -54,6 +84,14 @@ def chat(cfg: AiConfig, messages: list[dict], schema: dict | None = None, max_to
     return answer(cfg, messages, schema, max_tokens)[0]
 
 
+def _is_json(text: str) -> bool:
+    try:
+        json.loads(text)
+    except ValueError:
+        return False
+    return True
+
+
 def answer(cfg: AiConfig, messages: list[dict], schema: dict | None = None,
            max_tokens: int = MAX_TOKENS) -> tuple[str, str]:
     """Like chat, trying the fallback models in order; returns (text, model that answered).
@@ -64,7 +102,7 @@ def answer(cfg: AiConfig, messages: list[dict], schema: dict | None = None,
         body["reasoning_effort"] = cfg.reasoning_effort
 
     def call(model: str, fmt: dict | None) -> httpx.Response:
-        return httpx.post(f"{cfg.base_url}/chat/completions", headers=headers, timeout=TIMEOUT_S,
+        return fetch("POST", f"{cfg.base_url}/chat/completions", headers=headers, timeout=TIMEOUT_S,
                           json={**body, "model": model, **({"response_format": fmt} if fmt else {})})
 
     last = "Can't reach the AI provider"
@@ -89,6 +127,9 @@ def answer(cfg: AiConfig, messages: list[dict], schema: dict | None = None,
             content = None
         if not isinstance(content, str) or not content.strip():
             last = "The AI provider sent no answer"
+            continue
+        if schema and not _is_json(content):
+            last = "The AI answer was cut off"  # ran out of tokens mid-answer: the next model may finish
             continue
         return content, model
     raise ProviderError(last)

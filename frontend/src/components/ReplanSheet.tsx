@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { aiRoute, aiStatus, useAi } from "@/lib/ai";
 import { explainReplan, type ReplanExplanation } from "@/lib/workforce-ai";
-import { SourceTag } from "./TeamInsights";
 import { money } from "@/lib/format";
 import { type Employee, EVENT_HOURS, type Plan, type ReplanEvent, workforce } from "@/lib/workforce";
 import { Avatar } from "./EmployeeSheet";
@@ -50,6 +49,8 @@ export function ReplanSheet({
   const [error, setError] = useState<string | null>(null);
   const ai = useAi();
   const [story, setStory] = useState<ReplanExplanation | null>(null);
+  // only the newest proposal may set its explanation
+  const seq = useRef(0);
   const [copied, setCopied] = useState<string | null>(null);
   const copy = async (id: string, text: string) => {
     try {
@@ -69,13 +70,16 @@ export function ReplanSheet({
   const propose = async () => {
     const ev = event();
     if (!ev) return;
+    const id = ++seq.current;
     setBusy(true);
     setError(null);
+    setStory(null);
     try {
       const next = await workforce.replan(plan.date, ev);
+      if (id !== seq.current) return;
       setProposal(next);
       await aiStatus();
-      void explainReplan(plan, next, next.diff ?? [], { key: aiRoute(), lang: ai.lang }).then(setStory);
+      void explainReplan(plan, next, next.diff ?? [], { key: aiRoute(), lang: ai.lang }).then((x) => id === seq.current && setStory(x));
     } catch {
       setError("Couldn't work out a new plan. Check the connection and try again.");
     } finally {
@@ -218,9 +222,6 @@ export function ReplanSheet({
               <p className="text-[15px] leading-[22px]" lang={story.lang}>
                 {story.summary}
               </p>
-              <div className="mt-1">
-                <SourceTag source={story.source} lang={story.lang} error={story.error} />
-              </div>
             </section>
           )}
 

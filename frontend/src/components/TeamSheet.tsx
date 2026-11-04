@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { SCRIM_FADE, SHEET_SPRING } from "@/lib/motion";
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "./icons";
@@ -47,16 +48,16 @@ export function TeamSheet({
   // into <body>, so an animated ancestor can't become the fixed layers' containing block
   return createPortal(
     <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-40 bg-zinc-950/40" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={SCRIM_FADE} onClick={onClose} className="fixed inset-0 z-40 bg-zinc-950/40" />
       <div className="pointer-events-none fixed inset-x-0 top-0 bottom-[var(--kb,0px)] z-50 flex items-end justify-center pt-[calc(env(safe-area-inset-top)+10px)] md:items-center md:p-6">
         <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby={labelId}
-          initial={still ? { opacity: 0 } : { y: 48 }}
-          animate={still ? { opacity: 1 } : { y: 0 }}
+          initial={still ? { opacity: 0 } : { y: 48, opacity: 0 }}
+          animate={still ? { opacity: 1 } : { y: 0, opacity: 1 }}
           exit={still ? { opacity: 0 } : { y: 48, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 420, damping: 40 }}
+          transition={still ? { duration: 0.15 } : SHEET_SPRING}
           className={`float pointer-events-auto relative flex max-h-full w-full ${wide ? "md:max-w-[600px]" : "md:max-w-[500px]"} flex-col overflow-hidden rounded-t-[16px] border border-[var(--border)] bg-paper md:max-h-[88vh] md:rounded-[12px]`}
         >
           <div className="flex justify-center pt-2 md:hidden" aria-hidden>

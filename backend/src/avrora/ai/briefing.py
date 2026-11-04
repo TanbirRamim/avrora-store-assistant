@@ -63,14 +63,14 @@ def ollama_drafter() -> Drafter | None:
     host = os.getenv("OLLAMA_HOST")
     if not host:
         return None
-    import httpx
+    from avrora.ai import provider
 
     model = os.getenv("OLLAMA_MODEL", "qwen3:32b")
     key = os.getenv("OLLAMA_API_KEY")  # needed when Ollama sits behind Open WebUI
     headers = {"Authorization": f"Bearer {key}"} if key else {}
 
     def draft(payload: str) -> BriefingDraft:
-        r = httpx.post(f"{host.rstrip('/')}/api/chat", timeout=180, headers=headers, json={
+        r = provider.fetch("POST", f"{host.rstrip('/')}/api/chat", timeout=180, headers=headers, json={
             "model": model, "stream": False, "think": False, "format": BriefingDraft.model_json_schema(),
             "options": {"temperature": 0},
             "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": payload}],

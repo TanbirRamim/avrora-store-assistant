@@ -141,7 +141,8 @@ The original Python prototype: a FastAPI dashboard, a console monitor and CSV/JS
 
 - Reads front-line geometry from a community mirror of DeepStateMap data and alerts from alerts.in.ua.
 - Tracks all 1,935 active Avrora stores. Its API says whether alerts are community-level, oblast-level or simulated, and whether the front line is current, cached or sample data.
-- Without `ALERTS_IN_UA_TOKEN` it **simulates** random alerts; its output files are from such a simulated run.
+- Without `ALERTS_IN_UA_TOKEN` it reads the public oblast-level feed. If no feed answers it reports alerts as unavailable; random alerts only with `MONITOR_ALLOW_SIMULATION=1`.
+- Listens on 127.0.0.1 by default. Write routes need `MONITOR_TOKEN` when opened to the network. Generated files go to `output/` and are not committed.
 
 ```bash
 cd war-map-monitor

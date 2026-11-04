@@ -229,7 +229,7 @@ export function TeamView({ today, initialDate, initialTab = "plan" }: { today: s
           </motion.div>
         ) : (
           <motion.div key="plan" {...fade(still)}>
-            {/* day picker: compact cells "Mon / 2"; selected = zinc-900 fill, today = red dot */}
+            {/* day picker: compact cells "Mon / 2"; selected = yellow fill, today = red dot */}
             <div role="group" aria-label="Day" className="mt-3 grid grid-cols-7 gap-1 md:max-w-[520px]">
               {days.map((d, i) => {
                 const on = d === date;
@@ -240,12 +240,12 @@ export function TeamView({ today, initialDate, initialTab = "plan" }: { today: s
                     aria-pressed={on}
                     aria-label={i === 0 ? `Today, ${dayLong(d)}` : dayLong(d)}
                     className={`relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[10px] border transition-colors duration-150 ${
-                      on ? "border-ink bg-ink text-white" : "border-[var(--border)] bg-paper text-ink hover:bg-[var(--surface-2)] active:bg-[var(--neutral-bg)]"
+                      on ? "border-yellow bg-yellow font-semibold text-ink" : "border-[var(--border)] bg-paper text-ink hover:bg-[var(--surface-2)] active:bg-[var(--neutral-bg)]"
                     }`}
                   >
-                    <span className={`text-[12px] leading-4 ${on ? "text-white/75" : "text-muted"}`}>{dayShort(d)}</span>
+                    <span className={`text-[12px] leading-4 ${on ? "text-ink/70" : "text-muted"}`}>{dayShort(d)}</span>
                     <span className="num text-[15px] font-semibold leading-5">{dayNum(d)}</span>
-                    {i === 0 && <span aria-hidden className={`absolute right-1.5 top-1.5 size-[5px] rounded-full ${on ? "bg-white" : "bg-[var(--brand)]"}`} />}
+                    {i === 0 && <span aria-hidden className={`absolute right-1.5 top-1.5 size-[5px] rounded-full ${on ? "bg-ink" : "bg-[var(--brand)]"}`} />}
                   </button>
                 );
               })}
@@ -422,9 +422,9 @@ function PlanBody({
             <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Conditions">
               {conditions.map((c, i) => (
                 <li key={i}>
-                  <Badge dot={false}>
+                  <Badge dot={false} className="h-auto min-h-[22px] max-w-full flex-wrap gap-x-1.5 gap-y-0 whitespace-normal py-0.5">
                     {c.label}
-                    <span className="num text-muted">{span(c.from, c.to, plan.opening.open, plan.opening.close)}</span>
+                    <span className="num whitespace-nowrap text-muted">{span(c.from, c.to, plan.opening.open, plan.opening.close)}</span>
                   </Badge>
                 </li>
               ))}
@@ -588,7 +588,6 @@ function PlanBody({
       <AskTeam plan={plan} employees={employees} />
       <KpiCard />
       <ChangeLog changes={plan.changes} />
-      <p className="px-4 text-center text-[13px] leading-[18px] text-muted">Demo data: staff, shifts and traffic are made up.</p>
     </div>
   );
 }

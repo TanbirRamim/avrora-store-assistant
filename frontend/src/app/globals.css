@@ -3,7 +3,7 @@
 /* v2 "Quiet professional" palette, see docs/design-system.md. Old token names map onto it. */
 :root {
   color-scheme: light;
-  --yellow: #ffde00; /* logo mark only. Nowhere else in the UI. */
+  --yellow: #ffde00; /* brand theme: summary tag, active dock tab, selected day, highlights. Always with ink text. */
   --ink: #18181b;
   --red: #dc2626; --brand: #e30613; --critical-bg: #fef2f2; --warning-bg: #fffbeb; --success-bg: #f0fdf4; --neutral-bg: #f4f4f5; --border: #e4e4e7; --divider: #ededef; --text-3: #71717a; /* urgency only */
   --green: #15803d;
@@ -209,7 +209,7 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important; overflow: hidden; }
-.maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.maplibregl-ctrl-group button { width: 44px !important; height: 44px !important; }
 .maplibregl-ctrl-attrib { font-family: var(--font-sans); }
 /* phones: pinch to zoom, so the +/- buttons go (as in Apple Maps) */
 @media (max-width: 767px) { .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; } }
@@ -243,7 +243,7 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .btn-text:hover { text-decoration: underline; }
 .btn-text:active { opacity: 0.6; }
 /* small secondary button inside a summary card */
-.btn-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--border); box-shadow: var(--shadow-xs); font-weight: 500; font-size: 14px; white-space: nowrap; }
+.btn-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--border); box-shadow: var(--shadow-xs); font-weight: 500; font-size: 14px; white-space: nowrap; }
 .btn-tag:hover { background: #fafafa; }
 .btn-tag.hit::after { inset: -4px; }
 /* phones: every shared control reaches a 44 px hit area */
@@ -251,6 +251,8 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   .btn-tag { min-height: 44px; padding: 0 14px; }
   .segmented > button, .segmented > [role="tab"], .segmented > * > button { min-height: 44px; }
 }
+/* Products sort segment reaches 44 px on desktop too */
+[role="radiogroup"][aria-label="Sort"] > button[role="radio"] { min-height: 44px; }
 /* action-type glyph: small neutral square */
 .type-glyph { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .type-glyph[data-outline] { background: transparent !important; box-shadow: inset 0 0 0 1.5px #71717a; }
@@ -297,3 +299,25 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .scroll-row::-webkit-scrollbar { display: none; }
 .scroll-row > * { scroll-snap-align: start; }
 @media (min-width: 768px) { .scroll-row { -webkit-mask-image: none; mask-image: none; padding-right: 0; } }
+
+/* ---- Yellow "shop floor" theme (restored from 8a01d07) ---- */
+:root { --selected: #fff6b8; }
+@theme inline { --color-yellow: var(--yellow); }
+.price-tag { background: var(--yellow); color: var(--ink); border: 0; border-radius: 14px; box-shadow: none; padding: 30px 20px 18px 20px; }
+@media (min-width: 768px) { .price-tag { padding: 32px 24px 20px 24px; } }
+/* on yellow: ink-tinted dividers and muted text, and a busy button that stays ink instead of fading to olive */
+.price-tag .text-muted { color: #3f3f46; }
+.price-tag [class*="border-t"] { border-color: rgba(0, 0, 0, 0.14); }
+.price-tag .btn-tag:disabled { opacity: 1; background: var(--ink); color: rgba(255, 255, 255, 0.8); }
+.price-tag::before { content: ""; position: absolute; top: 14px; left: 14px; width: 8px; height: 8px; border-radius: 999px; background: var(--floor); }
+.tag-figure { font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1; }
+@media (min-width: 768px) { .tag-figure { font-size: 56px; } }
+.price-tag .btn-tag { background: var(--ink); color: #fff; border: 0; box-shadow: none; border-radius: 999px; font-weight: 600; }
+.price-tag .tag-bar { background: rgba(0, 0, 0, 0.14); }
+.dock { border-radius: 999px; background: var(--ink); border: 0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.22); }
+.dock-item { color: rgba(255, 255, 255, 0.72); }
+.dock-item[aria-current="page"], .dock-item[aria-selected="true"] { color: var(--ink); background: var(--yellow); border-radius: 999px; }
+.dock-item[aria-current="page"]::before, .dock-item[aria-selected="true"]::before { display: none; }
+.dock-item:focus-visible { border-radius: 999px; }
+:focus-visible { outline: 3px solid var(--ink); box-shadow: 0 0 0 5px var(--yellow); outline-offset: 1px; border-radius: 8px; }
+.edge-yellow { box-shadow: none; border-left: 6px solid var(--yellow); }

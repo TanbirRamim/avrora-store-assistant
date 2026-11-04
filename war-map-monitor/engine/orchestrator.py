@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import logging
 from typing import List, Dict, Any, Tuple
@@ -46,10 +47,17 @@ class WarMapOrchestrator:
 
     def _save_acknowledgments(self):
         try:
-            with open(ACK_FILE, "w", encoding="utf-8") as f:
+            tmp_path = ACK_FILE.with_name(ACK_FILE.name + ".tmp")
+            with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(self.acknowledgments, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, ACK_FILE)
         except Exception as e:
             logger.warning("Failed saving acks: %s", e)
+
+    def has_store(self, store_id: str) -> bool:
+        return any(s.get("id") == store_id for s in self.stores)
 
     def acknowledge_shelter(self, store_id: str, manager_name: str = "Manager") -> Dict[str, Any]:
         now_str = time.strftime("%H:%M:%S", time.localtime())
@@ -192,6 +200,8 @@ class WarMapOrchestrator:
             "stores_blackout": sum(1 for r in rows if r["power_status"] == "blackout"),
             "alerts_source": alerts_info.get("source", "unknown"),
             "alerts_is_simulated": alerts_info.get("is_simulated", True),
+            "alerts_available": alerts_info.get("available", True),
+            "alerts_notice": alerts_info.get("notice"),
             "alerts_coverage": alerts_info.get("coverage", "unknown"),
             "alerts_data_timestamp": alerts_info.get("data_timestamp") or alerts_info.get("fetched_at"),
             "frontline_data_source": frontline_meta.get("source"),

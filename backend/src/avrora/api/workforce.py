@@ -10,9 +10,10 @@ import sqlite3
 from contextlib import closing
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from avrora.api.limits import RateLimiter, client_key
 from avrora.config import SETTINGS
 from avrora.workforce.kpis import decisions, history_weeks, plan_week
 from avrora.workforce.people import employee_list, employee_profile
@@ -86,21 +87,34 @@ def _version(d: date, version: str) -> str:
     return version
 
 
+REPLAN_MAX_BODY = 4 * 1024
+_replan_limiter = RateLimiter(60, 30)
+
+
+def _guard_replan(request: Request) -> None:
+    """Replanning is the expensive route: small bodies, a few per minute and client."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > REPLAN_MAX_BODY:
+        raise HTTPException(413, "Request too large")
+    if _replan_limiter.limited(client_key(request)):
+        raise HTTPException(429, "Too many re-plans. Wait a minute.")
+
+
 class EventIn(BaseModel):
-    kind: str
-    employee_id: str | None = None
-    from_: str | None = Field(default=None, alias="from")
-    to: str | None = None
+    kind: str = Field(max_length=40)
+    employee_id: str | None = Field(default=None, max_length=40)
+    from_: str | None = Field(default=None, alias="from", max_length=40)
+    to: str | None = Field(default=None, max_length=40)
 
 
 class ReplanIn(BaseModel):
-    date: str | None = None
+    date: str | None = Field(default=None, max_length=10)
     event: EventIn
 
 
 class ApproveIn(BaseModel):
-    date: str
-    version: str
+    date: str = Field(max_length=10)
+    version: str = Field(max_length=80)
 
 
 class RejectIn(ApproveIn):
@@ -136,7 +150,7 @@ def kpis() -> dict:
     return {**kpi_base(), "decisions": decisions(rows, datetime.now(UTC))}
 
 
-@router.post("/replan")
+@router.post("/replan", dependencies=[Depends(_guard_replan)])
 def post_replan(body: ReplanIn) -> dict:
     d = _day(body.date)
     e = body.event

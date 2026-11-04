@@ -84,7 +84,15 @@ export default function Home() {
   const { data: overview, error: overviewError, mutate: retryOverview, isValidating: retrying } = useSWR<Overview>("/api/overview", fetcher);
   const { data: baseBriefing } = useSWR<Briefing>("/api/briefing", fetcher);
   const ai = useAi();
-  const briefing = ai.briefing ?? baseBriefing;
+  const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
+  // a saved AI briefing only counts when all its priorities are still among today's actions
+  const aiBriefing = useMemo(() => {
+    if (!ai.briefing || !actions) return null;
+    const ids = new Set(actions.map((a) => a.id));
+    const priorities = ai.briefing.priorities.filter((a) => ids.has(a.id));
+    return priorities.length ? { ...ai.briefing, priorities } : null;
+  }, [ai.briefing, actions]);
+  const briefing = aiBriefing ?? baseBriefing;
   const [aiOpen, setAiOpen] = useState(false);
   // the Products view reports its fixed panel so the content column and the tab bar make room for it
   const [productPanel, setProductPanel] = useState(false);
@@ -147,7 +155,7 @@ export default function Home() {
     return () => main.removeEventListener("scroll", onScroll);
   }, [view]);
 
-  const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
+  const { data: accuracy } = useSWR<{ planted: number; found: number; precision: number; recall: number }>("/api/evaluation", fetcher, { shouldRetryOnError: false });
 
   // With the store AI connected the briefing is written by the model on its own, once per visit;
   // if the model fails, the rules briefing stays and the AI sheet can try again.
@@ -259,8 +267,10 @@ export default function Home() {
       }, "The undo wasn't saved. Check the connection and try again."),
     [save],
   );
+  const replanSeq = useRef(0);
   const runReplan = async (s: Signal) => {
     const base = briefing?.priorities ?? [];
+    const id = ++replanSeq.current;
     setReplanError(null);
     setReplanBusy(true);
     await aiStatus();
@@ -269,11 +279,12 @@ export default function Home() {
       return setReplan(replanByRules(s, base, ai.lang));
     }
     try {
-      setReplan(await replanWithModel(aiRoute(), s, base, ai.lang));
+      const r = await replanWithModel(aiRoute(), s, base, ai.lang);
+      if (id === replanSeq.current) setReplan(r);
     } catch (err) {
-      setReplanError(err instanceof ModelError ? err.message : "The new order could not be worked out. Try again.");
+      if (id === replanSeq.current) setReplanError(err instanceof ModelError ? err.message : "The new order could not be worked out. Try again.");
     } finally {
-      setReplanBusy(false);
+      if (id === replanSeq.current) setReplanBusy(false);
     }
   };
   // An approved row stays in place for a moment with its check filled, then moves to Handled.
@@ -395,7 +406,7 @@ export default function Home() {
     <div className="flex h-full overflow-hidden">
       <main
         ref={mainRef}
-        className={`relative min-w-0 flex-1 ${
+        className={`relative min-w-0 flex-1 transition-[margin-right] duration-[240ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${
           view === "map"
             ? "overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
             : "pb-tabbar overflow-y-auto overscroll-contain"
@@ -450,7 +461,7 @@ export default function Home() {
                       {briefing && (
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--divider)] pt-3">
                           <p className="t-footnote min-w-0 text-muted">
-                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "Fixed rules, not AI."}
+                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "From store data."}
                           </p>
                           {briefing.source === "model" ? (
                             <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
@@ -614,6 +625,24 @@ export default function Home() {
                   ))}
                 </dl>
               )}
+              {accuracy && accuracy.planted > 0 && (
+                <section aria-label="Accuracy check" className="card mt-4 flex items-center gap-3 px-4 py-3">
+                  <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-fill text-ink">
+                    <CheckIcon size={14} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="t-subhead font-semibold">Accuracy check</div>
+                    <div className="t-footnote text-muted">
+                      {accuracy.found === accuracy.planted && accuracy.precision === 1
+                        ? `Checked against ${accuracy.planted} known issues: all found, none wrong`
+                        : `Checked against ${accuracy.planted} known issues: ${accuracy.found} found, ${Math.round(accuracy.precision * 100)}% correct`}
+                    </div>
+                  </div>
+                  <span className="num shrink-0 text-[17px] font-semibold tracking-[-0.01em]">
+                    {accuracy.found}/{accuracy.planted}
+                  </span>
+                </section>
+              )}
               <section className="mt-6">
                 <div className="flat-list">
                   <SettingsRow label="All suggestions" Icon={ListIcon} onClick={() => setView("all")} detail={actions ? `${actions.length}` : undefined} />
@@ -771,7 +800,7 @@ export default function Home() {
       {/* Tab bar: one floating pill on every screen size, centred in the content area beside an open panel */}
       <nav
         aria-label="Sections"
-        className={`pointer-events-none fixed inset-x-0 bottom-[var(--dock-bottom)] z-10 flex justify-center px-3 ${
+        className={`pointer-events-none fixed inset-x-0 bottom-[var(--dock-bottom)] z-10 flex justify-center px-3 transition-[right] duration-[240ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${
           (selected || (productPanel && view === "products")) ? "lg:right-[400px]" : ""
         }`}
       >
@@ -828,7 +857,7 @@ export default function Home() {
                     void undo(toast.undoId!);
                     setToast(null);
                   }}
-                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-white underline underline-offset-4 active:bg-white/10"
+                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-yellow active:bg-white/10"
                 >
                   Undo
                 </button>

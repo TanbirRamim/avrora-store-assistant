@@ -54,7 +54,7 @@ test.describe("workforce AI texts", () => {
     expect(r.source).toBe("rules");
     expect(r.sentences).toEqual(PLAN.explain.slice(0, 5));
     expect(r.watchOut).toContain("Short 1 person 17:00-20:00");
-    expect(SOURCE_LABEL.en[r.source]).toBe("Fixed rules");
+    expect(SOURCE_LABEL.en[r.source]).toBe("Store plan");
     const uk = await explainPlan(PLAN, { lang: "uk" });
     expect(uk.sentences.length).toBeGreaterThanOrEqual(3);
     expect(uk.watchOut[0]).toBe("Бракує 1 ос. 09:00-11:00");
@@ -169,6 +169,71 @@ test.describe("workforce AI texts", () => {
     m = mockAi({ answer: "Mykola Z. should cover checkout at 18:00.", employee_ids: [] });
     restore = m.restore;
     expect((await askTeam("Who should cover checkout at 18:00?", PLAN, EMPLOYEES, KEY)).source).toBe("rules");
+  });
+
+  test("explainPlan: real model wording with plan figures, absent staff and one-item paragraphs is used", async () => {
+    const good = {
+      sentences: [
+        "The plan for 2026-11-02 schedules 46.5 labour hours with a coverage percentage of 90.4 and 0 rule violations.",
+        "Olena K. and Serhiy T. handle 10 supplier deliveries due (91 cases) from 08:00 to 11:00; labour cost is 4,202 UAH.",
+        "The evening from 5 pm to 21:00 is run by the late shift.",
+      ],
+      watch_out: ["Gap 17:00–20:00 missing 1 because Oksana V. is sick and Kateryna Z. is on vacation."],
+    };
+    let m = mockAi(good);
+    restore = m.restore;
+    let r = await explainPlan(PLAN, KEY);
+    expect(r).toMatchObject({ source: "model", sentences: good.sentences });
+    expect(r.error).toBeUndefined();
+    m.restore();
+
+    // whole paragraph in one array item: split into sentences, still checked
+    m = mockAi({ sentences: [good.sentences.join(" ")], watch_out: [] });
+    restore = m.restore;
+    r = await explainPlan(PLAN, KEY);
+    expect(r).toMatchObject({ source: "model", sentences: good.sentences });
+    m.restore();
+
+    for (const bad of [
+      { ...good, sentences: [...good.sentences.slice(0, 2), "Coverage rises to 97.5% after 12 supplier deliveries."] },
+      { ...good, watch_out: ["Gap 17:00–20:00 missing 23 staff."] },
+      { ...good, sentences: [...good.sentences.slice(0, 2), "The coverage_pct is 90.4."] },
+    ]) {
+      m = mockAi(bad);
+      restore = m.restore;
+      expect((await explainPlan(PLAN, KEY)).source).toBe("rules");
+      m.restore();
+    }
+  });
+
+  test("askTeam: every suggested question gets the data it needs and is not refused by the prompt", async () => {
+    for (const q of ["Who can cover the evening?", "Who is fastest on the till?", "Why are we short at 18:00?"]) {
+      const m = mockAi({ answer: "Taras M. is on a day off and could cover 17:00-20:00.", employee_ids: ["E02"] });
+      restore = m.restore;
+      const r = await askTeam(q, PLAN, EMPLOYEES, KEY);
+      expect(r).toMatchObject({ source: "model", refused: false, employeeIds: ["E02"] });
+      const body = m.calls[0].body as unknown as { messages: { content: string }[] };
+      expect(body.messages[0].content).toContain('only when the question is not about');
+      const sent = JSON.parse(body.messages[1].content);
+      expect(sent.question).toBe(q);
+      expect(sent.day_parts.evening).toEqual({ from: "17:00", to: "21:00" });
+      expect(sent.plan.gaps.length).toBeGreaterThan(0);
+      for (const e of sent.team) {
+        expect(e).toHaveProperty("status_today");
+        expect(e).toHaveProperty("shift_today");
+        expect(e).toHaveProperty("hours_left_this_week");
+        expect(e).toHaveProperty("skills");
+        expect(e).toHaveProperty("strength");
+      }
+      const onPlan = PLAN.shifts[0];
+      expect(sent.team.find((e: { employee_id: string }) => e.employee_id === onPlan.employee_id).shift_today).toMatchObject({ start: onPlan.start, end: onPlan.end });
+      expect(sent.team.some((e: { status_today: string; shift_today: unknown }) => e.status_today === "day_off" && e.shift_today === null)).toBe(true);
+      m.restore();
+    }
+    // a number the data doesn't hold is still rejected
+    const m = mockAi({ answer: "Taras M. has 412.6 hours left and could cover the evening.", employee_ids: ["E02"] });
+    restore = m.restore;
+    expect((await askTeam("Who can cover the evening?", PLAN, EMPLOYEES, KEY)).source).toBe("rules");
   });
 
   test("coachingNote: strengths first, never health or absence", async () => {

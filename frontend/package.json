@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:e2e": "playwright test",
     "map-worker": "cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs public/map/maplibre-gl-worker.mjs",
+    "postinstall": "npm run map-worker",
     "predev": "npm run map-worker",
     "prebuild": "npm run map-worker"
   },
