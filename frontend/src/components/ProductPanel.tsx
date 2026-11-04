@@ -92,7 +92,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
         <span className="h-[5px] w-9 rounded-full bg-[#d4d4d8]" />
       </div>
       <header className="flex items-start gap-3 border-b border-[var(--border)] bg-paper px-5 pb-4 pt-2 lg:pt-5">
-        <ProductThumb category={row.category} size={48} />
+        <ProductThumb category={row.category} name={row.name} size={48} />
         <div className="min-w-0 flex-1">
           <p className="t-footnote text-muted">
             {row.category}, from {row.supplier}

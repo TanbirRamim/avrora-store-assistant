@@ -2,7 +2,7 @@
  * notifications and opens the app at the item they are about. */
 
 // bump the number when the caching rules change; old caches are deleted on activate
-const CACHE = "avrora-v2";
+const CACHE = "avrora-v3";
 const SHELL = ["/", "/manifest.webmanifest", "/avrora-mark.svg", "/icons/icon-192.png", "/icons/badge-96.png"];
 
 self.addEventListener("install", (event) => {
@@ -73,7 +73,7 @@ self.addEventListener("fetch", (event) => {
   } else if (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/")) {
     // file names change with each build, so a cached copy is always the right one
     event.respondWith(cacheFirst(request));
-  } else if (url.pathname.startsWith("/map/")) {
+  } else if (url.pathname.startsWith("/map/") || url.pathname.startsWith("/products/")) {
     event.respondWith(staleWhileRevalidate(request));
   }
 });
