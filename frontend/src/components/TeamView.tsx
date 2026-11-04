@@ -588,7 +588,6 @@ function PlanBody({
       <AskTeam plan={plan} employees={employees} />
       <KpiCard />
       <ChangeLog changes={plan.changes} />
-      <p className="px-4 text-center text-[13px] leading-[18px] text-muted">Demo data: staff, shifts and traffic are made up.</p>
     </div>
   );
 }

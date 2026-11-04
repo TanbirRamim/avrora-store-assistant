@@ -125,7 +125,7 @@ test("plan renders and matches the API numbers", async ({ page }, info) => {
   // chart: tap an hour for its numbers
   await page.getByRole("button", { name: /^18:00: need/ }).click();
   await expect(page.getByTestId("chart-readout")).toContainText("18:00–19:00");
-  await expect(page.getByText("Demo data").first()).toBeAttached();
+  await expect(page.getByText(/Demo data|made up/)).toHaveCount(0);
   // task allocation: tap a block for the reason, then the station view
   const first = plan.shifts[0] as unknown as { name: string; tasks: { from: string; reason: string }[] };
   const row = page.getByTestId("roster").locator("li", { has: page.getByRole("button", { name: new RegExp(`^${first.name.replace(".", "\\.")}, `) }) });
@@ -321,7 +321,7 @@ test("nothing hides behind the tab bar or the decision bar, no sideways scroll",
   const dock = (await tabBar(page).locator("ul").boundingBox())!;
   const actions = (await bar.boundingBox())!;
   expect(actions.y + actions.height).toBeLessThanOrEqual(dock.y);
-  const last = page.getByText(/^Demo data: staff/);
+  const last = page.getByTestId("audit");
   await expect(last).toBeInViewport();
   const box = (await last.boundingBox())!;
   expect(box.y + box.height).toBeLessThanOrEqual(actions.y);
@@ -385,14 +385,14 @@ async function mockModel(page: Page) {
   return asked;
 }
 
-test("AI texts: plan explanation, ask, replan messages and coaching, labelled", async ({ page, context }) => {
+test("AI texts: plan explanation, ask, replan messages and coaching, with no source labels", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]).catch(() => undefined);
   await mockWorkforce(page, { draft: true });
   await mockModel(page);
   await openTeam(page);
   const why = page.getByTestId("why");
   await expect(why).toContainText("Model sentence one about the plan.");
-  await expect(page.locator("section", { has: page.locator("#why-h") }).getByText("Written by AI")).toBeVisible();
+  await expect(page.getByText(/Written by AI|Fixed rules/)).toHaveCount(0);
 
   await page.getByLabel("Question about the team").fill("Who can cover the evening?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
@@ -411,7 +411,7 @@ test("AI texts: plan explanation, ask, replan messages and coaching, labelled", 
   await page.getByRole("tab", { name: "People" }).click();
   await page.getByTestId("people-list").getByRole("button").first().click();
   await expect(page.getByTestId("coaching")).toBeVisible();
-  await expect(page.getByTestId("coaching").getByText(/Written by AI|Fixed rules/)).toBeVisible();
+  await expect(page.getByTestId("coaching").getByText(/Written by AI|Fixed rules/)).toHaveCount(0);
 });
 
 test("without a key the fixed rules write the texts", async ({ page }) => {
@@ -421,7 +421,7 @@ test("without a key the fixed rules write the texts", async ({ page }) => {
   await mockWorkforce(page);
   const plan = await expected();
   await openTeam(page);
-  await expect(page.locator("section", { has: page.locator("#why-h") }).getByText("Fixed rules")).toBeVisible();
+  await expect(page.getByText(/Written by AI|Fixed rules/)).toHaveCount(0);
   await expect(page.getByTestId("why")).toContainText((plan as unknown as { explain: string[] }).explain[0]);
   await expect(page.getByTestId("kpi-card")).toBeVisible();
 });

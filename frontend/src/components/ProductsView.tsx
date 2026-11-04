@@ -9,7 +9,7 @@ import { fetcher } from "@/lib/api";
 import { ChevronIcon, CloseIcon } from "./icons";
 import { ProductPanel } from "./ProductPanel";
 import { ScreenHeader } from "./ScreenHeader";
-import { ProductThumb } from "./CategoryIcon";
+import { CategoryIcon, ProductThumb } from "./CategoryIcon";
 import { coverText, dayLabel, StatusChip, UPDATE_COLOR } from "./ProductStatus";
 
 type Sort = "attention" | "name" | "cover";
@@ -71,27 +71,8 @@ const short = (r: ProductRow) =>
 const lastsText = (r: ProductRow) =>
   r.days_cover === null ? "Not selling" : coverText(r.days_cover);
 
-/** Desktop columns: Product | Status | In stock | Lasts | Price | chevron. */
-const COLS =
-  "lg:grid lg:grid-cols-[minmax(0,1fr)_132px_84px_104px_92px_16px] lg:gap-x-4";
-
-function TableHead() {
-  return (
-    <div
-      aria-hidden
-      className={`hidden border-b border-[var(--border)] bg-[#fafafa] py-2.5 pl-4 pr-4 text-[13px] font-medium leading-[18px] text-[var(--text-2,#52525b)] ${COLS}`}
-    >
-      <span className="pl-[52px]">Product</span>
-      <span>Status</span>
-      <span className="text-right">In stock</span>
-      <span className="text-right">Lasts</span>
-      <span className="text-right">Price</span>
-      <span />
-    </div>
-  );
-}
-
-const ProductItem = ({
+/** One product as a tile: a calm image well with the category icon, name, status, stock and price. */
+const ProductTile = ({
   r,
   selected,
   onOpen,
@@ -100,49 +81,43 @@ const ProductItem = ({
   selected: boolean;
   onOpen: () => void;
 }) => (
-  <li
-    className="cell [--inset:68px] [contain-intrinsic-size:auto_68px] [content-visibility:auto] lg:[--inset:0px]"
-    style={selected ? { background: "#fafafa", boxShadow: "inset 3px 0 0 var(--ink)" } : undefined}
-  >
+  <li className="flex [contain-intrinsic-size:auto_252px] [content-visibility:auto]">
     <button
       type="button"
       onClick={onOpen}
       aria-current={selected ? "true" : undefined}
-      className={`flex min-h-[68px] w-full items-center gap-3 py-3 pl-4 pr-3 text-left transition-colors duration-150 hover:bg-[#fafafa] active:bg-[#f4f4f5] lg:min-h-[64px] lg:items-center lg:pr-4 ${COLS}`}
+      className={`flex w-full flex-col rounded-[12px] border bg-paper p-2 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-[border-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:border-[#d4d4d8] hover:shadow-[0_4px_12px_rgba(16,24,40,0.06)] active:scale-[0.985] motion-reduce:active:scale-100 ${
+        selected ? "border-ink shadow-[0_0_0_1px_var(--ink)]" : "border-[var(--border)]"
+      }`}
     >
-      <span className="flex min-w-0 flex-1 items-center gap-3">
-        <ProductThumb category={r.category} />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium leading-[20px]">
-            {r.name}
+      <span
+        aria-hidden
+        className="grid h-[96px] w-full place-items-center rounded-[8px] bg-[#f4f4f5] text-[#52525b] md:h-[112px]"
+      >
+        <CategoryIcon category={r.category} size={36} />
+      </span>
+      <span className="flex flex-1 flex-col px-1.5 pb-1 pt-2.5">
+        <span className="block text-[15px] font-medium leading-[20px] [overflow-wrap:anywhere]">
+          {r.name}
+        </span>
+        <span className="mt-1.5 block">
+          <StatusChip status={r.status} />
+        </span>
+        <span className="mt-auto block pt-3">
+          <span className="num block text-[17px] font-semibold leading-[22px] tracking-[-0.01em]">
+            ₴{r.price.toFixed(2)}
           </span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 lg:hidden">
-            <StatusChip status={r.status} />
-            <span className="t-footnote num text-muted">
-              {r.stock} in stock
-            </span>
+          <span className="num mt-0.5 block text-[13px] leading-[18px] text-[var(--text-2,#52525b)]">
+            {r.stock} in stock
           </span>
-          <span className="t-footnote mt-0.5 hidden text-muted lg:block">
-            {r.supplier}
+          <span
+            className="num block text-[13px] leading-[18px] text-[var(--text-2,#52525b)]"
+            style={short(r) ? { color: "#b91c1c", fontWeight: 500 } : undefined}
+          >
+            {r.days_cover === null ? "Not selling" : `Lasts ${lastsText(r).replace(/^Over/, "over")}`}
           </span>
         </span>
       </span>
-      <span className="hidden lg:block">
-        <StatusChip status={r.status} />
-      </span>
-      <span className="num-col hidden text-right text-[14px] lg:block">
-        {r.stock}
-      </span>
-      <span
-        className="num shrink-0 whitespace-nowrap text-right text-[14px] leading-[20px] text-muted lg:text-[14px] lg:font-normal"
-        style={short(r) ? { color: "#b91c1c", fontWeight: 500 } : undefined}
-      >
-        {lastsText(r)}
-      </span>
-      <span className="num-col hidden text-right text-[14px] lg:block">
-        ₴{r.price.toFixed(2)}
-      </span>
-      <ChevronIcon size={13} className="shrink-0 text-muted" />
     </button>
   </li>
 );
@@ -219,8 +194,16 @@ export function ProductsView({
   const [feedOpen, setFeedOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reduce = useReducedMotion();
+  // Layout changes animate only after the first paint with data, so the page never slides in on load.
+  const [settled, setSettled] = useState(false);
 
   const rows = data?.products;
+  useEffect(() => {
+    if (!rows || settled) return;
+    const id = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(id);
+  }, [rows, settled]);
+  const ease = settled ? "lg:duration-[240ms] lg:ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none" : "transition-none";
   const categories = useMemo(
     () => [...new Set((rows ?? []).map((r) => r.category))].sort(),
     [rows],
@@ -348,7 +331,7 @@ export function ProductsView({
   return (
     <>
       <div
-        className="lg:ml-[calc((720px-var(--pw))/2)] lg:w-[var(--pw)]"
+        className={`lg:ml-[calc((720px-var(--pw))/2)] lg:w-[var(--pw)] lg:transition-[width,margin-left] ${ease}`}
         style={{ ["--pw" as string]: wide }}
       >
         <ScreenHeader title="Products" />
@@ -371,7 +354,7 @@ export function ProductsView({
         </section>
 
         <div
-          className={`mt-5 grid grid-cols-1 gap-6 ${sideFeed ? "lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-x-8" : ""}`}
+          className={`mt-5 grid grid-cols-1 gap-6 lg:items-start lg:transition-[grid-template-columns,column-gap] ${ease} ${sideFeed ? "lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-x-8" : "lg:grid-cols-[minmax(0,1fr)_0px] lg:gap-x-0"}`}
         >
           {sideFeed && <div className="hidden lg:block">{feedSection}</div>}
 
@@ -527,48 +510,45 @@ export function ProductsView({
               {rows ? `Showing ${shown.length} of ${total} products` : " "}
             </p>
 
-            <div className={`${LIST} mt-2`}>
+            <div className="mt-2">
               {!rows ? (
-                <div className="h-[480px] animate-pulse bg-[#fafafa]" />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-hidden>
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div key={i} className="h-[252px] animate-pulse rounded-[12px] border border-[var(--border)] bg-paper motion-reduce:animate-none" />
+                  ))}
+                </div>
               ) : shown.length === 0 ? (
-                <div className="t-subhead px-5 py-6 text-muted">
+                <div className={`${LIST} t-subhead px-5 py-6 text-muted`}>
                   {query.trim()
                     ? `No products match “${query.trim()}”.`
                     : "No products here."}
                 </div>
               ) : (
-                <>
-                  <TableHead />
-                  <motion.ul
-                    key={listKey}
-                    data-testid="product-list"
-                    aria-label={
-                      filterMeta.label === "All" ? "Products" : filterMeta.label
-                    }
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={fade}
-                  >
-                    {shown.map((r) => (
-                      <ProductItem
-                        key={r.product_id}
-                        r={r}
-                        selected={r.product_id === selectedId}
-                        onOpen={() => setSelectedId(r.product_id)}
-                      />
-                    ))}
-                  </motion.ul>
-                </>
+                <motion.ul
+                  key={listKey}
+                  data-testid="product-list"
+                  aria-label={
+                    filterMeta.label === "All" ? "Products" : filterMeta.label
+                  }
+                  initial={reduce ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={fade}
+                  className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
+                >
+                  {shown.map((r) => (
+                    <ProductTile
+                      key={r.product_id}
+                      r={r}
+                      selected={r.product_id === selectedId}
+                      onOpen={() => setSelectedId(r.product_id)}
+                    />
+                  ))}
+                </motion.ul>
               )}
             </div>
-            {rows && (
-              <p className="t-footnote mt-3 px-1 text-muted">
-                Prices in hryvnia. Demo data.
-              </p>
-            )}
           </div>
           {showFeed && (
-            <div className={sideFeed ? "lg:hidden" : ""}>{feedSection}</div>
+            <div className={sideFeed ? "lg:hidden" : "lg:col-start-1"}>{feedSection}</div>
           )}
         </div>
       </div>
