@@ -81,28 +81,23 @@ jobs:
           path: frontend/test-results
           retention-days: 7
 
-  # Every change that lands on main goes live, but only after all checks above pass.
-  deploy:
+  # main deploys via Cloudflare Workers Builds (connected in the Cloudflare dashboard).
+  # After the checks pass, wait for that deploy and confirm the live site answers.
+  live-check:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [backend, worker, frontend, e2e]
     runs-on: ubuntu-latest
-    environment: production
-    concurrency: { group: deploy-production, cancel-in-progress: false }
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with: { python-version: "3.12" }
-      - uses: actions/setup-node@v4
-        with: { node-version: 22 }
-      - run: cd backend && uv sync --frozen
-      - run: cd frontend && npm ci
-      - run: cd cloudflare && npm ci
-      # snapshot export + static frontend build, D1 migrations, then the Worker itself
-      - run: cd cloudflare && npm run deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      - name: Smoke test the live site
+      - name: Check the live site
         run: |
-          sleep 10
-          curl -sf https://avrora-store-assistant.tanbirramim420.workers.dev/api/health
-          curl -sf https://avrora-store-assistant.tanbirramim420.workers.dev/api/ai/status
+          base=https://avrora-store-assistant.tanbirramim420.workers.dev
+          for i in $(seq 1 48); do
+            health=$(curl -sf "$base/api/health" || true)
+            ai=$(curl -sf "$base/api/ai/status" || true)
+            if echo "$health" | grep -q '"status": *"ok"' && echo "$ai" | grep -q '"configured": *true'; then
+              echo "health: $health"; echo "ai: $ai"; exit 0
+            fi
+            sleep 10
+          done
+          echo "live site did not answer as expected"; echo "health: $health"; echo "ai: $ai"; exit 1
