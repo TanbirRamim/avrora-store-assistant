@@ -24,24 +24,68 @@ function vapid(env: PushEnv): VapidKeys | null {
 
 const B64URL = /^[A-Za-z0-9_-]+$/;
 
-function parseSubscription(body: unknown): PushSubscriptionRow | null {
-  if (!body || typeof body !== "object") return null;
-  const { endpoint, keys } = body as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } };
-  if (typeof endpoint !== "string" || endpoint.length > 2048) return null;
+/** Push services subscriptions may point at: exact hosts, or "*.suffix" for any subdomain. */
+const PUSH_HOSTS = [
+  "fcm.googleapis.com",
+  "android.googleapis.com",
+  "updates.push.services.mozilla.com",
+  "*.push.services.mozilla.com",
+  "*.notify.windows.com",
+  "web.push.apple.com",
+  "*.push.apple.com",
+];
+
+function knownPushHost(host: string): boolean {
+  return PUSH_HOSTS.some((h) => (h.startsWith("*.") ? host.endsWith(h.slice(1)) : host === h));
+}
+
+/** An https endpoint on a known push service, with no credentials or custom port. */
+function validEndpoint(endpoint: string): boolean {
   try {
-    if (new URL(endpoint).protocol !== "https:") return null;
+    const u = new URL(endpoint);
+    return u.protocol === "https:" && !u.username && !u.password && u.port === "" && knownPushHost(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function b64urlBytes(s: string): Uint8Array | null {
+  if (!B64URL.test(s)) return null;
+  try {
+    const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(s.length / 4) * 4, "="));
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
   } catch {
     return null;
   }
+}
+
+/** A real uncompressed P-256 point: 65 bytes starting with 0x04, and on the curve (WebCrypto checks that on import). */
+async function validP256dh(p256dh: string): Promise<boolean> {
+  const raw = b64urlBytes(p256dh);
+  if (!raw || raw.length !== 65 || raw[0] !== 0x04) return false;
+  try {
+    await crypto.subtle.importKey("raw", raw, { name: "ECDH", namedCurve: "P-256" }, false, []);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function parseSubscription(body: unknown): Promise<PushSubscriptionRow | null> {
+  if (!body || typeof body !== "object") return null;
+  const { endpoint, keys } = body as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } };
+  if (typeof endpoint !== "string" || endpoint.length > 2048) return null;
+  if (!validEndpoint(endpoint)) return null;
   const p256dh = keys?.p256dh;
   const auth = keys?.auth;
-  if (typeof p256dh !== "string" || !B64URL.test(p256dh) || p256dh.length < 80 || p256dh.length > 100) return null;
+  if (typeof p256dh !== "string" || !(await validP256dh(p256dh))) return null;
   if (typeof auth !== "string" || !B64URL.test(auth) || auth.length < 16 || auth.length > 32) return null;
   return { endpoint, p256dh, auth };
 }
 
 async function readJson(req: Request): Promise<unknown> {
   try {
+    if (Number(req.headers.get("Content-Length") ?? 0) > 8192) return null;
     return await req.json();
   } catch {
     return null;
@@ -57,7 +101,18 @@ async function forget(env: PushEnv, endpoint: string) {
 
 /** Sends and drops the subscription if the push service says it no longer exists. */
 async function deliver(env: PushEnv, keys: VapidKeys, sub: PushSubscriptionRow, msg: PushMessage): Promise<number> {
-  const status = await sendPush(sub, msg, keys);
+  // Rows stored before validation existed (or edited by hand) are dropped, never sent to.
+  if (!validEndpoint(sub.endpoint) || !(await validP256dh(sub.p256dh))) {
+    await forget(env, sub.endpoint);
+    return 410;
+  }
+  let status: number;
+  try {
+    status = await sendPush(sub, msg, keys);
+  } catch (e) {
+    console.error("push threw", (e as Error).name); // network error: retry next run
+    return 599;
+  }
   if (status === 404 || status === 410) await forget(env, sub.endpoint);
   else if (status >= 400) console.error("push failed", status, new URL(sub.endpoint).host);
   return status;
@@ -72,11 +127,18 @@ export async function handlePush(req: Request, env: PushEnv, pathname: string): 
   }
 
   if (pathname === "/api/push/subscribe" && method === "POST") {
-    const sub = parseSubscription(await readJson(req));
+    const sub = await parseSubscription(await readJson(req));
     if (!sub) return fail(422, "Not a valid push subscription");
-    await env.DB.prepare(
-      "INSERT INTO push_subscriptions VALUES (?, ?, ?, ?) ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth",
-    )
+    // The endpoint is the identity: never let a later request swap the keys of an existing one.
+    const existing = await env.DB.prepare("SELECT p256dh, auth FROM push_subscriptions WHERE endpoint = ?")
+      .bind(sub.endpoint)
+      .first<{ p256dh: string; auth: string }>();
+    if (existing) {
+      if (existing.p256dh !== sub.p256dh || existing.auth !== sub.auth)
+        return fail(409, "This device is already subscribed with other keys. Turn notifications off and on again.");
+      return json({ subscribed: true }, 200);
+    }
+    await env.DB.prepare("INSERT OR IGNORE INTO push_subscriptions VALUES (?, ?, ?, ?)")
       .bind(sub.endpoint, sub.p256dh, sub.auth, new Date().toISOString())
       .run();
     return json({ subscribed: true }, 201);
@@ -105,7 +167,7 @@ export async function handlePush(req: Request, env: PushEnv, pathname: string): 
       tag: "test",
     });
     if (status === 404 || status === 410) return fail(410, "This device's subscription expired. Turn notifications on again.");
-    if (status >= 400) return fail(502, `The push service answered ${status}`);
+    if (status >= 400) return fail(502, "The push service did not accept the test notification");
     return json({ sent: true });
   }
 
@@ -135,30 +197,39 @@ export async function sendUrgent(env: PushEnv, now = new Date()): Promise<{ sign
   const stamp = now.toISOString();
   let count = 0;
 
-  await Promise.all(
+  await Promise.allSettled(
     subs.map(async (sub) => {
       const fresh = signals.filter((s) => !sent.has(`${sub.endpoint}\n${s.key}`));
       if (fresh.length === 0) return;
       const direct = fresh.length > MAX_PER_RUN ? fresh.slice(0, MAX_PER_RUN - 1) : fresh;
       const rest = fresh.slice(direct.length);
-      const messages = direct.map(toMessage);
+      const items: { msg: PushMessage; keys: string[] }[] = direct.map((sig) => ({ msg: toMessage(sig), keys: [sig.key] }));
       if (rest.length > 0) {
-        messages.push({
-          title: `${rest.length} more urgent items`,
-          body: rest.map((s) => s.title).join(" · "),
-          url: "/",
-          tag: "summary",
+        items.push({
+          msg: {
+            title: `${rest.length} more urgent items`,
+            body: rest.map((s) => s.title).join(" · "),
+            url: "/",
+            tag: "summary",
+          },
+          keys: rest.map((s) => s.key),
         });
       }
-      for (const msg of messages) {
-        const status = await deliver(env, keys, sub, msg);
-        if (status === 404 || status === 410) return;
-        if (status >= 400) return; // try again next run
+      for (const { msg, keys: covered } of items) {
+        let status: number;
+        try {
+          status = await deliver(env, keys, sub, msg);
+        } catch (e) {
+          console.error("push row failed", (e as Error).name); // one bad row must not stall the others
+          return;
+        }
+        if (status >= 400) return; // gone (already forgotten) or try again next run
         count++;
+        // Record per message, so a failure further on does not resend what already arrived.
+        await env.DB.batch(
+          covered.map((k) => env.DB.prepare("INSERT OR IGNORE INTO push_sent VALUES (?, ?, ?)").bind(sub.endpoint, k, stamp)),
+        );
       }
-      await env.DB.batch(
-        fresh.map((s) => env.DB.prepare("INSERT OR IGNORE INTO push_sent VALUES (?, ?, ?)").bind(sub.endpoint, s.key, stamp)),
-      );
     }),
   );
   return { signals: signals.length, sent: count };

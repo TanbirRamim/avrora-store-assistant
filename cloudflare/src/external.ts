@@ -164,7 +164,8 @@ export async function liveAlerts(db: D1Database, now: Date, token?: string): Pro
     });
     if (!res.ok) throw new Error(`alerts.in.ua answered ${res.status}`);
     const body = (await res.json()) as unknown;
-    return String(body).charAt(VINNYTSIA_INDEX);
+    if (typeof body !== "string") throw new Error("alerts.in.ua sent an unexpected response");
+    return body.charAt(VINNYTSIA_INDEX);
   });
   const region = "vinnytsia";
   if (status !== "A" && status !== "P") {
