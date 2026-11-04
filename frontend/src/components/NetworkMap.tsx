@@ -201,6 +201,8 @@ export function NetworkMap() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [failed, setFailed] = useState(false);
+  // phones: the controls fold into one bar so the map itself gets the screen
+  const [controlsOpen, setControlsOpen] = useState(false);
   // both layers show by default; the checkmarks narrow the map to one of them (never to none)
   const [show, setShow] = useState<Record<Mode, boolean>>({ network: true, war: true });
   const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
@@ -243,6 +245,13 @@ export function NetworkMap() {
     [war, alertState],
   );
   const selectedWar = rated?.find((r) => r.store.id === warId) ?? null;
+  // a site picked on the map shows its details in the controls card: unfold it on phones
+  const picked = warId ?? siteId;
+  const [lastPicked, setLastPicked] = useState(picked);
+  if (picked !== lastPicked) {
+    setLastPicked(picked);
+    if (picked) setControlsOpen(true);
+  }
 
   // data
   useEffect(() => {
@@ -599,7 +608,7 @@ export function NetworkMap() {
     map.setPaintProperty("points", "circle-radius", calm ? ["interpolate", ["linear"], ["zoom"], 6, 2.5, 12, 4.5, 16, 6] : ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 6, 16, 8]);
     map.setPaintProperty("clusters", "circle-opacity", calm ? 0.35 : 1);
     map.setPaintProperty("clusters", "circle-stroke-opacity", calm ? 0.35 : 1);
-    map.setPaintProperty("cluster-count", "text-opacity", calm ? 0.6 : 1);
+    map.setPaintProperty("cluster-letter", "text-opacity", calm ? 0.6 : 1);
     map.setPaintProperty("key-points", "circle-opacity", calm ? 0.5 : ["case", ["has", "s"], 0.6, 1]);
   }, [ready, show]);
 
@@ -687,8 +696,21 @@ export function NetworkMap() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        className="absolute left-3 right-3 top-[calc(env(safe-area-inset-top)+12px)] z-10 rounded-[12px] border border-[var(--border)] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] max-h-[46%] overflow-y-auto overscroll-contain md:left-4 md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]"
+        className={`absolute left-3 right-3 top-[calc(env(safe-area-inset-top)+12px)] z-10 rounded-[12px] border border-[var(--border)] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] ${controlsOpen ? "max-h-[60%] overflow-y-auto" : "overflow-hidden"} overscroll-contain md:left-4 md:overflow-y-auto md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]`}
       >
+        <button
+          type="button"
+          aria-expanded={controlsOpen}
+          aria-controls="map-controls"
+          onClick={() => setControlsOpen((o) => !o)}
+          className={`-m-1 flex min-h-[44px] w-[calc(100%+8px)] items-center justify-between rounded-[8px] px-2 text-left md:hidden ${controlsOpen ? "mb-2" : ""}`}
+        >
+          <span className="text-[15px] font-medium">Map layers and search</span>
+          <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className={`text-muted transition-transform duration-200 ${controlsOpen ? "rotate-180" : ""}`}>
+            <path d="M4 6l4 4 4-4" />
+          </svg>
+        </button>
+        <div id="map-controls" className={controlsOpen ? "" : "hidden md:block"}>
         <div aria-label="Show on map" role="group" className="mb-3 flex rounded-[10px] bg-[#f4f4f5] p-[3px]">
           {(["network", "war"] as const).map((m) => {
             const on = show[m];
@@ -856,6 +878,7 @@ export function NetworkMap() {
             />
           </div>
         )}
+        </div>
       </motion.div>
 
       <button

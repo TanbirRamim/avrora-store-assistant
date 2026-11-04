@@ -415,6 +415,9 @@ test("AI texts: plan explanation, ask, replan messages and coaching, labelled", 
 });
 
 test("without a key the fixed rules write the texts", async ({ page }) => {
+  // pin "store AI off" whatever the server running the tests has configured
+  await page.route("**/api/ai/status", (route) => route.fulfill({ json: { configured: false, model: null } }));
+  await page.route("**/api/ai/chat", (route) => route.fulfill({ status: 503, json: { detail: "AI is not set up" } }));
   await mockWorkforce(page);
   const plan = await expected();
   await openTeam(page);

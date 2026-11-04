@@ -23,6 +23,15 @@ const todayList = (page: Page) => page.locator("section", { has: page.getByRole(
 const handledList = (page: Page) => page.locator("section", { has: page.getByRole("heading", { name: "Handled" }) });
 const panel = (page: Page) => page.getByRole("complementary", { name: /Details for/ });
 
+/** Phones fold the map controls into one bar; open it so the panel can be used. */
+async function openMapControls(page: Page) {
+  const bar = page.getByRole("button", { name: "Map layers and search" });
+  if (await bar.isVisible()) {
+    if ((await bar.getAttribute("aria-expanded")) !== "true") await bar.click();
+    await expect(bar).toHaveAttribute("aria-expanded", "true");
+  }
+}
+
 async function openNav(page: Page, name: string) {
   const re = new RegExp(`^${name}( \\d+ to decide)?$`);
   const target = page.getByRole("button", { name: re }).filter({ visible: true });
@@ -66,6 +75,9 @@ test("AI settings: store AI status, own key add (bad, good) and remove", async (
   // The store AI is off here; the manager's own provider is called straight from the browser (mocked).
   let sentKey = "";
   let storeCalls = 0;
+  // pin "store AI off" whatever the server running the tests has configured
+  await page.route("**/api/ai/status", (route) => route.fulfill({ json: { configured: false, model: null } }));
+  await page.reload(); // the status was read on the first load
   await page.route("**/api/ai/chat", (route) => {
     storeCalls++;
     return route.fulfill({ status: 503, json: { detail: "AI is not set up" } });
@@ -246,6 +258,7 @@ test("Decisions log lists decisions and supports undo", async ({ page }) => {
 test("Map shows Avrora stores, supply partners and OpenStreetMap infrastructure", async ({ page }, info) => {
   const errors = watchConsole(page);
   await openNav(page, "Map");
+  await openMapControls(page);
   await expect(page.getByRole("heading", { name: "Supply network" })).toBeVisible();
   await expect(page.getByText("7,561 places in Ukraine from Avrora and OpenStreetMap")).toBeVisible();
   await expect(page.getByText("7,561 shown")).toBeVisible();

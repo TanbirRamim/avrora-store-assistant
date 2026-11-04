@@ -258,6 +258,14 @@ export function ProductsView({
     return out;
   }, [scoped, filterMeta, sort]);
   const total = rows?.length ?? 0;
+  const byCategory = useMemo(
+    () =>
+      categories.map((c) => {
+        const inCat = (rows ?? []).filter((r) => r.category === c);
+        return { name: c, total: inCat.length, attention: inCat.filter((r) => r.attention).length };
+      }),
+    [rows, categories],
+  );
   const needCount = (rows ?? []).filter((r) => r.attention).length;
   const runningCount = (rows ?? []).filter(
     (r) => r.status === "running_out" || r.status === "low",
@@ -404,6 +412,46 @@ export function ProductsView({
                 );
               })}
             </div>
+
+            {/* Browse by category: one card per category, tap to narrow the list (tap again for all) */}
+            {rows && byCategory.length > 0 && (
+              <div
+                role="group"
+                aria-label="Browse by category"
+                data-testid="category-cards"
+                className="scroll-row mt-3 flex gap-2 overflow-x-auto pb-1 lg:!grid lg:grid-cols-3 lg:!overflow-visible lg:[mask-image:none]"
+              >
+                {byCategory.map((c) => {
+                  const on = category === c.name;
+                  return (
+                    <button
+                      key={c.name}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setCategory(on ? "All" : c.name)}
+                      className={`flex min-h-[72px] shrink-0 items-center gap-3 whitespace-nowrap rounded-[12px] border bg-paper py-2.5 pl-3 pr-4 text-left transition-[border-color,box-shadow] duration-150 ${
+                        on
+                          ? "border-ink shadow-[0_0_0_1px_var(--ink)]"
+                          : "border-[var(--border)] hover:border-[#d4d4d8]"
+                      }`}
+                    >
+                      <ProductThumb category={c.name} />
+                      <span className="min-w-0">
+                        <span className="block text-[14px] font-medium leading-[18px]">{c.name}</span>
+                        <span className="num block text-[13px] leading-[18px] text-[var(--text-2,#52525b)]">
+                          {c.total} products
+                        </span>
+                        <span
+                          className={`num block text-[13px] leading-[18px] ${c.attention ? "text-[#b91c1c]" : "text-[var(--text-2,#52525b)]"}`}
+                        >
+                          {c.attention ? `${c.attention} need attention` : "All fine"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Find: search, category, sort */}
             <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-center">
