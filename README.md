@@ -56,6 +56,9 @@ npm install
 npm run deploy                  # export snapshot, build the web app, apply D1 migrations, deploy
 ```
 
+Every push to `main` deploys automatically through Cloudflare Workers Builds; CI then checks the live site
+answers. `npm run deploy` is only needed for a manual deploy.
+
 ## Set up the AI
 
 The AI texts (briefing, questions, supplier drafts, re-plan, team notes) use the store's own model through any
