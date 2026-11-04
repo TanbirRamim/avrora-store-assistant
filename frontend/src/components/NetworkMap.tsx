@@ -95,7 +95,7 @@ const FILTERS: { id: Filter; label: string; cats: Category[] }[] = [
 const inFilter = (filter: Filter, c: Category) => FILTERS.find((f) => f.id === filter)!.cats.includes(c);
 
 type Mode = "network" | "war";
-const NETWORK_LAYERS = ["clusters", "cluster-count", "points", "key-points"];
+const NETWORK_LAYERS = ["clusters", "cluster-letter", "points", "key-points"];
 const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-exposed", "war-threat-halo", "war-threats", "war-halo", "war-stores"];
 /** Distribution sites whose exposure matters for deliveries; shops and food producers are left out. */
 const DISTRIBUTION: Category[] = ["supply", "warehouse", "logistics"];
@@ -352,14 +352,21 @@ export function NetworkMap() {
           },
         });
         map.addLayer({
-          id: "cluster-count",
+          id: "cluster-letter",
           type: "symbol",
           source: "places",
           filter: ["has", "point_count"],
           layout: {
-            "text-field": ["get", "point_count_abbreviated"],
+            "text-field": [
+              "case",
+              [">=", ["get", "nAv"], ["max", ["get", "nSt"], ["get", "nFd"]]],
+              "A",
+              [">=", ["get", "nFd"], ["get", "nSt"]],
+              "F",
+              "S",
+            ],
             "text-font": ["Noto Sans Bold"],
-            "text-size": ["step", ["get", "point_count"], 11, 150, 12],
+            "text-size": 13,
             "text-allow-overlap": true,
           },
           paint: { "text-color": "#ffffff" },
@@ -689,6 +696,56 @@ export function NetworkMap() {
             );
           })}
         </div>
+
+        <section aria-label="Map legend" className="mb-3 rounded-[10px] border border-separator bg-white/75 px-2.5 py-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {show.network && (
+              <>
+                {[
+                  ["A", "Avrora", CATEGORIES.avrora.color],
+                  ["S", "Storage & logistics", CATEGORIES.warehouse.color],
+                  ["F", "Food", CATEGORIES.food.color],
+                ].map(([letter, label, color]) => (
+                  <span key={label} className="t-caption inline-flex items-center gap-1 text-label-2">
+                    <span className="grid size-[17px] place-items-center rounded-full text-[10px] font-bold leading-none text-white" style={{ background: color }}>
+                      {letter}
+                    </span>
+                    {label}
+                  </span>
+                ))}
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-2.5 rounded-full border border-white" style={{ background: CATEGORIES.supply.color }} />
+                  Supply
+                </span>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-2.5 rounded-full border border-white" style={{ background: CATEGORIES.logistics.color }} />
+                  Logistics
+                </span>
+              </>
+            )}
+            {show.war && (
+              <>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-3 rounded-full border-2 border-[#ff3b30] bg-[rgba(255,59,48,0.14)]" />
+                  Risk site
+                </span>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-2.5 rounded-full" style={{ background: THREAT_COLOR }} />
+                  Aerial threat
+                </span>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="h-0.5 w-4 rounded-full bg-[#d70015]" />
+                  Front line
+                </span>
+              </>
+            )}
+          </div>
+          {show.war && (
+            <p className="t-caption mt-1.5 border-t border-separator pt-1.5 text-label-2">
+              Risk rings mark supply sites affected by front-line distance or a nearby active threat. Select one to see why and the recommended action.
+            </p>
+          )}
+        </section>
 
         {show.network && (
           <>

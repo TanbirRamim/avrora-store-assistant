@@ -3,6 +3,11 @@ import { expect, type Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+// live pass-through routes can still be in flight when a test ends
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
+
 /*
  * Team (workforce agent). GET calls go to the real API when it serves /api/workforce, otherwise
  * to the contract fixtures in e2e/fixtures. Approve, reject and replan are always answered here so

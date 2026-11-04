@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: "3.12" }
+      - run: uv sync --frozen
+      - run: uv run pytest -q
+
+  worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: cloudflare/package-lock.json }
+      # the Worker serves a snapshot exported from the backend data; it must build and typecheck
+      - run: cd backend && uv run python -m avrora.export ../cloudflare/src/snapshot.json
+      - run: cd cloudflare && npm ci && npm run typecheck
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: STATIC_EXPORT=1 npm run build
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: cd ../backend && uv sync --frozen
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Start both servers and wait until the dev build has compiled: a cold Next dev server
+      # answers 500 for its first requests, which would fail the first tests for no reason.
+      - name: Start servers
+        run: |
+          (cd ../backend && AVRORA_LLM=none uv run uvicorn avrora.api.main:app --port 8000 > /tmp/api.log 2>&1 &)
+          (npm run dev > /tmp/web.log 2>&1 &)
+          for i in $(seq 1 120); do
+            api=$(curl -s -o /dev/null -w '%{http_code}' localhost:8000/api/health || true)
+            web=$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/ || true)
+            [ "$api" = 200 ] && [ "$web" = 200 ] && break
+            sleep 2
+          done
+          curl -sf localhost:3000/ > /dev/null && curl -sf localhost:8000/api/health > /dev/null
+      # Chromium projects: a desktop and a phone layout (Playwright reuses the running servers).
+      - run: npx playwright test --project=desktop --project=android
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: frontend/test-results
+          retention-days: 7
