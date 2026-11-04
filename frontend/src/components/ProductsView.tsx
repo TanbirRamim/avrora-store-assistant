@@ -9,7 +9,8 @@ import { fetcher } from "@/lib/api";
 import { ChevronIcon, CloseIcon } from "./icons";
 import { ProductPanel } from "./ProductPanel";
 import { ScreenHeader } from "./ScreenHeader";
-import { CategoryIcon, ProductThumb } from "./CategoryIcon";
+import { CategoryIcon, ProductPhoto, ProductThumb } from "./CategoryIcon";
+import { productImage } from "@/lib/productImages";
 import { coverText, dayLabel, StatusChip, UPDATE_COLOR } from "./ProductStatus";
 
 type Sort = "attention" | "name" | "cover";
@@ -92,9 +93,15 @@ const ProductTile = ({
     >
       <span
         aria-hidden
-        className="grid h-[96px] w-full place-items-center rounded-[8px] bg-[#f4f4f5] text-[#52525b] md:h-[112px]"
+        className={`relative grid h-[96px] w-full place-items-center overflow-hidden rounded-[8px] md:h-[112px] ${
+          productImage(r.name) ? "border border-[#f0f0f2] bg-white" : "bg-[#f4f4f5] text-[#52525b]"
+        }`}
       >
-        <CategoryIcon category={r.category} size={36} />
+        {productImage(r.name) ? (
+          <ProductPhoto name={r.name} size={112} className="absolute inset-0 h-full! w-full! scale-[1.12]" />
+        ) : (
+          <CategoryIcon category={r.category} size={36} />
+        )}
       </span>
       <span className="flex flex-1 flex-col px-1.5 pb-1 pt-2.5">
         <span className="block text-[15px] font-medium leading-[20px] [overflow-wrap:anywhere]">

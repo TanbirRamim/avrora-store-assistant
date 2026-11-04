@@ -119,7 +119,7 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onGra
         </div>
         <header className="flex items-start gap-3 border-b border-[var(--border)] bg-paper px-5 pb-4 pt-2 lg:pt-5">
           {/* same anatomy as the product sheet: thumb, category, name, then the figure and a badge */}
-          <ProductThumb category={action.category} size={48} />
+          <ProductThumb category={action.category} name={action.product_name} size={48} />
           <div className="min-w-0 flex-1">
             <p className="t-footnote text-muted">{action.category}</p>
             <h2 className="mt-0.5 text-[20px] font-semibold leading-[26px] tracking-[-0.02em]">{action.product_name}</h2>

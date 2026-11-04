@@ -1,4 +1,5 @@
-/** Category icons and the neutral product thumbnail (no product photos exist). Stroke style matches icons.tsx. */
+/** Category icons, product photos and the product thumbnail. Stroke style matches icons.tsx. */
+import { productImage } from "@/lib/productImages";
 
 const base = (size: number) => ({
   width: size,
@@ -77,8 +78,19 @@ export function CategoryIcon({ category, size = 20, className }: { category: str
   );
 }
 
-/** 40 px (48 in the sheet) bordered tile with the category icon, standing in for a product photo. */
-export function ProductThumb({ category, size = 40 }: { category: string; size?: 40 | 48 }) {
+/** 40 px (48 in the sheet) bordered tile: the product photo when `name` has one, else the category icon. */
+export function ProductThumb({ category, name, size = 40 }: { category: string; name?: string; size?: 40 | 48 }) {
+  const img = productImage(name);
+  if (img) {
+    return (
+      <span
+        className="grid shrink-0 place-items-center overflow-hidden rounded-[8px] border border-[var(--border)] bg-white"
+        style={{ width: size, height: size }}
+      >
+        <ProductPhoto name={name!} size={size - 2} className="scale-[1.3]" />
+      </span>
+    );
+  }
   return (
     <span
       className="grid shrink-0 place-items-center rounded-[8px] border border-[var(--border)] bg-[#f4f4f5] text-[#52525b]"
@@ -87,5 +99,25 @@ export function ProductThumb({ category, size = 40 }: { category: string; size?:
     >
       <CategoryIcon category={category} size={size === 48 ? 24 : 20} />
     </span>
+  );
+}
+
+/** The product packshot itself (square, white background), lazy and with a fixed size against layout shift. */
+export function ProductPhoto({ name, size, className = "" }: { name: string; size: number; className?: string }) {
+  const img = productImage(name);
+  if (!img) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- static export, files are already optimised WebP
+    <img
+      src={img.src}
+      alt={img.alt}
+      width={size}
+      height={size}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      className={`select-none object-contain ${className}`}
+      style={{ width: size, height: size }}
+    />
   );
 }

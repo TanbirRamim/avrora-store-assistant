@@ -60,7 +60,8 @@ test("opens on what needs attention, with thumbnails, badges and a count", async
   const first = list(page).getByRole("listitem").first();
   await expect(first).toContainText(rows[0].name);
   await expect(first).toContainText("Running out");
-  await expect(first.locator("svg").first()).toBeVisible();
+  await expect(first.locator("img").first()).toBeVisible();
+  expect(await first.locator("img").first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBe(600);
   await expect(page.getByRole("region", { name: "Store updates" }).filter({ visible: true }).getByRole("listitem")).toHaveCount(4);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/products-${info.project.name}.png` });
 
