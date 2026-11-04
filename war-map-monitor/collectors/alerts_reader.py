@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 import time
 from typing import Any, Dict, Optional
@@ -40,7 +41,10 @@ class AlertsReader:
             errors.append(f"public oblast feed: {exc}")
             logger.warning("Public oblast alert request failed: %s", exc)
 
-        data = self._generate_simulated_alerts()
+        if os.getenv("MONITOR_ALLOW_SIMULATION", "").strip().lower() in {"1", "true", "yes"}:
+            data = self._generate_simulated_alerts()
+        else:
+            data = self._unavailable_alerts()
         data["source_errors"] = errors
         return self._remember(data)
 
@@ -110,6 +114,22 @@ class AlertsReader:
             "active_hromadas": sorted(active_hromadas),
             "total_active_alerts": len(active_alerts),
             "raw_alerts": active_alerts,
+        }
+
+    def _unavailable_alerts(self) -> Dict[str, Any]:
+        """No live data: report that explicitly instead of inventing alerts."""
+        return {
+            "is_simulated": False,
+            "available": False,
+            "source": "unavailable",
+            "coverage": "none",
+            "notice": "Alert feeds unavailable: alert status is UNKNOWN, an empty alert list is not an all-clear.",
+            "fetched_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "data_timestamp": None,
+            "active_regions": [],
+            "active_hromadas": [],
+            "total_active_alerts": 0,
+            "raw_alerts": [],
         }
 
     def _generate_simulated_alerts(self) -> Dict[str, Any]:

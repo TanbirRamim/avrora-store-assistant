@@ -1,7 +1,9 @@
 import os
 import json
+import hmac
+import time
 from typing import Optional
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -15,15 +17,54 @@ app = FastAPI(
     version="3.0.0"
 )
 
+PORT = int(os.getenv("PORT", "8000"))
+HOST = os.getenv("MONITOR_HOST", "127.0.0.1")
+MONITOR_TOKEN = os.getenv("MONITOR_TOKEN", "")
+REFRESH_MIN_INTERVAL = float(os.getenv("MONITOR_REFRESH_MIN_INTERVAL", "10"))
+LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+PRIVATE_FIELDS = ("manager_name", "manager_phone")
+
+_cors_env = os.getenv("MONITOR_CORS_ORIGINS", "")
+CORS_ORIGINS = [o.strip() for o in _cors_env.split(",") if o.strip()] or [
+    f"http://localhost:{PORT}",
+    f"http://127.0.0.1:{PORT}",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-Monitor-Token"],
 )
 
 orchestrator = WarMapOrchestrator()
+_last_forced_refresh = 0.0
+
+
+def require_write_access(request: Request):
+    """Shared-token check for state-changing endpoints.
+
+    MONITOR_TOKEN set: header X-Monitor-Token must match.
+    MONITOR_TOKEN unset: only loopback clients are accepted.
+    """
+    if MONITOR_TOKEN:
+        supplied = request.headers.get("X-Monitor-Token", "")
+        if not hmac.compare_digest(supplied.encode(), MONITOR_TOKEN.encode()):
+            raise HTTPException(status_code=401, detail="Missing or invalid X-Monitor-Token")
+        return
+    client_host = request.client.host if request.client else ""
+    if client_host not in LOOPBACK_HOSTS:
+        raise HTTPException(status_code=403, detail="Set MONITOR_TOKEN to allow non-local write access")
+
+
+def require_known_store(store_id: str):
+    if not orchestrator.has_store(store_id):
+        raise HTTPException(status_code=404, detail="Unknown store")
+
+
+def strip_private(rows):
+    return [{k: v for k, v in r.items() if k not in PRIVATE_FIELDS} for r in rows]
 
 
 @app.on_event("startup")
@@ -62,20 +103,24 @@ def get_datasheet(
     if city:
         filtered = [r for r in filtered if city.lower() in r.get("city", "").lower()]
 
-    return filtered
+    return strip_private(filtered)
 
 
 @app.post("/api/stores/{store_id}/acknowledge")
-def acknowledge_shelter(store_id: str):
+def acknowledge_shelter(store_id: str, request: Request):
     """Store Manager shelter evacuation acknowledgment loop."""
+    require_write_access(request)
+    require_known_store(store_id)
     ack = orchestrator.acknowledge_shelter(store_id)
     orchestrator.process_cycle()
     return {"status": "success", "store_id": store_id, "ack": ack}
 
 
 @app.post("/api/stores/{store_id}/reset-ack")
-def reset_shelter_ack(store_id: str):
+def reset_shelter_ack(store_id: str, request: Request):
     """Resets acknowledgment back to unconfirmed."""
+    require_write_access(request)
+    require_known_store(store_id)
     orchestrator.reset_shelter_ack(store_id)
     orchestrator.process_cycle()
     return {"status": "success", "store_id": store_id}
@@ -94,8 +139,18 @@ def download_csv():
 
 
 @app.post("/api/refresh")
-def force_refresh():
-    """Forces an immediate synchronization cycle."""
+def force_refresh(request: Request):
+    """Forces an immediate synchronization cycle (rate-limited)."""
+    global _last_forced_refresh
+    require_write_access(request)
+    wait = REFRESH_MIN_INTERVAL - (time.monotonic() - _last_forced_refresh)
+    if _last_forced_refresh and wait > 0:
+        raise HTTPException(
+            status_code=429,
+            detail="Refresh requested too often",
+            headers={"Retry-After": str(int(wait) + 1)},
+        )
+    _last_forced_refresh = time.monotonic()
     rows, summary = orchestrator.process_cycle(force_refresh_maps=True)
     return {
         "status": "success",
@@ -117,9 +172,9 @@ def get_alerts_map_html():
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Avrora Store Alert Map · Alerts.in.ua Style</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha256-HtsXJanqjKTc8vVQjO4YMhiqFoXkfBsjBWcX91T1jr8=" crossorigin="anonymous" referrerpolicy="no-referrer">
   <style>
     :root {
       --bg-dark: #070d19;
@@ -320,6 +375,9 @@ def get_alerts_map_html():
   <!-- Fullscreen Interactive Map -->
   <div id="map"></div>
 
+  <!-- Data-quality banner: simulated / unavailable alerts or baked-sample frontline -->
+  <div id="data-banner" class="hidden" role="alert" style="position:absolute; top:0; left:0; right:0; z-index:2000; background:#b91c1c; color:#fff; font-size:13px; font-weight:700; text-align:center; padding:8px 12px; border-bottom:2px solid #fecaca;"></div>
+
   <!-- Alerts.in.ua Style Minimalist Header -->
   <div class="top-header">
     <div class="flex items-center space-x-3">
@@ -330,7 +388,7 @@ def get_alerts_map_html():
         <div class="text-sm font-bold text-white flex items-center gap-2">
           Avrora Store Alert Map
           <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-500/20 text-red-400 border border-red-500/30">
-            <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-ping"></span> Live Sirens
+            <span class="w-1.5 h-1.5 rounded-full bg-red-400 mr-1 animate-ping"></span> Sirens
           </span>
         </div>
         <div class="text-[11px] text-slate-400">Real-time alerts.in.ua sirens + DeepStateMap frontline distance</div>
@@ -502,15 +560,6 @@ def get_alerts_map_html():
       </div>
     </div>
 
-    <!-- Manager Contact -->
-    <div class="mt-2.5 p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-      <div class="flex items-center space-x-2 text-slate-300">
-        <i class="fa-solid fa-user-shield text-slate-500"></i>
-        <span id="card-manager" class="font-medium">Serhiy Kovalenko</span>
-      </div>
-      <div class="text-slate-300 text-[11px] font-mono font-semibold" id="card-phone">+380501234501</div>
-    </div>
-
     <!-- Acknowledgment Action Button -->
     <div class="mt-3 pt-2.5 border-t border-slate-800" id="card-ack-container">
       <button onclick="handleAcknowledgeClick()" id="btn-ack" class="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow">
@@ -522,13 +571,56 @@ def get_alerts_map_html():
   <!-- Floating Quick Store Selector Bar at the bottom -->
   <div class="store-quick-bar" id="quick-store-bar"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     let map;
     let storesData = [];
     let markersMap = {};
     let activeSelectedStore = null;
     let hasFittedInitialBounds = false;
+
+    function esc(v) {
+      return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function updateDataBanner(summary) {
+      const problems = [];
+      if (summary.alerts_is_simulated) {
+        problems.push('SIMULATED SIRENS - NOT LIVE DATA. Do not rely on alert status.');
+      } else if (summary.alerts_available === false) {
+        problems.push('ALERT FEEDS UNAVAILABLE - "ALL CLEAR" CANNOT BE TRUSTED. Check official alert sources.');
+      } else if (summary.alerts_coverage === 'oblast_only') {
+        problems.push('Alerts at oblast level only (no hromada detail).');
+      }
+      if (summary.frontline_data_source === 'baked_sample') {
+        problems.push('Frontline data is a built-in SAMPLE, not a current feed. Distances/zones are unreliable.');
+      }
+      const el = document.getElementById('data-banner');
+      el.textContent = problems.join('  |  ');
+      el.classList.toggle('hidden', problems.length === 0);
+    }
+
+    function monitorToken() {
+      try { return sessionStorage.getItem('monitorToken') || ''; } catch (e) { return ''; }
+    }
+
+    async function postWithToken(url) {
+      const send = () => {
+        const headers = {};
+        const t = monitorToken();
+        if (t) headers['X-Monitor-Token'] = t;
+        return fetch(url, { method: 'POST', headers });
+      };
+      let res = await send();
+      if (res.status === 401) {
+        const t = window.prompt('Monitor token required for this action:');
+        if (t) {
+          try { sessionStorage.setItem('monitorToken', t); } catch (e) {}
+          res = await send();
+        }
+      }
+      return res;
+    }
 
     // Initialize Map with dark basemap (Completely free, no API key required, zero watermarks)
     function initMap() {
@@ -583,6 +675,7 @@ def get_alerts_map_html():
         const summary = await summaryRes.json();
 
         updateHeaderStats(summary);
+        updateDataBanner(summary);
         renderStorePoints();
 
         // Refresh active inspector if open
@@ -644,11 +737,11 @@ def get_alerts_map_html():
         // High-contrast clean tooltip on hover
         marker.bindTooltip(`
           <div style="font-size:11px; font-weight:700; color:#f8fafc; line-height:1.2;">
-            ${store.store_id} · ${store.city}
+            ${esc(store.store_id)} · ${esc(store.city)}
             ${isSiren ? '<span style="color:#ef4444; margin-left:4px;">🚨 SIREN</span>' : ''}
           </div>
           <div style="font-size:10px; color:#94a3b8; margin-top:2px;">
-            ${store.dist_frontline_km} km to front · ${store.threat_zone} Zone
+            ${esc(store.dist_frontline_km)} km to front · ${esc(store.threat_zone)} Zone
           </div>
         `, { direction: 'top', offset: [0, -10], opacity: 0.95 });
 
@@ -687,7 +780,7 @@ def get_alerts_map_html():
           statusDot = '<span class="w-2 h-2 rounded-full bg-orange-500"></span>';
         }
 
-        pill.innerHTML = `${statusDot} <span>${store.city}</span> <span class="text-[9px] text-slate-400 font-mono">${store.store_id}</span>`;
+        pill.innerHTML = `${statusDot} <span>${esc(store.city)}</span> <span class="text-[9px] text-slate-400 font-mono">${esc(store.store_id)}</span>`;
         pill.onclick = () => {
           openInspector(store);
           map.flyTo([store.lat, store.lon], 13, { duration: 0.8 });
@@ -791,15 +884,13 @@ def get_alerts_map_html():
 
       // Shelter & Contact
       document.getElementById('card-shelter').textContent = store.shelter_nearby || "Nearest certified civil defense bunker";
-      document.getElementById('card-manager').textContent = store.manager_name || "Store Manager";
-      document.getElementById('card-phone').textContent = store.manager_phone || "+380501234500";
 
       // Acknowledgment Button
       const btnAck = document.getElementById('btn-ack');
       if (isSiren) {
         if (store.ack_status === 'CONFIRMED_IN_SHELTER') {
           btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-emerald-600/30 text-emerald-300 border border-emerald-500/30";
-          btnAck.innerHTML = `<i class="fa-solid fa-check-double text-emerald-400"></i> ${store.ack_label || 'Evacuation Confirmed by Manager'}`;
+          btnAck.innerHTML = `<i class="fa-solid fa-check-double text-emerald-400"></i> ${esc(store.ack_label || 'Evacuation Confirmed by Manager')}`;
         } else {
           btnAck.className = "w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/40 animate-pulse";
           btnAck.innerHTML = `<i class="fa-solid fa-person-shelter"></i> In Shelter - Confirm Evacuation`;
@@ -823,9 +914,9 @@ def get_alerts_map_html():
 
       try {
         if (activeSelectedStore.ack_status === 'CONFIRMED_IN_SHELTER') {
-          await fetch(`/api/stores/${activeSelectedStore.store_id}/reset-ack`, { method: 'POST' });
+          await postWithToken(`/api/stores/${encodeURIComponent(activeSelectedStore.store_id)}/reset-ack`);
         } else {
-          await fetch(`/api/stores/${activeSelectedStore.store_id}/acknowledge`, { method: 'POST' });
+          await postWithToken(`/api/stores/${encodeURIComponent(activeSelectedStore.store_id)}/acknowledge`);
         }
         await fetchStoreTelemetry();
       } catch (err) {
@@ -857,5 +948,4 @@ def get_alerts_map_html():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8000"))
-    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("server:app", host=HOST, port=PORT, reload=False)
