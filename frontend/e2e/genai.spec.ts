@@ -1,6 +1,8 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
 
 const AI = "**/api/ai/chat";
+/** The Today briefing the store AI writes on its own at load; these tests leave it on the rules. */
+const isBriefing = (body: { messages: { content: string }[] }) => body.messages[0].content.startsWith("You help the manager of a small discount store plan their day");
 /** The store server reports its AI as set up (or not). */
 const storeAi = (page: Page, on = true) =>
   page.route("**/api/ai/status", (r) => r.fulfill({ json: on ? { configured: true, model: "test-model" } : { configured: false, model: null } }));
@@ -17,6 +19,7 @@ async function mockModel(page: Page, answer: (kind: "ask" | "draft", body: { mes
   const calls: { kind: string; user: unknown }[] = [];
   await page.route(AI, async (route: Route) => {
     const body = JSON.parse(route.request().postData()!);
+    if (isBriefing(body)) return route.fulfill({ status: 503, json: { detail: "test" } });
     const kind = body.messages[0].content.includes("supplier") && body.schema.properties.subject ? "draft" : "ask";
     calls.push({ kind, user: JSON.parse(body.messages[1].content) });
     await route.fulfill({ json: { content: JSON.stringify(answer(kind, body)) } });

@@ -51,7 +51,7 @@ export function WartimePanel({
   // Feeds that are off stay out of the UI; only live sources are named.
   const alertLine = alerts?.connected ? `Air-raid alerts live from alerts.in.ua, ${time(alerts.fetched_at)}` : null;
   const threatLine = threats?.connected
-    ? `${threats.threats.length ? `${threats.threats.length} aerial threats` : "No aerial threats"} reported, mapa.ua ${time(threats.fetched_at)}. Unofficial estimates.`
+    ? `${threats.threats.length ? `${threats.threats.length} aerial threats` : "No aerial threats"} reported, ${time(threats.fetched_at)}`
     : null;
   const nearThreat = exposures?.filter((x) => x.threatKm !== null).length ?? 0;
 
@@ -160,9 +160,6 @@ export function WartimePanel({
           )}
         </section>
       )}
-      <p className="t-caption mt-2 px-1 text-[var(--text-3)]">
-        Sample stores. The front line is a hand-drawn sketch, not a live or current map. Supply actions are rules of thumb.
-      </p>
     </>
   );
 }

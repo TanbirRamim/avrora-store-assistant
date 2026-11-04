@@ -5,7 +5,7 @@ import type { Signal, Signals } from "@/lib/api";
 import type { Lang } from "@/lib/assist";
 import type { Replan } from "@/lib/replan";
 import { replannable } from "@/lib/replan";
-import { AlertIcon, BoltIcon, CheckCircleIcon, ChevronIcon, CloudIcon, SparkleIcon } from "./icons";
+import { AlertIcon, BoltIcon, CheckCircleIcon, CloudIcon, SparkleIcon } from "./icons";
 
 interface Props {
   data: Signals;
@@ -18,9 +18,6 @@ interface Props {
   onRevert: () => void;
 }
 
-const FEED_LABEL = { power: "Power", air_alert: "Air\u2011raid alerts", weather: "Weather" } as const;
-/** Non-breaking hyphens so names like Open-Meteo never wrap mid-word. */
-const nb = (t: string) => t.replace(/(\w)-(\w)/g, "$1\u2011$2");
 
 /** Re-renders every minute so "starts in" stays current between polls. */
 function useNow(ms = 60_000) {
@@ -66,12 +63,11 @@ function group(signals: Signal[]) {
   return out;
 }
 
-const badge = (s: Signal) => (s.source.includes("example") ? "Example" : "Simulated, not real");
 
 /** Power cuts, air-raid alerts and notable weather near the store, with a re-plan for the first two. */
 export function LiveConditions({ data, replan, busy, error, hasKey, lang, onReplan, onRevert }: Props) {
   const now = useNow();
-  const { signals, feeds } = data;
+  const { signals } = data;
 
   if (signals.length === 0) {
     return (
@@ -104,11 +100,6 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <span className="t-headline">{many ? `${items.length} power cuts` : keepRanges(s.title)}</span>
-                    {s.simulated && (
-                      <span className="badge badge-neutral" data-nodot="">
-                        {badge(s)}
-                      </span>
-                    )}
                   </div>
                   {!many && timing && (
                     <p className="num mt-1.5">
@@ -180,15 +171,6 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
             </li>
           )}
         </ul>
-        <details className="border-t border-rule">
-          <summary className="t-footnote flex min-h-[44px] items-center gap-1.5 px-4 text-muted hover:text-ink">
-            <ChevronIcon size={11} className="disclose shrink-0" />
-            Sources
-          </summary>
-          <p className="t-footnote px-4 pb-3 text-muted">
-            {nb(feeds.filter((f) => f.live).map((f) => `${FEED_LABEL[f.kind]}: ${f.source}.`).join(" "))}
-          </p>
-        </details>
       </div>
     </section>
   );

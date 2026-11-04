@@ -15,7 +15,7 @@ import { TeamTodayCard, TeamView } from "@/components/TeamView";
 import { BackIcon, BellIcon, BoltIcon, CheckIcon, ChevronIcon, ClockIcon, CloseIcon, GridIcon, ListIcon, MapIcon, MoreIcon, SparkleIcon, SunIcon, UsersIcon } from "@/components/icons";
 import { TagProgress } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview, Signal, Signals } from "@/lib/api";
-import { aiRoute, useAi } from "@/lib/ai";
+import { aiRoute, useAi, writeBriefing } from "@/lib/ai";
 import { applyOrder, type Replan, replanByRules, replanWithModel } from "@/lib/replan";
 import { api, fetcher } from "@/lib/api";
 import { SCRIM_FADE, SETTLE_MS, SHEET_SPRING, TOAST_SPRING } from "@/lib/motion";
@@ -148,6 +148,19 @@ export default function Home() {
   }, [view]);
 
   const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
+
+  // With the store AI connected the briefing is written by the model on its own, once per visit;
+  // if the model fails, the rules briefing stays and the AI sheet can try again.
+  const [autoWriting, setAutoWriting] = useState(false);
+  const autoWrote = useRef(false);
+  useEffect(() => {
+    if (autoWrote.current || !ai.hasKey || ai.briefing || !actions || !baseBriefing) return;
+    autoWrote.current = true;
+    setAutoWriting(true);
+    writeBriefing(actions, baseBriefing.notices)
+      .catch(() => {})
+      .finally(() => setAutoWriting(false));
+  }, [ai.hasKey, ai.briefing, actions, baseBriefing]);
   // Outside conditions; if the route is missing or fails, the card simply stays hidden.
   const { data: signals } = useSWR<Signals>("/api/signals", fetcher, { refreshInterval: 60_000, shouldRetryOnError: false });
   const [replanState, setReplan] = useState<Replan | null>(null);
@@ -426,7 +439,7 @@ export default function Home() {
                       {briefing && (
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--divider)] pt-3">
                           <p className="t-footnote min-w-0 text-muted">
-                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : "Fixed rules, not AI."}
+                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "Fixed rules, not AI."}
                           </p>
                           <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
                             <SparkleIcon size={14} />
@@ -602,9 +615,6 @@ export default function Home() {
                   Keyboard: J and K move through the list, A approves, D dismisses, Esc closes.
                 </p>
               </section>
-              <p className="t-footnote mt-8 px-4 text-center text-muted">
-                Store data is made up for this demo. Map: avrora.ua, © OpenStreetMap contributors.
-              </p>
             </>
           )}
 

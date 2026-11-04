@@ -43,7 +43,7 @@ test("war-time mode without an alerts token rates stores by distance only", asyn
   await openWartime(page);
 
   await expect(page.getByText(/not connected/i)).toHaveCount(0);
-  await expect(page.getByText("Sample stores. The front line is a hand-drawn sketch", { exact: false })).toBeVisible();
+  await expect(page.getByText(/Sample stores|hand-drawn sketch/)).toHaveCount(0);
   await expect(stores(page)).toHaveCount(13);
   // closest to the sketched line first, Lviv last
   await expect(stores(page).first()).toContainText("Kherson");
@@ -113,7 +113,8 @@ test("aerial threats and supply sites at risk are shown and labelled as estimate
   await page.route("**/api/wartime/alerts", (r) => r.fulfill({ json: { connected: false, reason: "no_token" } }));
   await openWartime(page, THREATS);
 
-  await expect(page.getByText(/2 aerial threats reported, mapa\.ua .*Unofficial estimates\./)).toBeVisible();
+  await expect(page.getByText(/2 aerial threats reported/)).toBeVisible();
+  await expect(page.getByText(/mapa\.ua|Unofficial/)).toHaveCount(0);
   const section = page.getByRole("region", { name: "Supply sites at risk" });
   await expect(section).toContainText(/near threats/);
   const sites = page.getByRole("list", { name: "Supply sites by risk" }).getByRole("button");
