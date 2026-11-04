@@ -229,7 +229,7 @@ export function TeamView({ today, initialDate, initialTab = "plan" }: { today: s
           </motion.div>
         ) : (
           <motion.div key="plan" {...fade(still)}>
-            {/* day picker: compact cells "Mon / 2"; selected = zinc-900 fill, today = red dot */}
+            {/* day picker: compact cells "Mon / 2"; selected = yellow fill, today = red dot */}
             <div role="group" aria-label="Day" className="mt-3 grid grid-cols-7 gap-1 md:max-w-[520px]">
               {days.map((d, i) => {
                 const on = d === date;
@@ -240,12 +240,12 @@ export function TeamView({ today, initialDate, initialTab = "plan" }: { today: s
                     aria-pressed={on}
                     aria-label={i === 0 ? `Today, ${dayLong(d)}` : dayLong(d)}
                     className={`relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[10px] border transition-colors duration-150 ${
-                      on ? "border-ink bg-ink text-white" : "border-[var(--border)] bg-paper text-ink hover:bg-[var(--surface-2)] active:bg-[var(--neutral-bg)]"
+                      on ? "border-yellow bg-yellow font-semibold text-ink" : "border-[var(--border)] bg-paper text-ink hover:bg-[var(--surface-2)] active:bg-[var(--neutral-bg)]"
                     }`}
                   >
-                    <span className={`text-[12px] leading-4 ${on ? "text-white/75" : "text-muted"}`}>{dayShort(d)}</span>
+                    <span className={`text-[12px] leading-4 ${on ? "text-ink/70" : "text-muted"}`}>{dayShort(d)}</span>
                     <span className="num text-[15px] font-semibold leading-5">{dayNum(d)}</span>
-                    {i === 0 && <span aria-hidden className={`absolute right-1.5 top-1.5 size-[5px] rounded-full ${on ? "bg-white" : "bg-[var(--brand)]"}`} />}
+                    {i === 0 && <span aria-hidden className={`absolute right-1.5 top-1.5 size-[5px] rounded-full ${on ? "bg-ink" : "bg-[var(--brand)]"}`} />}
                   </button>
                 );
               })}

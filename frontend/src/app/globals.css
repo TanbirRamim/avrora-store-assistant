@@ -3,7 +3,7 @@
 /* v2 "Quiet professional" palette, see docs/design-system.md. Old token names map onto it. */
 :root {
   color-scheme: light;
-  --yellow: #ffde00; /* logo mark only. Nowhere else in the UI. */
+  --yellow: #ffde00; /* brand theme: summary tag, active dock tab, selected day, highlights. Always with ink text. */
   --ink: #18181b;
   --red: #dc2626; --brand: #e30613; --critical-bg: #fef2f2; --warning-bg: #fffbeb; --success-bg: #f0fdf4; --neutral-bg: #f4f4f5; --border: #e4e4e7; --divider: #ededef; --text-3: #71717a; /* urgency only */
   --green: #15803d;

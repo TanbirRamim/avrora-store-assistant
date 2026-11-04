@@ -85,7 +85,7 @@ export function ActionRow({ action, decision, selected, onOpen, onToggle, movedU
             <TypeBadge type={action.type} dim={done} />
             {movedUp && (
               <span
-                className="badge badge-neutral"
+                className="badge bg-yellow text-ink"
                 data-nodot=""
                 data-testid="moved-up"
               >

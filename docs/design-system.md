@@ -1,7 +1,13 @@
 # Avrora Store Assistant: design system v2 ("Quiet professional")
 
-v1 used Avrora yellow as large surfaces (tags, active tab, map halos). The user found it loud and
-unprofessional. v2 follows how serious retail and workforce tools look (Shopify Polaris admin,
+**Yellow theme (v2.2).** Avrora yellow is the brand theme again, on a fixed set of surfaces: the
+summary price tag, the active dock tab, the selected day, the "Moved up" highlight, `.edge-yellow`
+rows, the focus ring halo and the Undo action on the ink toast. Yellow always carries ink text
+(ink on `#FFDE00` is about 14:1) and never appears as body text on white. Everything else stays in
+the calm v2 neutrals below. `e2e/design-qa.spec.ts` allows yellow on exactly these surfaces and
+fails it anywhere else; the contrast check still runs on every screen.
+
+v1 used Avrora yellow as large surfaces everywhere (tags, active tab, map halos). v2 follows how serious retail and workforce tools look (Shopify Polaris admin,
 Linear, Stripe Dashboard, modern rota apps like Deputy): a calm neutral canvas, crisp 1 px
 borders, one primary action colour, colour reserved for meaning. Avrora ownership comes from the
 **logo mark, the red accent used with restraint, Onest typography and the precise rota board**,
@@ -23,7 +29,7 @@ not from painting things yellow.
 | `--warning` | `#B45309` / bg `#FFFBEB` | Late, overstocked, upcoming. |
 | `--success` | `#15803D` / bg `#F0FDF4` | Approved, covered, done. |
 | `--neutral` | `#3F3F46` / bg `#F4F4F5` | Draft, note, neutral states. |
-| `--yellow` | `#FFDE00` | ONLY inside the Avrora logo mark. Nowhere else in the UI. |
+| `--yellow` | `#FFDE00` | Brand theme: logo, summary price tag, active dock tab, selected day, highlights. Always with ink text. |
 
 Status = soft tinted background + darker text + icon (Polaris badge style), small, never big
 blocks. Charts: zinc for bars, `--text` for lines, red only for shortfall. Map: data colours stay;
@@ -51,7 +57,7 @@ UI controls are neutral (white cards, zinc borders, near-black selected state). 
   white, 1 px border, `--text`; tertiary = text button. Destructive = `--critical` text.
 - **Badges:** 22 px pill, tinted bg + coloured text, 12–13 px medium, with a 6 px dot or icon.
 - **Segmented control / tabs:** zinc-100 track, white selected segment with soft shadow. Day
-  picker: compact cells "Mon / 2"; selected = `--text` fill white text; today has a red dot.
+  picker: compact cells "Mon / 2"; selected = yellow fill, ink text; today has a red dot.
 - **Summary header** (replaces the yellow tag): no fill, sits on the canvas or in one white card:
   context line, key figure (30 semibold) + short sentence, a row of 2–4 stats, primary action.
 - **Tab bar:** white floating bar, border + shadow; icons zinc-500; active = `--text` icon and
@@ -66,7 +72,7 @@ UI controls are neutral (white cards, zinc borders, near-black selected state). 
 
 Plain short copy; motion only in response to touch; reduced motion respected; iPhone SE first;
 44 pt targets; 16 px inputs; safe areas; nothing behind the bottom zone; no chip wrapping;
-contrast ≥ 4.5:1; no gradients; no card-in-card; no decorative colour; yellow only in the logo.
+contrast ≥ 4.5:1; no gradients; no card-in-card; no decorative colour; yellow only on the theme surfaces listed at the top.
 
 
 ## Shared building blocks (from v1; restyle to v2 tokens, keep names)
@@ -134,7 +140,8 @@ A screen-level action bar (Approve plan / Reject, Save, Order) uses `.action-zon
 - `.chip` (white + border, radius 10; `aria-pressed/selected="true"` = zinc-900 fill), `.text-filter` (2 px zinc-900 underline when active).
 - `.segmented` (zinc-100 track) + `.segmented-thumb` (white, soft shadow).
 - `.badge` + `.badge-critical | .badge-warning | .badge-success | .badge-neutral`: 22 px pill, tinted bg, 6 px dot (`data-nodot` hides it).
-- `.edge-accent` (alias `.edge-yellow`): 3 px zinc-900 left edge for the one highlighted row.
+- `.edge-accent`: 3 px zinc-900 left edge. `.edge-yellow`: 6 px yellow left edge (theme).
+- Yellow theme overrides (end of globals.css): `.price-tag` yellow fill with ink text and a floor-coloured hole, `.tag-figure` 44/56 display, `.btn-tag` ink pill, `.dock` ink bar with a yellow active pill.
 - `.type-glyph`: 8 px neutral square. `.timeline`: 1 px rule, zinc-400 dots. `.scroll-row` unchanged.
 - `.action-zone`: white floating bar (border, radius 14) above the tab bar. `.dock`: white floating bar; put `aria-current="page"` on the active `.dock-item` for the ink colour + red 3x16 indicator.
 - `.nowrap`: keep time ranges ("09:00–13:00") on one line.

@@ -55,7 +55,11 @@ async function clippedText(page: Page) {
   });
 }
 
-/** Yellow belongs to the Avrora logo only. */
+/**
+ * Yellow is the brand theme, but only on its intended surfaces: the summary price tag, the active
+ * dock tab, yellow utility classes (selected day, highlights, edges, undo on the ink toast) and the logo.
+ * Anything else painted yellow is a leak.
+ */
 async function offPaletteYellow(page: Page) {
   return page.evaluate(() => {
     const yellow = (c: string) => {
@@ -67,6 +71,7 @@ async function offPaletteYellow(page: Page) {
     const out: string[] = [];
     for (const el of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
       if (el.closest("svg, img, canvas, .maplibregl-canvas-container")) continue;
+      if (el.closest('.price-tag, .dock-item[aria-current="page"], .dock-item[aria-selected="true"], [class*="yellow"]')) continue;
       const cs = getComputedStyle(el);
       if (yellow(cs.backgroundColor) || yellow(cs.color) || yellow(cs.borderTopColor)) {
         out.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`);
@@ -117,7 +122,7 @@ for (const s of SCREENS) {
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect.soft(sideways, "page scrolls sideways").toBeLessThanOrEqual(1);
     expect.soft(await clippedText(page), "clipped or ellipsised text").toEqual([]);
-    expect.soft(await offPaletteYellow(page), "yellow outside the logo").toEqual([]);
+    expect.soft(await offPaletteYellow(page), "yellow outside the theme surfaces").toEqual([]);
     if (phone) {
       expect.soft(await smallTargets(page), "tap targets under 44pt").toEqual([]);
       if (!s.name.includes("sheet")) {

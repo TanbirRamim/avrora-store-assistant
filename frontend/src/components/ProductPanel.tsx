@@ -119,7 +119,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
                 const a = full.get(ref.id);
                 const tm = TYPE_META[ref.type];
                 return (
-                  <li key={ref.id} className="cell relative px-4 py-3.5 pl-5">
+                  <li key={ref.id} className="cell relative border-l-[6px] border-yellow px-4 py-3.5">
                     <span aria-hidden className="absolute bottom-3 left-[6px] top-3 w-[3px] rounded-full bg-ink" />
                     <p className="t-footnote font-semibold" style={{ color: tm.text }}>
                       {tm.label}
