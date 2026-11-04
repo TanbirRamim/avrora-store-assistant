@@ -1,6 +1,10 @@
 import { expect, type Page, test } from "@playwright/test";
 
-const OTH = "https://im-kigs-openwebui.oth-regensburg.de/ollama/api/chat";
+const AI = "**/api/ai/chat";
+/** The store server reports its AI as set up (or not). */
+const storeAi = (page: Page, on = true) =>
+  page.route("**/api/ai/status", (r) => r.fulfill({ json: on ? { configured: true, model: "test-model" } : { configured: false, model: null } }));
+
 const MIN = 60_000;
 
 test.use({ serviceWorkers: "block" });
@@ -47,19 +51,19 @@ async function mockSignals(page: Page, signals: object[] | null) {
 type Body = { messages: { content: string }[] };
 async function mockModel(page: Page, answer: (kind: "replan" | "briefing", user: Record<string, unknown>) => object) {
   const calls: { kind: string; user: Record<string, unknown> }[] = [];
-  await page.route(OTH, async (route) => {
+  await page.route(AI, async (route) => {
     const body = JSON.parse(route.request().postData()!) as Body;
     const kind = body.messages[0].content.includes("outside event") ? "replan" : "briefing";
     const user = JSON.parse(body.messages[1].content);
     calls.push({ kind, user });
-    await route.fulfill({ json: { message: { content: JSON.stringify(answer(kind, user)) } } });
+    await route.fulfill({ json: { content: JSON.stringify(answer(kind, user)) } });
   });
   return calls;
 }
 
 async function open(page: Page, opts: { key?: boolean; lang?: "uk" | "en" } = {}) {
-  await page.addInitScript(({ key, lang }) => {
-    if (key) localStorage.setItem("avrora.webuiKey", "sk-test-key");
+  await storeAi(page, Boolean(opts.key));
+  await page.addInitScript(({ lang }) => {
     if (lang) localStorage.setItem("avrora.lang", lang);
   }, opts);
   await page.goto("/");
@@ -126,7 +130,7 @@ test("without a key the re-plan uses the rules and can be reverted", async ({ pa
   expect(await rowNames(page)).toEqual(before);
 });
 
-test("with a key the OTH model reorders and explains, numbers checked", async ({ page }) => {
+test("with store AI the model reorders and explains, numbers checked", async ({ page }) => {
   const calls = await mockModel(page, (_k, user) => {
     const ev = user.event as { starts: string; ends: string };
     return {
@@ -173,13 +177,12 @@ test("Ukrainian briefing and re-plan note, language kept in this browser", async
         },
   );
   await mockSignals(page, [power()]);
-  await open(page);
+  await open(page, { key: true });
   await page.getByRole("button", { name: "Write with AI" }).click();
-  const sheet = page.getByRole("dialog", { name: "AI briefing" });
+  const sheet = page.getByRole("dialog", { name: "AI settings" });
   await expect(sheet.getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
   await sheet.getByRole("radio", { name: "Українська" }).click();
-  await sheet.getByLabel("Open WebUI key").fill("sk-test-key");
-  await sheet.getByRole("button", { name: "Save and write briefing" }).click();
+  await sheet.getByRole("button", { name: "Write briefing" }).click();
   await expect(sheet).toHaveCount(0);
   await expect(page.getByTestId("summary")).toHaveText("Сьогодні 5 пріоритетів; найбільше під загрозою 6 041,22 ₴ на кухлях.");
   await expect(page.getByTestId("summary")).toHaveAttribute("lang", "uk");

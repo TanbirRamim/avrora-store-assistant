@@ -30,7 +30,7 @@ uv run pytest
 ```bash
 # terminal 1 – API on :8000
 cd backend
-cp .env.example .env            # add your Open WebUI key, or set AVRORA_LLM=none
+cp .env.example .env            # fill AI_BASE_URL, AI_MODEL, AI_API_KEY (see "Set up the AI"), or leave empty
 uv run --env-file .env uvicorn avrora.api.main:app --port 8000
 
 # terminal 2 – web app on :3000
@@ -56,9 +56,31 @@ npm install
 npm run deploy                  # export snapshot, build the web app, apply D1 migrations, deploy
 ```
 
-AI briefing on the live site: open **Write with AI** under the day's summary and paste an Open WebUI API key. The
-browser calls the OTH server directly, so the key never reaches Cloudflare. The OTH server only accepts connections
-from the university network, so this needs campus Wi-Fi or the OTH VPN; without it the app uses the rules text.
+## Set up the AI
+
+The AI texts (briefing, questions, supplier drafts, re-plan, team notes) use the store's own model through any
+OpenAI-compatible chat-completions API. The browser calls `POST /api/ai/chat` on this app; the server adds the key
+and forwards to `{AI_BASE_URL}/chat/completions`, so the key never reaches the browser and AI works for everyone,
+all the time. `GET /api/ai/status` returns `{configured, model}`. Without it set up, or when the model fails, the
+app uses its fixed rules.
+
+Live site (Cloudflare Worker):
+
+1. In `cloudflare/wrangler.jsonc`, set `vars.AI_BASE_URL` (the part before `/chat/completions`, e.g.
+   `https://your-host/v1`) and `vars.AI_MODEL`.
+2. Store the key as a secret (it is never written to a file):
+   ```bash
+   cd cloudflare
+   npx wrangler secret put AI_API_KEY      # paste the key when asked
+   npm run deploy
+   ```
+   For `wrangler dev`, put `AI_API_KEY=…` in `cloudflare/.dev.vars` (git-ignored).
+
+Local API (FastAPI): set `AI_BASE_URL`, `AI_MODEL` and `AI_API_KEY` in `backend/.env` (git-ignored; copy
+`backend/.env.example`) and start it with `uv run --env-file .env …` as above.
+
+One device only: **More → AI settings → Use my own key** saves a base URL, model and key in that browser and uses
+it instead of the store AI there (the provider must allow browser requests). **Remove my key** deletes it.
 
 To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright test`.
 
@@ -66,7 +88,7 @@ To test a deployed copy: `cd frontend && BASE_URL=https://… npx playwright tes
 
 `GET /api/signals` reports scheduled power cuts, air-raid alerts and notable weather (frost, heat, storm) for the
 store; Today shows them above the store note, and **Re-plan for this** reorders the day's five priorities around a
-power cut or an alert (OTH model with a key, rules without). The cron job pushes power cuts from 2 hours ahead.
+power cut or an alert (AI model when set up, rules without). The cron job pushes power cuts from 2 hours ahead.
 
 - Power: `cloudflare/src/outages.json`, copied by hand from the Vinnytsiaoblenergo schedule (its site blocks
   requests from outside Ukraine). While `"example": true` the windows are placeholders and are labelled as such.

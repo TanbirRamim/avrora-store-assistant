@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, LayoutGroup, motion, useDragControls } from "motion/react";
+import { AnimatePresence, LayoutGroup, MotionConfig, motion, useDragControls } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import useSWR from "swr";
 import { ActionRow, TypeGlyph } from "@/components/ActionRow";
@@ -15,10 +15,11 @@ import { TeamTodayCard, TeamView } from "@/components/TeamView";
 import { BackIcon, BellIcon, BoltIcon, CheckIcon, ChevronIcon, ClockIcon, CloseIcon, GridIcon, ListIcon, MapIcon, MoreIcon, SparkleIcon, SunIcon, UsersIcon } from "@/components/icons";
 import { TagProgress } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview, Signal, Signals } from "@/lib/api";
-import { savedKey, useAi } from "@/lib/ai";
+import { aiRoute, useAi } from "@/lib/ai";
 import { applyOrder, type Replan, replanByRules, replanWithModel } from "@/lib/replan";
 import { api, fetcher } from "@/lib/api";
-import { ModelError } from "@/lib/ollama";
+import { SCRIM_FADE, SETTLE_MS, SHEET_SPRING, TOAST_SPRING } from "@/lib/motion";
+import { ModelError } from "@/lib/model";
 import { longDate, money, TYPE_META } from "@/lib/format";
 
 type View = "today" | "team" | "products" | "all" | "log" | "map" | "more";
@@ -63,10 +64,15 @@ function useMedia(query: string) {
 export default function Home() {
   const [view, setViewState] = useState<View>("today");
   const mainRef = useRef<HTMLElement>(null);
+  // the tab cross-fade runs on a switch only, never on first load
+  const [switched, setSwitched] = useState(false);
   const setView = (v: View) => {
     // tapping the current tab again scrolls back to the top, as on iOS
     if (v === view) mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    else mainRef.current?.scrollTo({ top: 0 });
+    else {
+      mainRef.current?.scrollTo({ top: 0 });
+      setSwitched(true);
+    }
     setViewState(v);
   };
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,7 +80,6 @@ export default function Home() {
   const [teamKey, setTeamKey] = useState(0);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("ALL");
   const wide = useMedia("(min-width: 1024px)");
-  const reduceMotion = useMedia("(prefers-reduced-motion: reduce)");
 
   const { data: overview, error: overviewError, mutate: retryOverview, isValidating: retrying } = useSWR<Overview>("/api/overview", fetcher);
   const { data: baseBriefing } = useSWR<Briefing>("/api/briefing", fetcher);
@@ -240,16 +245,27 @@ export default function Home() {
     if (!ai.hasKey) return setReplan(replanByRules(s, base, ai.lang));
     setReplanBusy(true);
     try {
-      setReplan(await replanWithModel(savedKey(), s, base, ai.lang));
+      setReplan(await replanWithModel(aiRoute(), s, base, ai.lang));
     } catch (err) {
       setReplanError(err instanceof ModelError ? err.message : "The new order could not be worked out. Try again.");
     } finally {
       setReplanBusy(false);
     }
   };
+  // An approved row stays in place for a moment with its check filled, then moves to Handled.
+  const [settling, setSettling] = useState<ReadonlySet<string>>(new Set());
   const toggle = (a: Action) => {
-    if (decided.has(a.id)) return void undo(a.id);
+    if (decided.has(a.id) && !settling.has(a.id)) return void undo(a.id);
+    if (settling.has(a.id)) return;
     void decide(a.id, "approve");
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setSettling((s) => new Set(s).add(a.id));
+      setTimeout(() => setSettling((s) => {
+        const n = new Set(s);
+        n.delete(a.id);
+        return n;
+      }), SETTLE_MS);
+    }
     showToast({ text: `Approved ${a.product_name}`, undoId: a.id });
   };
 
@@ -258,8 +274,9 @@ export default function Home() {
   const basePriorities = briefing?.priorities ?? [];
   const priorities = replan ? applyOrder(basePriorities, replan.order) : basePriorities;
   const movedUp = (a: Action) => replan !== null && priorities.indexOf(a) < basePriorities.indexOf(a);
-  const open = priorities.filter((a) => !decided.has(a.id));
-  const handled = priorities.filter((a) => decided.has(a.id));
+  const open = priorities.filter((a) => !decided.has(a.id) || settling.has(a.id));
+  const handled = priorities.filter((a) => decided.has(a.id) && !settling.has(a.id));
+  const toDecide = open.filter((a) => !decided.has(a.id)).length;
   const logGroups = useMemo(() => {
     const day = (iso: string) => {
       const d = new Date(iso);
@@ -350,6 +367,7 @@ export default function Home() {
     : [];
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex h-full overflow-hidden">
       <main
         ref={mainRef}
@@ -377,7 +395,7 @@ export default function Home() {
           </div>
         )}
         {view === "map" && <NetworkMap />}
-        <div className={view === "map" ? "hidden" : `mx-auto ${view === "today" ? "max-w-[1120px]" : view === "team" ? "max-w-[960px]" : "max-w-[720px]"} px-4 pb-16 pt-[calc(env(safe-area-inset-top)+16px)] md:px-6 md:pt-10`}>
+        <div key={view} className={view === "map" ? "hidden" : `${switched ? "view-enter " : ""}mx-auto ${view === "today" ? "max-w-[1120px]" : view === "team" ? "max-w-[960px]" : "max-w-[720px]"} px-4 pb-16 pt-[calc(env(safe-area-inset-top)+16px)] md:px-6 md:pt-10`}>
           {view === "today" && (
             <>
               <ScreenHeader title="Today" date={overview ? longDate(overview.today) : " "} />
@@ -386,25 +404,28 @@ export default function Home() {
               <div className="@container mt-5">
                 <div className="flex flex-col @[52rem]:grid @[52rem]:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] @[52rem]:items-start @[52rem]:gap-x-8">
                   <div className="contents @[52rem]:block @[52rem]:min-w-0">
-                    {/* The one yellow price tag: what matters now */}
+                    {/* Summary header: what matters now */}
                     <section aria-label="Today's summary" className="price-tag order-1 @[52rem]:order-none">
-                      <div className="flex items-end gap-3 pl-3">
-                        <span className="tag-figure">{briefing ? open.length : " "}</span>
-                        <span className="pb-1 text-[17px] font-semibold leading-[22px]">
-                          {briefing ? (open.length === 0 ? "left to decide" : "to decide") : "Loading…"}
+                      <p className="t-footnote font-medium text-muted">
+                        {overview ? `${overview.store_name.split(", ")[0]} · today's priorities` : "Today's priorities"}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
+                        <span className="tag-figure">{briefing ? toDecide : " "}</span>
+                        <span className="text-[17px] font-medium leading-[22px] text-muted">
+                          {briefing ? (toDecide === 0 ? "left to decide" : "to decide") : "Loading…"}
                         </span>
                       </div>
-                      <p className="t-callout mt-3 text-ink" lang={briefing?.lang} data-testid="summary">
+                      <p className="t-subhead num mt-1 text-muted" lang={briefing?.lang} data-testid="summary">
                         {briefing?.summary ?? "Preparing today's priorities…"}
                       </p>
                       {priorities.length > 0 && (
                         <div className="mt-4">
-                          <TagProgress done={handled.length} total={priorities.length} />
+                          <TagProgress done={priorities.length - toDecide} total={priorities.length} />
                         </div>
                       )}
                       {briefing && (
-                        <div className="mt-3 flex items-center justify-between gap-3">
-                          <p className="t-footnote min-w-0 text-[rgba(0,0,0,0.78)]">
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--divider)] pt-3">
+                          <p className="t-footnote min-w-0 text-muted">
                             {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : "Fixed rules, not AI."}
                           </p>
                           <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
@@ -428,6 +449,7 @@ export default function Home() {
                                 <ActionRow
                                   key={a.id}
                                   action={a}
+                                  decision={decided.get(a.id)}
                                   selected={a.id === selectedId}
                                   onOpen={() => setSelectedId(a.id)}
                                   onToggle={() => toggle(a)}
@@ -438,7 +460,7 @@ export default function Home() {
                             {!briefing && <li className="h-[320px] animate-pulse bg-fill" />}
                             {briefing && open.length === 0 && (
                               <li className="flex items-center gap-3 px-4 py-4">
-                                <span className="grid size-[28px] shrink-0 place-items-center rounded-full bg-green text-white">
+                                <span className="grid size-[24px] shrink-0 place-items-center rounded-full bg-green text-white">
                                   <CheckIcon size={15} />
                                 </span>
                                 <span className="t-subhead text-muted">Every priority has a decision. More ahead in All suggestions.</span>
@@ -500,10 +522,10 @@ export default function Home() {
                       <ul className="flat-list order-5 mt-6 @[52rem]:order-none">
                         {briefing.notices.map((n) => (
                           <li key={n.id} className="cell flex items-start gap-3 px-4 py-3.5 [--inset:48px]">
-                            <BoltIcon size={20} className="mt-[1px] shrink-0 text-ink" />
+                            <BoltIcon size={20} className="mt-[1px] shrink-0 text-muted" />
                             <div className="min-w-0">
-                              <div className="t-headline">Store note</div>
-                              <p className="t-subhead mt-0.5 text-muted">{n.reason}</p>
+                              <span className="badge badge-neutral">Store note</span>
+                              <p className="t-subhead mt-1.5 text-ink">{n.reason}</p>
                             </div>
                           </li>
                         ))}
@@ -517,10 +539,10 @@ export default function Home() {
                         </div>
                         <dl className="flat-list">
                           {health.map(([k, v, t, urgent]) => (
-                            <div key={k} className="cell flex min-h-[48px] items-center gap-3 px-4 py-2.5 [--inset:38px]">
+                            <div key={k} className="cell flex min-h-[48px] items-center gap-3 px-4 py-2.5 [--inset:36px]">
                               <TypeGlyph type={t} />
                               <dt className="t-subhead flex-1 text-ink">{k}</dt>
-                              <dd className={`num text-[17px] font-semibold ${urgent ? "text-red" : ""}`}>{v}</dd>
+                              <dd className={`num whitespace-nowrap text-[15px] font-semibold ${urgent ? "text-red" : ""}`}>{v}</dd>
                             </div>
                           ))}
                         </dl>
@@ -532,7 +554,7 @@ export default function Home() {
             </>
           )}
 
-          {view === "team" && (overview ? <TeamView key={teamKey} today={overview.today} initialDate={teamDate} /> : <div className="h-[480px] animate-pulse rounded-[14px] bg-fill" />)}
+          {view === "team" && (overview ? <TeamView key={teamKey} today={overview.today} initialDate={teamDate} /> : <div className="h-[480px] animate-pulse rounded-[12px] bg-fill" />)}
 
           {view === "products" && <ProductsView onOpenAction={(id) => setSelectedId(id)} onPanel={setProductPanel} />}
 
@@ -548,15 +570,15 @@ export default function Home() {
                 </div>
               </section>
               {overview && (
-                <dl className="mt-4 grid grid-cols-3 border-y border-rule py-3">
+                <dl className="card mt-4 grid grid-cols-3 divide-x divide-[var(--divider)] py-3">
                   {[
                     ["Products", `${overview.products}`],
                     ["Suggestions", actions ? `${actions.length}` : "–"],
                     ["Decided", `${shown.length}`],
                   ].map(([k, v]) => (
-                    <div key={k} className="flex min-w-0 flex-col px-1">
+                    <div key={k} className="flex min-w-0 flex-col px-4">
                       <dt className="t-footnote order-last text-muted">{k}</dt>
-                      <dd className="num text-[20px] font-semibold leading-[26px]">{v}</dd>
+                      <dd className="num text-[20px] font-semibold leading-[26px] tracking-[-0.02em]">{v}</dd>
                     </div>
                   ))}
                 </dl>
@@ -573,7 +595,7 @@ export default function Home() {
                   <h2>Settings</h2>
                 </div>
                 <div className="flat-list">
-                  <SettingsRow label="AI briefing" Icon={SparkleIcon} onClick={() => setAiOpen(true)} />
+                  <SettingsRow label="AI settings" Icon={SparkleIcon} onClick={() => setAiOpen(true)} />
                   <SettingsRow label="Notifications" Icon={BellIcon} onClick={() => setNotifOpen(true)} />
                 </div>
                 <p className="group-footer hidden text-muted [@media(hover:hover)_and_(pointer:fine)]:block" data-testid="shortcuts">
@@ -598,16 +620,14 @@ export default function Home() {
                     aria-selected={filter === f}
                     aria-label={f === "ALL" ? "All" : TYPE_META[f].label}
                     onClick={() => setFilter(f)}
-                    className={`t-subhead flex min-h-[40px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 font-semibold transition-colors ${
-                      filter === f ? "bg-ink text-white" : "bg-paper text-ink active:bg-fill-2"
-                    }`}
+                    className="chip t-subhead"
                   >
                     {f !== "ALL" && (
                       <span
                         aria-hidden
                         className="type-glyph"
                         data-outline={f === "CHECK_DELIVERY" ? "" : undefined}
-                        style={{ background: TYPE_META[f].color, boxShadow: filter === f ? "0 0 0 1.5px #fff" : undefined }}
+                        style={{ background: f === "ORDER" ? "var(--red)" : filter === f ? "#d4d4d8" : "#a1a1aa" }}
                       />
                     )}
                     <span className="sm:hidden">{f === "ALL" ? "All" : TYPE_META[f].short}</span>
@@ -641,7 +661,7 @@ export default function Home() {
               <ScreenHeader title="Decisions" back={<BackToMore onClick={() => setView("more")} />} />
               <p className="t-subhead mt-1 px-1 text-muted">Every approval and dismissal, newest first.</p>
               {shown.length > 0 && (
-                <p className="t-subhead num mt-4 flex gap-5 border-y border-rule px-1 py-3">
+                <p className="card t-subhead num mt-4 flex gap-5 px-4 py-3">
                   <span className="inline-flex items-center gap-2">
                     <CheckIcon size={15} className="text-green" />
                     <span><b className="font-semibold">{shown.filter((d) => d.decision !== "reject").length}</b> approved</span>
@@ -653,7 +673,7 @@ export default function Home() {
                 </p>
               )}
               {decisions && shown.length === 0 ? (
-                <div className="mt-6 border-y border-rule px-1 py-8 text-center">
+                <div className="card mt-6 px-4 py-8 text-center">
                   <ClockIcon size={24} className="mx-auto text-muted" />
                   <p className="t-headline mt-3">No decisions yet.</p>
                   <p className="t-subhead mt-1 text-muted">Approve or dismiss a priority on Today.</p>
@@ -703,7 +723,7 @@ export default function Home() {
                               <button
                                 data-id={d.action_id}
                                 onClick={undoClick}
-                                className="t-subhead mt-1 min-h-[44px] shrink-0 rounded-full px-3 font-semibold text-ink underline underline-offset-4 active:bg-fill"
+                                className="btn-text t-subhead mt-1 shrink-0 px-3"
                               >
                                 Undo
                               </button>
@@ -727,32 +747,24 @@ export default function Home() {
           (selected || (productPanel && view === "products")) ? "lg:right-[400px]" : ""
         }`}
       >
-        <ul className="dock pointer-events-auto flex h-[var(--dock-h)] w-full max-w-[400px] p-1 md:w-auto md:max-w-none">
+        <ul className="dock pointer-events-auto flex h-[var(--dock-h)] w-full max-w-[400px] px-1 md:w-auto md:max-w-none">
           {TABS.map(({ id, label, Icon }) => (
             <li key={id} className="flex flex-1 md:w-[78px] md:flex-none">
               <button
                 onClick={() => setView(id)}
                 aria-current={tabActive(id) ? "page" : undefined}
-                className={`dock-item relative flex flex-1 flex-col items-center justify-center gap-[2px] rounded-full text-[11px] font-medium leading-[13px] tracking-[0.01em] transition-colors ${
-                  tabActive(id) ? "text-ink" : "text-white/75 hover:text-white"
+                className={`dock-item flex flex-1 flex-col items-center justify-center gap-[3px] text-[11px] leading-[13px] transition-colors ${
+                  tabActive(id) ? "font-semibold" : "font-medium hover:text-ink"
                 }`}
               >
-                {tabActive(id) && (
-                  <motion.span
-                    layoutId="dock-pill"
-                    aria-hidden
-                    className="absolute inset-[3px] rounded-full bg-yellow"
-                    transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 38 }}
-                  />
-                )}
-                <Icon size={24} className="relative" />
+                <Icon size={22} className="relative" />
                 <span className="relative">{label}</span>
-                {id === "today" && open.length > 0 && (
+                {id === "today" && toDecide > 0 && (
                   <span
-                    aria-label={`${open.length} to decide`}
-                    className="num absolute left-1/2 top-[4px] ml-[6px] grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--badge)] px-[5px] text-[12px] font-semibold leading-none text-white"
+                    aria-label={`${toDecide} to decide`}
+                    className="num absolute left-1/2 top-[6px] ml-[5px] grid h-[18px] min-w-[18px] place-items-center rounded-full border-2 border-white bg-ink px-[4px] text-[11px] font-semibold leading-none text-white"
                   >
-                    {open.length}
+                    {toDecide}
                   </span>
                 )}
               </button>
@@ -774,12 +786,12 @@ export default function Home() {
             <motion.div
               key={toast.key}
               role={toast.error ? "alert" : "status"}
-              initial={{ opacity: 0, y: 12, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
-              transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
+              transition={TOAST_SPRING}
               data-testid="toast"
-              className="material pointer-events-auto flex min-h-[48px] w-full max-w-[420px] items-center gap-3 rounded-[14px] bg-ink pl-4 pr-1.5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.22)]"
+              className="material pointer-events-auto flex min-h-[48px] w-full max-w-[420px] items-center gap-3 rounded-[12px] bg-ink pl-4 pr-1.5 text-white shadow-[0_8px_24px_rgba(16,24,40,0.16)]"
             >
               <span className="t-subhead min-w-0 flex-1 py-2.5">{toast.text}</span>
               {toast.undoId && (
@@ -788,7 +800,7 @@ export default function Home() {
                     void undo(toast.undoId!);
                     setToast(null);
                   }}
-                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-yellow active:bg-white/10"
+                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-white underline underline-offset-4 active:bg-white/10"
                 >
                   Undo
                 </button>
@@ -802,7 +814,6 @@ export default function Home() {
 
       <AnimatePresence>{aiOpen && (
           <AiSheet
-            hasKey={ai.hasKey}
             actions={actions ?? []}
             notices={baseBriefing?.notices ?? []}
             onClose={() => setAiOpen(false)}
@@ -817,8 +828,9 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={SCRIM_FADE}
             onClick={() => setSelectedId(null)}
-            className="fixed inset-0 z-20 bg-black/30 lg:hidden"
+            className="fixed inset-0 z-20 bg-[var(--scrim)] lg:hidden"
           />
         )}
         {selected && (
@@ -827,7 +839,7 @@ export default function Home() {
             initial={wide ? { opacity: 0, x: 24 } : { y: "100%" }}
             animate={wide ? { opacity: 1, x: 0 } : { y: 0 }}
             exit={wide ? { opacity: 0, x: 24 } : { y: "100%" }}
-            transition={{ type: "spring", stiffness: 420, damping: 40 }}
+            transition={SHEET_SPRING}
             drag={wide ? false : "y"}
             dragListener={false}
             dragControls={sheetDrag}
@@ -852,6 +864,7 @@ export default function Home() {
         )}
       </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }
 
@@ -866,10 +879,10 @@ function BackToMore({ onClick }: { onClick: () => void }) {
 
 function SettingsRow({ label, Icon, onClick, detail }: { label: string; Icon: typeof SunIcon; onClick: () => void; detail?: string }) {
   return (
-    <button onClick={onClick} className="cell flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-left [--inset:48px] transition-colors hover:bg-[rgba(0,0,0,0.02)] active:bg-fill">
-      <Icon size={20} className="shrink-0 text-ink" />
-      <span className="t-body flex-1">{label}</span>
-      {detail && <span className="t-body num text-muted" aria-hidden>{detail}</span>}
+    <button onClick={onClick} className="cell flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-left [--inset:48px] transition-colors hover:bg-[#fafafa] active:bg-fill">
+      <Icon size={20} className="shrink-0 text-muted" />
+      <span className="t-callout flex-1">{label}</span>
+      {detail && <span className="t-subhead num text-muted" aria-hidden>{detail}</span>}
       <ChevronIcon className="text-[var(--label-3)]" />
     </button>
   );

@@ -98,7 +98,7 @@ export interface Exposure {
 
 /** Radii for "affected": the front line's drone-corridor band, and an active aerial threat nearby. */
 export const EXPOSURE_FRONT_KM = 65; // ZONES.orange: 120 km swept in most of the east
-export const EXPOSURE_THREAT_KM = 50;
+export const EXPOSURE_THREAT_KM = 15;
 
 /**
  * Rate one site. Rules of thumb, not a model: within 25 km of the line or 15 km of an active threat
@@ -123,13 +123,15 @@ export function exposure(
   const threatNear = near && threatKm <= EXPOSURE_THREAT_KM;
   if (frontKm > EXPOSURE_FRONT_KM && !threatNear) return null;
   const grade: Grade =
-    frontKm <= ZONES.red.km || (threatNear && threatKm <= 15)
+    frontKm <= ZONES.red.km || (threatNear && threatKm <= 5)
       ? "critical"
-      : frontKm <= ZONES.orange.km || (threatNear && threatKm <= 30)
+      : frontKm <= ZONES.orange.km || threatNear
         ? "high"
         : "elevated";
   const reason = threatNear
-    ? `${threatKind(near!.kind)} reported ${Math.round(threatKm)} km away`
+    ? threatKm < 1
+      ? `${threatKind(near!.kind)} reported nearby`
+      : `${threatKind(near!.kind)} reported ${Math.round(threatKm)} km away`
     : `${Math.round(frontKm)} km from the front line`;
   const action =
     grade === "critical"
@@ -154,17 +156,17 @@ export type AlertState = "local" | "regional" | "clear" | "unknown";
 
 /** Distance bands in km (config.py): artillery and FPV, MLRS and glide bombs, drone corridors. */
 export const ZONES: Record<Zone, { km: number; label: string; fill: string }> = {
-  red: { km: 25, label: "Under 25 km", fill: "rgba(255,59,48,0.12)" },
-  orange: { km: 65, label: "25–65 km", fill: "rgba(255,149,0,0.09)" },
-  yellow: { km: 120, label: "65–120 km", fill: "rgba(255,204,0,0.10)" },
+  red: { km: 25, label: "Under 25 km", fill: "rgba(220,38,38,0.06)" },
+  orange: { km: 65, label: "25–65 km", fill: "rgba(234,88,12,0.055)" },
+  yellow: { km: 120, label: "65–120 km", fill: "rgba(161,98,7,0.035)" },
   rear: { km: Infinity, label: "Over 120 km", fill: "transparent" },
 };
 
 export const GRADES: Record<Grade, { label: string; color: string; text: string }> = {
-  critical: { label: "Critical", color: "#ff3b30", text: "#d70015" },
-  high: { label: "High", color: "#ff9500", text: "#b25000" },
-  elevated: { label: "Elevated", color: "#ffcc00", text: "#8a6d00" },
-  low: { label: "Low", color: "#34c759", text: "#248a3d" },
+  critical: { label: "Critical", color: "#dc2626", text: "#b91c1c" },
+  high: { label: "High", color: "#ea580c", text: "#c2410c" },
+  elevated: { label: "Elevated", color: "#d97706", text: "#b45309" },
+  low: { label: "Low", color: "#16a34a", text: "#15803d" },
 };
 
 export interface Assessment {

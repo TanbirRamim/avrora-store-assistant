@@ -30,75 +30,90 @@ function watchConsole(page: Page) {
 const productPanel = (page: Page) => page.getByRole("complementary", { name: /^Product / });
 const section = (page: Page, title: RegExp) => page.locator("section", { has: page.getByRole("heading", { name: title }) });
 
-async function openProducts(page: Page) {
+const list = (page: Page) => page.getByTestId("product-list");
+const filterTab = (page: Page, name: RegExp) => page.getByRole("tablist", { name: "Filter by status" }).getByRole("tab", { name });
+
+async function openProducts(page: Page, tab?: RegExp) {
   await page.goto("/");
   await page.getByRole("button", { name: /^Products/ }).filter({ visible: true }).first().click();
   await expect(page.getByRole("heading", { name: "Products", level: 1 })).toBeVisible();
-  await expect(section(page, /Needs attention/).getByRole("listitem").first()).toBeVisible();
+  await expect(list(page).getByRole("listitem").first()).toBeVisible();
+  if (tab) await filterTab(page, tab).click();
 }
 
-test("lists every product, problems first, with status chips", async ({ page }, info) => {
+async function sortBy(page: Page, label: string, phone: boolean) {
+  if (phone) await page.getByRole("combobox", { name: "Sort" }).selectOption({ label });
+  else await page.getByRole("radiogroup", { name: "Sort" }).getByRole("radio", { name: label }).click();
+}
+
+test("opens on what needs attention, with thumbnails, badges and a count", async ({ page }, info) => {
   const errors = watchConsole(page);
   await openProducts(page);
   const need = rows.filter((r) => r.attention);
   const tag = page.getByRole("region", { name: "Stock health" });
   await expect(tag).toContainText(new RegExp(`${need.length}\\s*need attention`));
   await expect(tag).toContainText(`${rows.length} products`);
-  const attention = section(page, /Needs attention/);
-  await expect(attention.getByRole("listitem")).toHaveCount(need.length);
-  await expect(section(page, /Everything else/).getByRole("listitem")).toHaveCount(rows.length - need.length);
-  const first = attention.getByRole("listitem").first();
+  await expect(filterTab(page, /Needs attention/)).toHaveAttribute("aria-selected", "true");
+  await expect(filterTab(page, /^All/)).toContainText(String(rows.length));
+  await expect(list(page).getByRole("listitem")).toHaveCount(need.length);
+  await expect(page.getByText(`Showing ${need.length} of ${rows.length} products`)).toBeVisible();
+  const first = list(page).getByRole("listitem").first();
   await expect(first).toContainText(rows[0].name);
   await expect(first).toContainText("Running out");
-  await expect(section(page, /^Updates/).getByRole("listitem")).toHaveCount(4);
+  await expect(first.locator("svg").first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Store updates" }).filter({ visible: true }).getByRole("listitem")).toHaveCount(4);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/products-${info.project.name}.png` });
+
+  await filterTab(page, /^All/).click();
+  await expect(list(page).getByRole("listitem")).toHaveCount(rows.length);
+  await expect(page.getByText(`Showing ${rows.length} of ${rows.length} products`)).toBeVisible();
 
   const axe = await new AxeBuilder({ page }).include("main").analyze();
   expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
   expect(errors).toEqual([]);
 });
 
-test("search, category filter and sort", async ({ page }) => {
-  await openProducts(page);
+test("search, category filter and sort", async ({ page }, info) => {
+  const phone = info.project.name !== "desktop";
+  await openProducts(page, /^All/);
   const search = page.getByRole("searchbox", { name: "Search products" });
   await search.fill("mug");
   const mugs = rows.filter((r) => r.name.toLowerCase().includes("mug"));
-  await expect(page.locator("main li button", { hasText: /mug/i })).toHaveCount(mugs.length);
+  await expect(list(page).getByRole("listitem")).toHaveCount(mugs.length);
   await search.fill("zzzz");
   await expect(page.getByText("No products match “zzzz”.")).toBeVisible();
   await page.getByRole("button", { name: "Clear search" }).click();
 
-  await page.getByRole("button", { name: "Toys", exact: true }).click();
+  await page.getByRole("combobox", { name: "Category" }).selectOption("Toys");
   const toys = rows.filter((r) => r.category === "Toys").length;
-  const lists = page.locator("main section", { has: page.getByRole("heading", { name: /Needs attention|Everything else|Products/ }) });
-  await expect(lists.getByRole("listitem")).toHaveCount(toys);
-  await expect(section(page, /^Updates/)).toHaveCount(0);
+  await expect(list(page).getByRole("listitem")).toHaveCount(toys);
+  await expect(filterTab(page, /^All/)).toContainText(String(toys));
+  await expect(page.getByRole("region", { name: "Store updates" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "All", exact: true }).click();
-  await page.getByRole("tab", { name: "A–Z" }).click();
+  await page.getByRole("combobox", { name: "Category" }).selectOption("All");
+  await sortBy(page, "A–Z", phone);
   const byName = [...rows].sort((a, b) => a.name.localeCompare(b.name));
-  await expect(section(page, /^Products/).getByRole("listitem").first()).toContainText(byName[0].name);
+  await expect(list(page).getByRole("listitem").first()).toContainText(byName[0].name);
 });
 
-test("stock health tiles filter the list", async ({ page }) => {
+test("status tabs filter the list", async ({ page }) => {
   await openProducts(page);
-  const tiles = page.getByRole("group", { name: "Filter by status" });
   const late = rows.filter((r) => r.status === "late").length;
-  const tile = tiles.getByRole("button", { name: /Late delivery/ });
-  await expect(tile).toContainText(String(late));
-  await tile.click();
-  await expect(tile).toHaveAttribute("aria-pressed", "true");
-  await expect(section(page, /^Late delivery/).getByRole("listitem")).toHaveCount(late);
-  await expect(section(page, /^Updates/)).toHaveCount(0);
-  await page.getByRole("button", { name: "Show all", exact: true }).click();
-  await expect(section(page, /Needs attention/)).toBeVisible();
+  const tab = filterTab(page, /^Late/);
+  await expect(tab).toContainText(String(late));
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("list", { name: "Late" }).getByRole("listitem")).toHaveCount(late);
+  await expect(page.getByRole("region", { name: "Store updates" })).toHaveCount(0);
+  await filterTab(page, /Needs attention/).click();
+  await expect(list(page).getByRole("listitem")).toHaveCount(rows.filter((r) => r.attention).length);
 });
 
 test("product detail shows facts and opens its suggestion", async ({ page }, info) => {
   const errors = watchConsole(page);
   await openProducts(page);
   const top = rows[0];
-  await section(page, /Needs attention/).getByRole("button", { name: new RegExp(top.name) }).click();
+  await list(page).getByRole("button", { name: new RegExp(top.name) }).click();
   const panel = productPanel(page);
   await expect(panel.getByRole("heading", { name: top.name })).toBeVisible();
   await expect(panel.locator("dl").first()).toContainText(`${top.stock} units`);
@@ -115,7 +130,7 @@ test("product detail shows facts and opens its suggestion", async ({ page }, inf
 });
 
 test("a product with no suggestion has no review button; Escape closes", async ({ page }) => {
-  await openProducts(page);
+  await openProducts(page, /^All/);
   const calm = rows.find((r) => r.status === "ok")!;
   await page.getByRole("searchbox", { name: "Search products" }).fill(calm.product_id);
   await page.getByRole("button", { name: new RegExp(calm.name) }).click();
@@ -128,8 +143,8 @@ test("a product with no suggestion has no review button; Escape closes", async (
 
 test("a store update opens that product", async ({ page }) => {
   await openProducts(page);
-  const item = section(page, /^Updates/).getByRole("listitem").first();
-  const name = (await item.locator(".font-semibold").textContent())!;
+  const item = page.getByRole("region", { name: "Store updates" }).filter({ visible: true }).getByRole("listitem").first();
+  const name = (await item.locator(".font-medium").first().textContent())!;
   await item.click();
   await expect(productPanel(page).getByRole("heading", { name })).toBeVisible();
 });
@@ -149,7 +164,7 @@ interface Detail {
 const detail = async (id: string): Promise<Detail> => (await fetch(`${API}/api/products/${id}`)).json();
 
 async function openProduct(page: Page, row: Row) {
-  await openProducts(page);
+  await openProducts(page, /^All/);
   await page.getByRole("searchbox", { name: "Search products" }).fill(row.product_id);
   await page.getByRole("button", { name: new RegExp(row.name) }).click();
   const history = productPanel(page).getByRole("list", { name: "Purchase history" });

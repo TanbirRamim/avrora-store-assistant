@@ -22,6 +22,7 @@ from avrora.ai.briefing import Briefing, build_briefing
 from avrora.analytics.forecast import sales_history
 from avrora.analytics.products import ProductFacts, build_products, store_feed
 from avrora.analytics.purchases import purchase_history
+from avrora.api.ai import router as ai_router
 from avrora.api.signals import router as signals_router
 from avrora.api.wartime import router as wartime_router
 from avrora.api.workforce import router as workforce_router
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+app.include_router(ai_router)
 app.include_router(signals_router)
 app.include_router(workforce_router)
 app.include_router(wartime_router)

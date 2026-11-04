@@ -1,33 +1,37 @@
 import { expect, type Page, type Route, test } from "@playwright/test";
 
-const OTH = "https://im-kigs-openwebui.oth-regensburg.de/ollama/api/chat";
+const AI = "**/api/ai/chat";
+/** The store server reports its AI as set up (or not). */
+const storeAi = (page: Page, on = true) =>
+  page.route("**/api/ai/status", (r) => r.fulfill({ json: on ? { configured: true, model: "test-model" } : { configured: false, model: null } }));
+
 const TOP = "Ceramic mug Black"; // ORDER: 120 units from KitchenLine, delivery takes 6 days
 
-// A service worker would bypass page.route for the OTH mock.
+// A service worker would bypass page.route for the AI mock.
 test.use({ serviceWorkers: "block" });
 
 const panel = (page: Page) => page.getByRole("complementary", { name: /Details for/ });
 
-/** Answers for the OTH server, chosen by which prompt the browser sent. */
+/** Answers for the store AI (/api/ai/chat), chosen by which prompt the browser sent. */
 async function mockModel(page: Page, answer: (kind: "ask" | "draft", body: { messages: { content: string }[] }) => object) {
   const calls: { kind: string; user: unknown }[] = [];
-  await page.route(OTH, async (route: Route) => {
+  await page.route(AI, async (route: Route) => {
     const body = JSON.parse(route.request().postData()!);
-    const kind = body.messages[0].content.includes("supplier") && body.format.properties.subject ? "draft" : "ask";
+    const kind = body.messages[0].content.includes("supplier") && body.schema.properties.subject ? "draft" : "ask";
     calls.push({ kind, user: JSON.parse(body.messages[1].content) });
-    await route.fulfill({ json: { message: { content: JSON.stringify(answer(kind, body)) } } });
+    await route.fulfill({ json: { content: JSON.stringify(answer(kind, body)) } });
   });
   return calls;
 }
 
 async function openTop(page: Page, withKey = true) {
-  await page.addInitScript((k) => {
-    if (k) localStorage.setItem("avrora.webuiKey", "sk-test-key");
+  await storeAi(page, withKey);
+  await page.addInitScript(() => {
     (window as unknown as { __copied: string }).__copied = "";
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: async (t: string) => void ((window as unknown as { __copied: string }).__copied = t) },
     });
-  }, withKey);
+  });
   await page.goto("/");
   await page.getByText(TOP).first().click();
   await expect(panel(page)).toBeVisible();
@@ -106,17 +110,18 @@ test("supplier draft with an invented number is not shown", async ({ page }) => 
   await expect(sec.getByText(/999/)).toHaveCount(0);
 });
 
-test("without a key the sections ask for one; unreachable server shows the VPN hint", async ({ page }) => {
+test("without store AI the sections ask for a key; unreachable AI shows a plain error", async ({ page }) => {
   await openTop(page, false);
-  await expect(panel(page).getByText("Add your Open WebUI key to ask questions and draft messages.")).toHaveCount(2);
+  await expect(panel(page).getByText("AI isn't set up yet. Add a key to ask questions and draft messages.")).toHaveCount(2);
 
-  await page.route(OTH, (route) => route.abort("failed"));
-  await page.evaluate(() => localStorage.setItem("avrora.webuiKey", "sk-test-key"));
+  await page.route(AI, (route) => route.abort("failed"));
+  await page.unroute("**/api/ai/status");
+  await storeAi(page, true);
   await page.reload();
   await page.getByText(TOP).first().click();
   const ask = panel(page).getByRole("region", { name: "Ask about this" });
   await ask.getByRole("button", { name: "Why this quantity?" }).click();
-  await expect(ask.getByText(/through the university VPN/)).toBeVisible();
+  await expect(ask.getByText("Can't reach the AI service. Check your connection and try again.")).toBeVisible();
 });
 
 test("screenshots of the AI sections", async ({ page }, info) => {

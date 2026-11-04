@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Onest, Unbounded } from "next/font/google";
+import { Onest } from "next/font/google";
 import "./globals.css";
 import { RegisterServiceWorker } from "@/components/RegisterServiceWorker";
 
-const onest = Onest({ subsets: ["latin", "cyrillic"], variable: "--font-onest", display: "swap" });
-const unbounded = Unbounded({ subsets: ["latin", "cyrillic"], weight: ["700"], variable: "--font-unbounded", display: "swap" });
+const onest = Onest({ subsets: ["latin", "cyrillic"], weight: ["400", "500", "600"], variable: "--font-onest", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Avrora Store Assistant",
@@ -15,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f2f2ee",
+  themeColor: "#f6f6f7",
   colorScheme: "light",
   // draw under the notch and home indicator; the layout pads with env(safe-area-inset-*)
   viewportFit: "cover",
@@ -25,7 +24,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${onest.variable} ${unbounded.variable} h-full antialiased`}>
+    <html lang="en" className={`${onest.variable} h-full antialiased`}>
       <body className="h-full">
         {children}
         <RegisterServiceWorker />

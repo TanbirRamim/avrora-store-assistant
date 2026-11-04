@@ -199,9 +199,9 @@ export const ROLE_LABEL: Record<string, string> = {
 };
 
 /**
- * Task palette for the rota board (Shop floor): ink, greys and the one yellow, told apart by
- * lightness as well as hue (safe for every colour-vision type), and always with a letter code
- * and a label. `fg` is the text colour on the fill (>= 4.5:1). `outline` draws an ink ring.
+ * Task palette for the rota board (v2 "Quiet professional"): a neutral zinc scale told apart by
+ * lightness (safe for every colour-vision type), always with a letter code and a legend. Red only
+ * for shelter. `fg` is the text colour on the fill (>= 4.5:1). `outline` draws a zinc border.
  */
 export interface TaskStyle {
   label: string;
@@ -213,13 +213,13 @@ export interface TaskStyle {
   text: string;
 }
 export const TASK_META: Record<string, TaskStyle> = {
-  checkout: { label: "Checkout", code: "C", color: "#000000", fg: "#ffffff", text: "#000000" },
-  receiving: { label: "Receiving", code: "R", color: "#ffde00", fg: "#000000", text: "#000000" },
-  replenishment: { label: "Restocking", code: "S", color: "#5c5c57", fg: "#ffffff", text: "#000000" },
-  merchandising: { label: "Merchandising", code: "M", color: "#a6a69e", fg: "#000000", text: "#000000" },
-  customer_service: { label: "Customer help", code: "H", color: "#ffffff", fg: "#000000", outline: true, text: "#000000" },
-  inventory: { label: "Inventory", code: "I", color: "#e2e2dc", fg: "#000000", text: "#000000" },
-  shelter: { label: "Shelter", code: "A", color: "#d9140e", fg: "#ffffff", text: "#d9140e" },
+  checkout: { label: "Checkout", code: "C", color: "#27272a", fg: "#ffffff", text: "#18181b" },
+  receiving: { label: "Receiving", code: "R", color: "#71717a", fg: "#ffffff", text: "#18181b" },
+  replenishment: { label: "Restocking", code: "S", color: "#52525b", fg: "#ffffff", text: "#18181b" },
+  merchandising: { label: "Merchandising", code: "M", color: "#d4d4d8", fg: "#18181b", text: "#18181b" },
+  customer_service: { label: "Customer help", code: "H", color: "#ffffff", fg: "#18181b", outline: true, text: "#18181b" },
+  inventory: { label: "Inventory", code: "I", color: "#e4e4e7", fg: "#18181b", text: "#18181b" },
+  shelter: { label: "Shelter", code: "A", color: "#dc2626", fg: "#ffffff", text: "#dc2626" },
 };
 export const TASK_ORDER = ["checkout", "receiving", "replenishment", "merchandising", "customer_service", "inventory", "shelter"];
 
@@ -237,9 +237,9 @@ export const versionLabel = (v: string | number) => {
   return /^\d+$/.test(x ?? "") ? `${what} ${x.padStart(2, "0")}:00` : what;
 };
 export const taskMeta = (t: string): TaskStyle =>
-  TASK_META[t] ?? { label: t.replace(/_/g, " "), code: t.slice(0, 1).toUpperCase(), color: "#e2e2dc", fg: "#000000", text: "#000000" };
+  TASK_META[t] ?? { label: t.replace(/_/g, " "), code: t.slice(0, 1).toUpperCase(), color: "#e4e4e7", fg: "#18181b", text: "#18181b" };
 
-/** Conditions are plain lines of text on the tag; no colour of their own. */
+/** Conditions show as small neutral badges with their time window. */
 export const CONDITION_META: Record<ConditionKind, { label: string }> = {
   delivery: { label: "Delivery" },
   power: { label: "Power cut" },
@@ -249,24 +249,28 @@ export const CONDITION_META: Record<ConditionKind, { label: string }> = {
 
 export const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   working: { label: "Working", color: "var(--green)" },
-  available: { label: "Free", color: "var(--ink)" },
-  day_off: { label: "Day off", color: "#a6a69e" },
+  available: { label: "Free", color: "#71717a" },
+  day_off: { label: "Day off", color: "#a1a1aa" },
   sick: { label: "Sick", color: "var(--red)" },
-  vacation: { label: "Vacation", color: "#a6a69e" },
-  unavailable: { label: "Unavailable", color: "#a6a69e" },
+  vacation: { label: "Vacation", color: "#a1a1aa" },
+  unavailable: { label: "Unavailable", color: "#a1a1aa" },
 };
-export const statusMeta = (s: string) => STATUS_LABEL[s] ?? { label: s.replace(/_/g, " "), color: "#a6a69e" };
+export const statusMeta = (s: string) => STATUS_LABEL[s] ?? { label: s.replace(/_/g, " "), color: "#a1a1aa" };
 
 /** "08:00" to "11:00" as "08:00–11:00"; a whole-day window as "all day". */
 export const span = (from: string, to: string, open = "08:00", close = "21:00") => (from <= open && to >= close ? "all day" : `${from}\u2060–\u2060${to}`); // word joiners: a time range never splits across lines
 
-/** Gap sentence for the tag: "2 people short: 09:00–11:00 and 17:00–20:00". */
+/** Status tone for badges: success / critical / warning / neutral. */
+export type Tone = "success" | "critical" | "warning" | "neutral";
+export const statusTone = (s: string): Tone => (s === "working" ? "success" : s === "sick" ? "critical" : "neutral");
+
+/** Gap sentence for the summary: "1 person short 09:00–11:00 and 17:00–20:00". Ranges never wrap. */
 export function shortSentence(gaps: { from: string; to: string; missing: number }[]) {
   if (!gaps.length) return "Every hour has enough people.";
   const most = Math.max(...gaps.map((g) => g.missing));
-  const times = gaps.map((g) => `${g.from}–${g.to}`);
+  const times = gaps.map((g) => `${g.from}\u2060–\u2060${g.to}`);
   const list = times.length === 1 ? times[0] : `${times.slice(0, -1).join(", ")} and ${times[times.length - 1]}`;
-  return `${most} ${most === 1 ? "person" : "people"} short: ${list}`;
+  return `${most} ${most === 1 ? "person" : "people"} short ${list}`;
 }
 
 export const toMin = (t: string) => {

@@ -4,20 +4,34 @@ import { shortDate } from "@/lib/format";
 /** Word and colour per status. Red only for urgency, orange for not-urgent warnings. */
 export const STATUS_META: Record<ProductStatus, { label: string; text: string }> = {
   late: { label: "Delivery late", text: "var(--orange)" },
-  running_out: { label: "Running out", text: "var(--red)" },
-  hard_to_find: { label: "Hard to find", text: "var(--ink)" },
+  running_out: { label: "Running out", text: "#b91c1c" },
+  hard_to_find: { label: "Hard to find", text: "#3f3f46" },
   overstocked: { label: "Overstocked", text: "var(--orange)" },
-  low: { label: "Low", text: "var(--red)" },
+  low: { label: "Low", text: "#b91c1c" },
   on_order: { label: "On order", text: "var(--muted)" },
   ok: { label: "OK", text: "var(--green)" },
 };
 
-/** Status as a coloured dot and a word, never a filled pill. */
+/** Tinted background per status (Polaris-style badge). */
+export const STATUS_BG: Record<ProductStatus, string> = {
+  late: "var(--warning-bg)",
+  running_out: "var(--critical-bg)",
+  hard_to_find: "var(--neutral-bg)",
+  overstocked: "var(--warning-bg)",
+  low: "var(--critical-bg)",
+  on_order: "var(--neutral-bg)",
+  ok: "var(--success-bg)",
+};
+
+/** Status as a small badge: soft tint, darker text, 6 px dot. */
 export function StatusChip({ status }: { status: ProductStatus }) {
   const m = STATUS_META[status];
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold leading-[18px]" style={{ color: m.text }}>
-      <span className="size-2 rounded-full" style={{ background: STATUS_DOT[status] }} aria-hidden />
+    <span
+      className="inline-flex h-[22px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[12px] font-medium leading-[16px]"
+      style={{ color: m.text, background: STATUS_BG[status] }}
+    >
+      <span className="size-1.5 rounded-full" style={{ background: STATUS_DOT[status] }} aria-hidden />
       {m.label}
     </span>
   );
@@ -27,10 +41,10 @@ export function StatusChip({ status }: { status: ProductStatus }) {
 export const STATUS_DOT: Record<ProductStatus, string> = {
   late: "var(--orange)",
   running_out: "var(--red)",
-  hard_to_find: "var(--ink)",
+  hard_to_find: "#52525b",
   overstocked: "var(--orange)",
   low: "var(--red)",
-  on_order: "#8a8a83",
+  on_order: "#71717a",
   ok: "var(--green)",
 };
 
@@ -41,20 +55,20 @@ export const COVER_SCALE = 30;
 export function CoverBar({ days, status, className = "" }: { days: number | null; status: ProductStatus; className?: string }) {
   const pct = days === null ? 0 : Math.max(4, Math.min(1, days / COVER_SCALE) * 100);
   return (
-    <span className={`block h-[4px] overflow-hidden rounded-full bg-[var(--rule)] ${className}`} aria-hidden>
-      <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: status === "running_out" || status === "low" ? "var(--red)" : "var(--ink)" }} />
+    <span className={`block h-[3px] overflow-hidden rounded-full bg-[#f4f4f5] ${className}`} aria-hidden>
+      <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: status === "running_out" || status === "low" ? "var(--red)" : "#71717a" }} />
     </span>
   );
 }
 
 export const UPDATE_COLOR: Record<ProductUpdateKind, string> = {
-  suggestion: "var(--ink)",
+  suggestion: "#52525b",
   late: "var(--orange)",
-  expected: "#8a8a83",
+  expected: "#a1a1aa",
   received: "var(--green)",
   sold_out: "var(--red)",
   no_sales: "var(--orange)",
-  promotion: "var(--ink)",
+  promotion: "#52525b",
 };
 
 /** Days of cover in plain words. */

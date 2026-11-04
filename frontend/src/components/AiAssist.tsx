@@ -1,35 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { savedKey, useAi } from "@/lib/ai";
+import { aiRoute, useAi } from "@/lib/ai";
 import type { Action, ProductDetail } from "@/lib/api";
 import { askAboutAction, draftSupplierMessage, FALLBACK, type Lang, QUESTIONS } from "@/lib/assist";
-import { ModelError } from "@/lib/ollama";
+import { ModelError } from "@/lib/model";
 import { ArrowUpIcon, SparkleIcon } from "./icons";
 
 interface QA { q: string; a: string | null; error?: boolean }
 
 /** Flat paper section shared by the detail sheet (no shadow: it does not float). */
-export const CARD = "rounded-[14px] bg-paper";
+export const CARD = "rounded-[12px] border border-[var(--border)] bg-paper shadow-[0_1px_2px_rgba(16,24,40,0.04)]";
+const PRIMARY = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[10px] bg-ink px-4 text-[15px] font-medium text-white transition-colors hover:bg-[#27272a]";
+const SECONDARY = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[10px] border border-[var(--border)] bg-paper px-4 text-[15px] font-medium text-ink transition-colors hover:bg-[#fafafa]";
 
-const HEADING = "t-headline mb-2 px-1";
+const HEADING = "mb-2 px-1 text-[15px] font-semibold leading-[20px]";
 const SEG = (on: boolean) =>
-  `min-h-[44px] whitespace-nowrap rounded-full px-4 text-[15px] font-medium transition-colors ${on ? "bg-ink text-white" : "text-ink shadow-[inset_0_0_0_1.5px_var(--ink)]"}`;
+  `min-h-[38px] max-md:min-h-[44px] whitespace-nowrap rounded-[8px] px-3 text-[14px] font-medium transition-colors ${on ? "bg-paper text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_3px_rgba(16,24,40,0.06)]" : "text-muted hover:text-ink"}`;
 
 const errorText = (e: unknown) => (e instanceof ModelError ? e.message : FALLBACK);
 
 function NoKey({ onAddKey }: { onAddKey?: () => void }) {
   return (
     <div className={`${CARD} flex items-start gap-3 p-4`}>
-      <span className="mt-0.5 shrink-0 text-ink">
+      <span className="mt-0.5 shrink-0 text-muted">
         <SparkleIcon size={20} />
       </span>
       <div className="min-w-0 flex-1">
         <p className="t-subhead text-muted">
-          Add your Open WebUI key to ask questions and draft messages.
+          AI isn&apos;t set up yet. Add a key to ask questions and draft messages.
           {!onAddKey && (
             <>
-              {" "}Use <span className="font-medium text-label">Write with AI</span> on the Today screen.
+              {" "}Open <span className="font-medium text-label">More, AI settings</span>.
             </>
           )}
         </p>
@@ -37,7 +39,7 @@ function NoKey({ onAddKey }: { onAddKey?: () => void }) {
           <button
             type="button"
             onClick={onAddKey}
-            className="btn-ink mt-3 min-h-[44px] px-5 text-[15px]"
+            className={`${PRIMARY} mt-3`}
           >
             Add key
           </button>
@@ -64,7 +66,7 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
     setText("");
     setBusy(true);
     try {
-      push({ q, a: await askAboutAction(savedKey(), action, product, q) });
+      push({ q, a: await askAboutAction(aiRoute(), action, product, q) });
     } catch (e) {
       push({ q, a: errorText(e), error: true });
     } finally {
@@ -87,16 +89,16 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
               {items.map((it, i) => (
                 <li key={i} className="space-y-1.5">
                   <div className="flex justify-end">
-                    <p className="t-subhead max-w-[85%] rounded-[18px] rounded-br-[6px] bg-ink px-3.5 py-2 text-white">{it.q}</p>
+                    <p className="t-subhead max-w-[85%] rounded-[12px] rounded-br-[4px] bg-[#f4f4f5] px-3 py-2 text-ink">{it.q}</p>
                   </div>
                   <div className="flex">
                     {it.a === null ? (
-                      <p className="t-subhead animate-pulse rounded-[18px] rounded-bl-[6px] bg-fill px-3.5 py-2 text-muted" role="status">
+                      <p className="t-subhead animate-pulse rounded-[12px] px-0 py-2 text-muted" role="status">
                         Thinking…
                       </p>
                     ) : (
                       <p
-                        className={`t-subhead max-w-[90%] rounded-[18px] rounded-bl-[6px] bg-floor px-3.5 py-2 ${it.error ? "text-muted" : "text-label"}`}
+                        className={`t-subhead max-w-[90%] px-0 py-1 ${it.error ? "text-muted" : "text-label"}`}
                         data-testid="ask-answer"
                       >
                         {it.a}
@@ -114,14 +116,14 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
                 type="button"
                 disabled={busy}
                 onClick={() => ask(q)}
-                className="t-subhead min-h-[44px] rounded-full px-4 text-left font-medium text-ink shadow-[inset_0_0_0_1.5px_var(--ink)] hover:bg-fill active:bg-fill-2 disabled:opacity-50"
+                className="min-h-[44px] rounded-full border border-[var(--border)] bg-paper px-4 text-left text-[14px] font-medium text-ink hover:bg-[#fafafa] active:bg-[#f4f4f5] disabled:opacity-50"
               >
                 {q}
               </button>
             ))}
           </div>
           <form
-            className="mt-3 flex items-center gap-1.5 rounded-full bg-floor py-1 pl-4 pr-1"
+            className="mt-3 flex items-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-paper py-1 pl-3 pr-1 transition-shadow focus-within:border-ink focus-within:shadow-[0_0_0_3px_rgba(24,24,27,0.12)]"
             onSubmit={(e) => {
               e.preventDefault();
               ask(text);
@@ -133,11 +135,11 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
               placeholder="Ask about this item"
               aria-label="Question about this item"
               maxLength={200}
-              className="t-body min-h-[44px] min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted"
+              className="min-h-[44px] min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-[var(--text-3)]"
             />
             <button
               disabled={busy || !text.trim()}
-              className="flex min-h-[44px] items-center gap-1 rounded-full bg-ink px-4 text-[15px] font-semibold text-white transition-opacity disabled:bg-fill-2 disabled:text-muted"
+              className="flex min-h-[44px] items-center gap-1 rounded-[8px] bg-ink px-3.5 text-[15px] font-medium text-white transition-colors disabled:bg-[#f4f4f5] disabled:text-[var(--text-3)]"
             >
               Ask
               <ArrowUpIcon size={12} />
@@ -163,7 +165,7 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
     setBusy(true);
     setCopied(false);
     try {
-      const d = await draftSupplierMessage(savedKey(), action, lang);
+      const d = await draftSupplierMessage(aiRoute(), action, lang);
       setDrafts((m) => ({ ...m, [k]: d ?? "The draft used numbers that are not in the store data, so it was not shown. Try again." }));
     } catch (e) {
       setDrafts((m) => ({ ...m, [k]: errorText(e) }));
@@ -188,7 +190,7 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
       ) : (
         <div className={`${CARD} p-4`}>
           <div className="flex flex-wrap items-center gap-2">
-            <div role="radiogroup" aria-label="Language" className="flex gap-1.5">
+            <div role="radiogroup" aria-label="Language" className="flex rounded-[10px] bg-[#f4f4f5] p-[3px]">
               {(["uk", "en"] as const).map((l) => (
                 <button
                   key={l}
@@ -209,7 +211,7 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
               type="button"
               disabled={busy}
               onClick={write}
-              className={`${typeof draft === "object" ? "btn-ghost" : "btn-ink"} ml-auto min-h-[44px] px-5 text-[15px] disabled:opacity-50`}
+              className={`${typeof draft === "object" ? SECONDARY : PRIMARY} ml-auto disabled:opacity-50`}
             >
               {busy ? "Writing…" : draft ? "Rewrite" : "Write draft"}
             </button>
@@ -221,18 +223,18 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
             </p>
           )}
           {busy && !draft && (
-            <p role="status" className="t-subhead mt-3 animate-pulse rounded-[12px] bg-floor p-4 text-muted">
+            <p role="status" className="t-subhead mt-3 animate-pulse rounded-[10px] border border-[var(--divider)] bg-[#fafafa] p-4 text-muted">
               Writing the message…
             </p>
           )}
           {typeof draft === "string" && (
-            <p className="t-subhead mt-3 rounded-[12px] bg-floor p-4 text-muted" role="alert">
+            <p className="t-subhead mt-3 rounded-[10px] border border-[var(--divider)] bg-[#fafafa] p-4 text-muted" role="alert">
               {draft}
             </p>
           )}
           {typeof draft === "object" && (
             <>
-              <div className="mt-3 rounded-[12px] bg-floor p-4" data-testid="supplier-draft" lang={lang}>
+              <div className="mt-3 rounded-[10px] border border-[var(--divider)] bg-[#fafafa] p-4" data-testid="supplier-draft" lang={lang}>
                 <div className="t-footnote text-muted">Subject</div>
                 <div className="t-subhead font-semibold">{draft.subject}</div>
                 <div className="my-3 h-px bg-separator" />
@@ -242,13 +244,13 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
                 <button
                   type="button"
                   onClick={copy}
-                  className="btn-ink min-h-[44px] px-5 text-[15px]"
+                  className={PRIMARY}
                 >
                   {copied ? "Copied" : "Copy"}
                 </button>
                 <a
                   href={`mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`}
-                  className="btn-ghost min-h-[44px] px-5 text-[15px]"
+                  className={SECONDARY}
                 >
                   Open in Mail
                 </a>

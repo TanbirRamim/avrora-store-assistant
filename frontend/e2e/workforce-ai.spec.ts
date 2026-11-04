@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { HOST } from "../src/lib/ollama";
 import {
   askTeam,
   coachingNote,
@@ -15,8 +14,8 @@ import {
 import type { Employee, Plan, Profile } from "../src/lib/workforce";
 
 /*
- * The workforce AI texts (src/lib/workforce-ai.ts) run in Node here with fetch mocked as the OTH
- * Ollama endpoint, so every validator path is tested without a browser or the university network.
+ * The workforce AI texts (src/lib/workforce-ai.ts) run in Node here with fetch mocked as the store AI
+ * endpoint (/api/ai/chat), so every validator path is tested without a browser or a real model.
  * Data: the real plans and profiles from the Worker snapshot.
  */
 
@@ -25,17 +24,17 @@ const PLAN = snap.plans["2026-11-02"] as Plan;
 const EMPLOYEES = snap.employees.employees as Employee[];
 const row = EMPLOYEES.find((e) => e.employee_id === "E05")!;
 const PROFILE = { ...row, ...snap.profiles.E05 } as Profile;
-const KEY = { key: "test-key" };
+const KEY = { key: "server" };
 
-/** Answers the next Ollama calls with these JSON bodies; records the requests. */
-function mockOllama(...answers: (object | number)[]) {
-  const calls: { url: string; body: { format: object; options: { temperature: number } } }[] = [];
+/** Answers the next store AI calls with these JSON bodies; records the requests. */
+function mockAi(...answers: (object | number)[]) {
+  const calls: { url: string; body: { schema: object; messages: unknown[] } }[] = [];
   const real = globalThis.fetch;
   globalThis.fetch = (async (url: string, init: RequestInit) => {
     calls.push({ url: String(url), body: JSON.parse(String(init.body)) });
     const a = answers.shift();
     if (typeof a === "number") return new Response("", { status: a });
-    return Response.json({ message: { content: JSON.stringify(a) } });
+    return Response.json({ content: JSON.stringify(a), model: "test-model" });
   }) as typeof fetch;
   return { calls, restore: () => (globalThis.fetch = real) };
 }
@@ -48,7 +47,7 @@ test.describe("workforce AI texts", () => {
   test.beforeEach(({ browserName }, info) => test.skip(info.project.name !== "desktop" || browserName !== "chromium", "runs once"));
 
   test("no key: fixed rules, no request", async () => {
-    const m = mockOllama();
+    const m = mockAi();
     restore = m.restore;
     const r = await explainPlan(PLAN);
     expect(m.calls).toHaveLength(0);
@@ -61,7 +60,7 @@ test.describe("workforce AI texts", () => {
     expect(uk.watchOut[0]).toBe("Бракує 1 ос. 09:00-11:00");
   });
 
-  test("explainPlan: grounded answer is used, temperature 0 and schema sent", async () => {
+  test("explainPlan: grounded answer is used, sent to the store AI with its schema", async () => {
     const good = {
       sentences: [
         "The plan covers 90.4% of the hours the store needs.",
@@ -70,14 +69,13 @@ test.describe("workforce AI texts", () => {
       ],
       watch_out: ["Short 1 person 17:00-20:00"],
     };
-    const m = mockOllama(good);
+    const m = mockAi(good);
     restore = m.restore;
     const r = await explainPlan(PLAN, KEY);
     expect(r.source).toBe("model");
     expect(r.sentences).toEqual(good.sentences);
-    expect(m.calls[0].url).toBe(`${HOST}/api/chat`);
-    expect(m.calls[0].body.options.temperature).toBe(0);
-    expect(m.calls[0].body.format).toMatchObject({ required: ["sentences", "watch_out"] });
+    expect(m.calls[0].url).toBe("/api/ai/chat");
+    expect(m.calls[0].body.schema).toMatchObject({ required: ["sentences", "watch_out"] });
   });
 
   test("explainPlan: invented number, invented person, too few sentences all fall back", async () => {
@@ -86,7 +84,7 @@ test.describe("workforce AI texts", () => {
       { sentences: ["Mykola Z. opens the store.", "Fine.", "Good."], watch_out: [] },
       { sentences: ["Only one sentence."], watch_out: [] },
     ]) {
-      const m = mockOllama(bad);
+      const m = mockAi(bad);
       restore = m.restore;
       const r = await explainPlan(PLAN, KEY);
       expect(r.source).toBe("rules");
@@ -96,7 +94,7 @@ test.describe("workforce AI texts", () => {
   });
 
   test("model unreachable or key refused: rules with the error message", async () => {
-    const m = mockOllama(401);
+    const m = mockAi(401);
     restore = m.restore;
     const r = await explainPlan(PLAN, KEY);
     expect(r.source).toBe("rules");
@@ -124,7 +122,7 @@ test.describe("workforce AI texts", () => {
         { employee_id: "E03", text: "Hi Andriy, could you come in 13:00-21:00 on Mon 2 Nov? Please confirm." },
       ],
     };
-    let m = mockOllama(good);
+    let m = mockAi(good);
     restore = m.restore;
     const ok = await explainReplan(PLAN, after, diff, KEY);
     expect(ok.source).toBe("model");
@@ -134,7 +132,7 @@ test.describe("workforce AI texts", () => {
     const wrongTime = { ...good, messages: [good.messages[0], { employee_id: "E03", text: "Hi Andriy, could you come in 14:00-21:00? Please confirm." }] };
     const missing = { ...good, messages: [good.messages[0]] };
     for (const bad of [wrongTime, missing]) {
-      m = mockOllama(bad);
+      m = mockAi(bad);
       restore = m.restore;
       expect((await explainReplan(PLAN, after, diff, KEY)).source).toBe("rules");
       m.restore();
@@ -155,19 +153,19 @@ test.describe("workforce AI texts", () => {
   });
 
   test("askTeam: model refusal, grounded answer, invented person", async () => {
-    let m = mockOllama({ answer: "CANNOT_ANSWER", employee_ids: [] });
+    let m = mockAi({ answer: "CANNOT_ANSWER", employee_ids: [] });
     restore = m.restore;
     expect(await askTeam("Tell me a joke", PLAN, EMPLOYEES, KEY)).toMatchObject({ refused: true, source: "model" });
     m.restore();
 
     const name = EMPLOYEES.find((e) => e.status_today === "available")!;
-    m = mockOllama({ answer: `${name.name} is available today and has the checkout skill.`, employee_ids: [name.employee_id, "E99"] });
+    m = mockAi({ answer: `${name.name} is available today and has the checkout skill.`, employee_ids: [name.employee_id, "E99"] });
     restore = m.restore;
     const ok = await askTeam("Who should cover checkout at 18:00?", PLAN, EMPLOYEES, KEY);
     expect(ok).toMatchObject({ source: "model", refused: false, employeeIds: [name.employee_id] });
     m.restore();
 
-    m = mockOllama({ answer: "Mykola Z. should cover checkout at 18:00.", employee_ids: [] });
+    m = mockAi({ answer: "Mykola Z. should cover checkout at 18:00.", employee_ids: [] });
     restore = m.restore;
     expect((await askTeam("Who should cover checkout at 18:00?", PLAN, EMPLOYEES, KEY)).source).toBe("rules");
   });
@@ -178,7 +176,7 @@ test.describe("workforce AI texts", () => {
     expect(rules.note.startsWith(`${PROFILE.name.split(" ")[0]}'s clearest strength`)).toBe(true);
     expect([...rules.focus, rules.note].join(" ")).not.toMatch(/sick|absen/i);
 
-    let m = mockOllama({ strengths: ["Fast restock"], focus: ["Practise scanning accuracy"], note: "Strong restocking pace; keep building scan accuracy." });
+    let m = mockAi({ strengths: ["Fast restock"], focus: ["Practise scanning accuracy"], note: "Strong restocking pace; keep building scan accuracy." });
     restore = m.restore;
     expect((await coachingNote(PROFILE, KEY)).source).toBe("model");
     const sent = JSON.stringify((m.calls[0].body as unknown as { messages: { content: string }[] }).messages[1].content);
@@ -190,7 +188,7 @@ test.describe("workforce AI texts", () => {
       { strengths: ["Fast restock"], focus: [], note: "Lazy at the till." },
       { strengths: [], focus: ["Scan accuracy"], note: "Needs work." },
     ]) {
-      m = mockOllama(bad);
+      m = mockAi(bad);
       restore = m.restore;
       expect((await coachingNote(PROFILE, KEY)).source).toBe("rules");
       m.restore();

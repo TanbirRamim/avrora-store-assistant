@@ -59,7 +59,7 @@ class Drafter(Protocol):
 
 
 def ollama_drafter() -> Drafter | None:
-    """Self-hosted open model through Ollama, e.g. the OTH KIGS GPU server."""
+    """Ollama native API (OLLAMA_HOST), kept for a local Ollama."""
     host = os.getenv("OLLAMA_HOST")
     if not host:
         return None
@@ -81,10 +81,26 @@ def ollama_drafter() -> Drafter | None:
     return draft
 
 
-def default_drafter() -> Drafter | None:
-    if os.getenv("AVRORA_LLM", "ollama").lower() == "none":
+def store_ai_drafter() -> Drafter | None:
+    """The store's own model through its OpenAI-compatible API (AI_BASE_URL, AI_MODEL, AI_API_KEY)."""
+    from avrora.ai import provider
+
+    cfg = provider.config()
+    if cfg is None:
         return None
-    return ollama_drafter()
+
+    def draft(payload: str) -> BriefingDraft:
+        content = provider.chat(cfg, [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": payload}],
+                                BriefingDraft.model_json_schema())
+        return BriefingDraft.model_validate_json(content)
+
+    return draft
+
+
+def default_drafter() -> Drafter | None:
+    if os.getenv("AVRORA_LLM", "").lower() == "none":
+        return None
+    return store_ai_drafter() or ollama_drafter()
 
 
 # --------------------------------------------------------------------------- validation
