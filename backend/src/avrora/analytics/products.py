@@ -57,6 +57,7 @@ def proposal_text(a: Action) -> str:
 class ProductFacts:
     rows: list[dict]  # one per product, list order = needs attention first
     updates: dict[str, list[dict]]  # product_id -> feed, newest first
+    last_day: pd.Timestamp | None = None  # last closed trading day
 
 
 def build_products(data: StoreData, plan: Plan, settings: Settings = SETTINGS) -> ProductFacts:
@@ -85,7 +86,7 @@ def build_products(data: StoreData, plan: Plan, settings: Settings = SETTINGS) -
     for pid, r in m.iterrows():
         acts = sorted(by_product.get(pid, []), key=lambda a: STATUS_ORDER.index(STATUS_BY_ACTION[a.type]))
         cover = float(r.days_cover)
-        cover_out = None if math.isinf(cover) else round(cover, 1)
+        cover_out = None if not math.isfinite(cover) else round(cover, 1)
         on_order = int(r.on_order)
         if acts:
             status = STATUS_BY_ACTION[acts[0].type]
@@ -101,7 +102,8 @@ def build_products(data: StoreData, plan: Plan, settings: Settings = SETTINGS) -
             nxt = {"date": _d(o.expected_date), "qty": int(o.quantity), "late": bool(o.expected_date < today)}
 
         ls = last_sale.get(pid)
-        s7_start = int(stock.at[pid, week_ago]) if week_ago in stock.columns else None
+        s7_start = (int(stock.at[pid, week_ago]) if week_ago in stock.columns and pid in stock.index
+                    and pd.notna(stock.at[pid, week_ago]) else None)
         stock_now = int(r.stock)
         row = {
             "product_id": pid,
@@ -123,14 +125,16 @@ def build_products(data: StoreData, plan: Plan, settings: Settings = SETTINGS) -
             "actions": [{"id": a.id, "type": a.type.value, "risk_uah": a.risk_uah} for a in acts],
         }
         rows.append(row)
-        updates[pid] = _feed(pid, row, acts, received, mine, promos, stock.loc[pid], today, last_day, r.supplier)
+        updates[pid] = _feed(pid, row, acts, received, mine, promos,
+                         stock.loc[pid].dropna() if pid in stock.index else pd.Series(dtype=float, index=pd.DatetimeIndex([])),
+                         today, last_day, r.supplier)
 
     # products with a suggestion by money at stake (as Today ranks them), then Low, On order, OK
     rank = lambda row: (0 if row["actions"] else STATUS_ORDER.index(row["status"]),
                         -sum(a["risk_uah"] for a in row["actions"]),
                         row["days_cover"] if row["days_cover"] is not None else 1e9, row["name"])
     rows.sort(key=rank)
-    return ProductFacts(rows=rows, updates=updates)
+    return ProductFacts(rows=rows, updates=updates, last_day=last_day)
 
 
 def _feed(pid, row, acts, received, mine, promos, stock: pd.Series, today, last_day, supplier) -> list[dict]:
@@ -190,7 +194,7 @@ STORE_FEED_AHEAD = 7  # expected deliveries this far ahead
 def store_feed(facts: ProductFacts, settings: Settings = SETTINGS, last_day: pd.Timestamp | None = None) -> list[dict]:
     """Store-wide recent changes: problems at any age in the feed window, routine deliveries only lately."""
     today = pd.Timestamp(settings.today)
-    last_day = last_day if last_day is not None else today - pd.Timedelta(days=1)
+    last_day = last_day if last_day is not None else (facts.last_day if facts.last_day is not None else today - pd.Timedelta(days=1))
     names = {r["product_id"]: r["name"] for r in facts.rows}
     out = []
     for pid, items in facts.updates.items():
