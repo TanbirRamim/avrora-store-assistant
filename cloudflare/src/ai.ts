@@ -67,15 +67,44 @@ function parse(body: unknown): ChatIn | null {
   if (b.schema !== undefined && (typeof b.schema !== "object" || b.schema === null)) return null;
   const mt = b.max_tokens;
   if (mt !== undefined && (typeof mt !== "number" || !Number.isFinite(mt) || mt < 1)) return null;
-  return { messages: msgs as ChatIn["messages"], schema: b.schema as object | undefined, max_tokens: mt as number | undefined };
+  // Only role and content are forwarded, nothing else a client might add to a message.
+  const messages = (msgs as ChatIn["messages"]).map((m) => ({ role: m.role, content: m.content }));
+  return { messages, schema: b.schema as object | undefined, max_tokens: mt as number | undefined };
+}
+
+/** Reads the body as text, stopping as soon as it exceeds `max` bytes (null), whatever Content-Length says. */
+async function readCapped(req: Request, max: number): Promise<string | null> {
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > max) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.length;
+  }
+  return new TextDecoder().decode(all);
 }
 
 export async function aiChat(req: Request, env: AiEnv): Promise<Response> {
   if (!configured(env)) return fail(503, "AI is not set up");
   if (limited(req.headers.get("CF-Connecting-IP") ?? "local")) return fail(429, "Too many AI requests. Wait a minute.");
+  if (!(req.headers.get("Content-Type") ?? "").toLowerCase().startsWith("application/json"))
+    return fail(415, "Content-Type must be application/json");
   if (Number(req.headers.get("Content-Length") ?? 0) > MAX_BODY) return fail(413, "Request too large");
-  const text = await req.text();
-  if (new TextEncoder().encode(text).length > MAX_BODY) return fail(413, "Request too large");
+  const text = await readCapped(req, MAX_BODY);
+  if (text === null) return fail(413, "Request too large");
   let input: ChatIn | null;
   try {
     input = parse(JSON.parse(text));
