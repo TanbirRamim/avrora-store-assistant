@@ -65,6 +65,56 @@ CATEGORIES: dict[str, dict] = {
     },
 }
 
+# Items whose category variants would not fit them ("Cutting board 0.5L"). Each list keeps six entries in the same
+# slots as the category list, so the random draws (and the planted problems) stay exactly the same.
+ITEM_VARIANTS: dict[str, list[str]] = {
+    # Household: S, M, L, 20L, Grey, White
+    "Clothes hangers": ["Set of 5", "Set of 10", "Set of 20", "Wooden", "Grey", "White"],
+    "Sponge set": ["Set of 3", "Set of 5", "Set of 10", "Yellow", "Grey", "White"],
+    "Microfiber cloths": ["Set of 3", "Set of 5", "Set of 10", "Blue", "Grey", "White"],
+    "Shoe rack": ["S", "M", "L", "3 tiers", "Grey", "White"],
+    "Vacuum bags": ["S", "M", "L", "Set of 5", "Grey", "White"],
+    "Drying rack": ["S", "M", "L", "Foldable", "Grey", "White"],
+    "Bath mat": ["S", "M", "L", "Cotton", "Grey", "White"],
+    # Kitchen: 0.5L, 1L, Set of 3, Blue, Black, Classic
+    "Ceramic mug": ["350 ml", "500 ml", "Set of 3", "Blue", "Black", "Classic"],
+    "Chef knife": ["15 cm", "20 cm", "Set of 3", "Blue", "Black", "Classic"],
+    "Cutting board": ["Small", "Large", "Set of 3", "Bamboo", "Black", "Classic"],
+    "Frying pan": ["24 cm", "28 cm", "Set of 3", "Blue", "Black", "Classic"],
+    "Baking tray": ["Small", "Large", "Set of 3", "Blue", "Black", "Classic"],
+    "Tea towel": ["Set of 2", "Linen", "Set of 3", "Blue", "Black", "Classic"],
+    "Spice rack": ["Small", "Large", "Set of 3", "Bamboo", "Black", "Classic"],
+    # Cosmetics: Herbal, Mint, Sensitive, Family, Travel, Classic
+    "Cotton pads": ["100 pcs", "Round", "Sensitive", "Family", "Travel", "Classic"],
+    "Lip balm": ["Herbal", "Mint", "Sensitive", "Cherry", "Travel", "Classic"],
+    # Toys: Mini, Large, Red, 100 pcs, Deluxe, Classic
+    "Toy car": ["Mini", "Large", "Red", "Set of 3", "Deluxe", "Classic"],
+    "Soft ball": ["Mini", "Large", "Red", "Set of 3", "Deluxe", "Classic"],
+    "Doll": ["Mini", "Large", "Red", "Set of 2", "Deluxe", "Classic"],
+    "Coloring set": ["Mini", "Large", "Red", "24 colours", "Deluxe", "Classic"],
+    "Bubble wand": ["Mini", "Large", "Red", "Set of 10", "Deluxe", "Classic"],
+    "Toy kitchen set": ["Mini", "Large", "Red", "Set of 12", "Deluxe", "Classic"],
+    "Water gun": ["Mini", "Large", "Red", "Set of 2", "Deluxe", "Classic"],
+    "Board game": ["Mini", "Family", "Red", "Travel", "Deluxe", "Classic"],
+    # Stationery: A5, A4, Blue, 12 pcs, Neon, Classic
+    "Gel pen": ["0.5 mm", "0.7 mm", "Blue", "12 pcs", "Neon", "Classic"],
+    "Pencil set": ["HB", "Colour", "Blue", "12 pcs", "Neon", "Classic"],
+    "Sticky notes": ["Square", "Small", "Blue", "12 pads", "Neon", "Classic"],
+    "Glue stick": ["Small", "Large", "Blue", "Set of 3", "Neon", "Classic"],
+    "Ruler": ["15 cm", "30 cm", "Blue", "Set of 3", "Neon", "Classic"],
+    "Marker set": ["Thin", "Thick", "Blue", "12 pcs", "Neon", "Classic"],
+    "Eraser": ["Small", "Large", "Blue", "Set of 3", "Neon", "Classic"],
+    # Seasonal: Warm white, Gold, Red, Set of 6, Large, Classic
+    "Tinsel garland": ["Silver", "Gold", "Red", "2 m", "Large", "Classic"],
+    "Gift bag": ["Silver", "Gold", "Red", "Set of 6", "Large", "Classic"],
+    "Snowflake decor": ["Silver", "Gold", "Red", "Set of 6", "Large", "Classic"],
+    "Advent calendar": ["Chocolate", "Gold", "Red", "Kids", "Large", "Classic"],
+    "Wrapping paper": ["Silver", "Gold", "Red", "Set of 3", "Kraft", "Classic"],
+    "Santa figure": ["Musical", "Gold", "Red", "Small", "Large", "Classic"],
+    "Star topper": ["Light-up", "Gold", "Red", "Silver", "Large", "Classic"],
+}
+assert all(len(v) == 6 for v in ITEM_VARIANTS.values())
+
 # Store-level weekly rhythm, Monday first, mean 1.0.
 WEEKDAY_INDEX = np.array([0.90, 0.88, 0.92, 0.97, 1.08, 1.30, 1.15])
 WEEKDAY_INDEX = WEEKDAY_INDEX / WEEKDAY_INDEX.mean()
@@ -86,7 +136,8 @@ class Product:
 
 
 def _products(rng: np.random.Generator) -> list[Product]:
-    combos = [(c, i, v) for c, spec in CATEGORIES.items() for i in spec["items"] for v in spec["variants"]]
+    combos = [(c, i, v) for c, spec in CATEGORIES.items() for i in spec["items"]
+              for v in ITEM_VARIANTS.get(i, spec["variants"])]
     pick = rng.choice(len(combos), size=N_PRODUCTS, replace=False)
     products = []
     for n, idx in enumerate(sorted(pick)):

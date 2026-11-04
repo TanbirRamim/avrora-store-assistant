@@ -19,12 +19,14 @@ from avrora.workforce.kpis import decisions, history_weeks, plan_week
 from avrora.workforce.people import employee_list, employee_profile
 from avrora.workforce.plan import (
     EventError,
+    changes_text,
     event_from_version,
     event_label,
     normalise_event,
     plan_dates,
     plan_for,
     replan,
+    version_label,
 )
 
 router = APIRouter(prefix="/api/workforce", tags=["workforce"])
@@ -159,7 +161,7 @@ def post_replan(body: ReplanIn) -> dict:
     except EventError as err:
         raise HTTPException(422, str(err)) from None
     doc = replan(d, ev)
-    _log(d, ev.key, "drafted", "agent", f"Replanned for {event_label(ev)}: {len(doc['diff'])} changes")
+    _log(d, ev.key, "drafted", "agent", f"Replanned for {event_label(ev)}: {changes_text(len(doc['diff']))}")
     return _with_audit(doc, _audit(d))
 
 
@@ -167,7 +169,7 @@ def post_replan(body: ReplanIn) -> dict:
 def approve(body: ApproveIn) -> dict:
     d = _day(body.date)
     v = _version(d, body.version)
-    at = _log(d, v, "approved", "manager", f"Manager approved plan {v}")
+    at = _log(d, v, "approved", "manager", f"Manager approved {version_label(d, v)}")
     return {"status": "approved", "at": at, "date": d.isoformat(), "version": v}
 
 
@@ -175,7 +177,7 @@ def approve(body: ApproveIn) -> dict:
 def reject(body: RejectIn) -> dict:
     d = _day(body.date)
     v = _version(d, body.version)
-    at = _log(d, v, "rejected", "manager", f"Manager rejected plan {v}: {body.reason}", body.reason)
+    at = _log(d, v, "rejected", "manager", f"Manager rejected {version_label(d, v)}: {body.reason}", body.reason)
     return {"status": "rejected", "at": at, "date": d.isoformat(), "version": v, "reason": body.reason}
 
 

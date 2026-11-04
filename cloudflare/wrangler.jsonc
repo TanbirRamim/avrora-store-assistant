@@ -12,7 +12,7 @@
   // the key as a secret: npx wrangler secret put AI_API_KEY. Empty base URL = AI off, rules only.
   "vars": {
     "AI_BASE_URL": "https://generativelanguage.googleapis.com/v1beta/openai",
-    "AI_MODEL": "gemini-3.5-flash,gemini-3.8-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite",
+    "AI_MODEL": "gemini-3.5-flash,gemini-3-flash-preview,gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite",
     "AI_REASONING_EFFORT": "low",
     "VAPID_PUBLIC_KEY": "BMBwgn1PASUjf5SzOLqsrnSra7hZzhmb4QzcBYyxmkXfthwlacvp8J-N5am1CJraXNN1pBMRK3IPnT5JEisCu2A",
     "VAPID_SUBJECT": "mailto:contact.tanbirramim@gmail.com"

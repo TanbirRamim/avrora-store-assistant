@@ -236,6 +236,25 @@ export const versionLabel = (v: string | number) => {
   const what = { sick: "Sick cover", air_alert: "Alert", power: "Power cut", traffic_spike: "Busy" }[k] ?? k;
   return /^\d+$/.test(x ?? "") ? `${what} ${x.padStart(2, "0")}:00` : what;
 };
+/** "air_alert-12" as the manager reads it in the change log: "the air-raid alert re-plan (12:00–14:00)". */
+export function planLabel(v: string): string {
+  if (v === "base") return "the agent's draft plan";
+  const i = v.lastIndexOf("-");
+  const [k, x] = [v.slice(0, i), v.slice(i + 1)];
+  if (k === "sick") return "the sick-cover re-plan";
+  const what = { air_alert: "air-raid alert", power: "power cut", traffic_spike: "busy-period" }[k];
+  if (!what || !/^\d+$/.test(x)) return "a re-plan";
+  const from = Number(x);
+  const to = Math.min(21, from + EVENT_HOURS[k as keyof typeof EVENT_HOURS]);
+  return `the ${what} re-plan (${String(from).padStart(2, "0")}:00–${String(to).padStart(2, "0")}:00)`;
+}
+
+/** Older change-log lines carried the raw version ("Manager approved plan air_alert-12"); show them in words. */
+export const changeSummary = (s: string) =>
+  s
+    .replace(/\b(approved|rejected) plan (base|[a-z_]+-[A-Za-z0-9]+)\b/, (_, verb: string, v: string) => `${verb} ${planLabel(v)}`)
+    .replace(/(\D|^)1 changes\b/, "$11 change");
+
 export const taskMeta = (t: string): TaskStyle =>
   TASK_META[t] ?? { label: t.replace(/_/g, " "), code: t.slice(0, 1).toUpperCase(), color: "#e4e4e7", fg: "#18181b", text: "#18181b" };
 

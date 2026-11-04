@@ -167,6 +167,8 @@ def test_plan_api_approve_reject_flow(client):
     assert now["status"] == "approved" and now["version"] == "sick-E01"
     assert "E01" not in {s["employee_id"] for s in now["shifts"]}
     assert [c["by"] for c in now["changes"]] == ["agent", "agent", "manager"]
+    assert now["changes"][-1]["summary"] == "Manager approved the sick-cover re-plan for Olena K."
+    assert "sick-E01" not in now["changes"][-1]["summary"]
 
     assert client.post("/api/workforce/plan/reject", json={"date": "2026-11-03", "version": "sick-E01"}).status_code == 422
     rej = client.post("/api/workforce/plan/reject",

@@ -53,12 +53,12 @@ async function mockSignals(page: Page, signals: object[] | null) {
 type Body = { messages: { content: string }[] };
 async function mockModel(page: Page, answer: (kind: "replan" | "briefing", user: Record<string, unknown>) => object) {
   const calls: { kind: string; user: Record<string, unknown> }[] = [];
-  let auto = true;
+  let autoFails = 2;
   await page.route(AI, async (route) => {
     const body = JSON.parse(route.request().postData()!) as Body;
-    // the first briefing is the one written on its own at load; fail it so the page keeps the rules
-    if (auto && isBriefing(body)) {
-      auto = false;
+    // the briefing written on its own at load (and its one automatic retry): fail both so the page keeps the rules
+    if (autoFails > 0 && isBriefing(body)) {
+      autoFails -= 1;
       return route.fulfill({ status: 503, json: { detail: "test" } });
     }
     const kind = body.messages[0].content.includes("outside event") ? "replan" : "briefing";
@@ -127,7 +127,7 @@ test("without a key the re-plan uses the rules and can be reverted", async ({ pa
   await expect(live(page).getByText("Sorted by store priorities.")).toBeVisible();
   await expect(page.getByTestId("replan-note")).toContainText("Orders and price changes first");
   const after = await rowNames(page);
-  expect(after).toEqual(["Ceramic mug Black", "Bubble wand 100 pcs", "Frying pan Set of 3", "Vacuum bags White", "Bath mat S"]);
+  expect(after).toEqual(["Ceramic mug Black", "Bubble wand Set of 10", "Frying pan Set of 3", "Vacuum bags White", "Bath mat S"]);
   await expect(page.getByTestId("moved-up")).toHaveCount(1);
   await live(page).getByRole("button", { name: "Revert" }).click();
   await expect(page.getByTestId("moved-up")).toHaveCount(0);
@@ -147,7 +147,7 @@ test("with store AI the model reorders and explains, numbers checked", async ({ 
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
   await expect(live(page).getByText("Reordered by AI. Numbers checked against store data.")).toBeVisible();
   await expect(page.getByTestId("replan-note")).toContainText("place both orders first");
-  expect((await rowNames(page))[0]).toBe("Bubble wand 100 pcs");
+  expect((await rowNames(page))[0]).toBe("Bubble wand Set of 10");
   await expect(page.getByTestId("moved-up")).toHaveCount(1);
   const sent = calls[0].user as { event: { kind: string }; priorities: { id: string }[]; language: string };
   expect(sent.event.kind).toBe("power");

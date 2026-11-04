@@ -152,6 +152,18 @@ export function RotaBoard({ plan, mode, onPerson, isToday = false }: { plan: Pla
           <StationRows shifts={shifts} hours={hours} at={stationHour} onPerson={onPerson} />
         )}
       </div>
+      {/* the hours again under the rows: the top axis can sit behind the floating tab bar on a desktop screen */}
+      <div className={`${GRID} border-t border-[var(--divider)] pb-2 pt-1.5`} aria-hidden data-testid="rota-axis-bottom">
+        <span />
+        <div className="relative h-[14px]">
+          {hours.map((h, i) => (
+            <span key={h.hour} className={`num-col absolute top-0 -translate-x-1/2 text-[11px] leading-none text-muted ${i === 0 ? "translate-x-0" : ""}`} style={{ left: `${(i / n) * 100}%` }}>
+              {hh(h.hour)}
+            </span>
+          ))}
+          <span className="num-col absolute right-0 top-0 text-[11px] leading-none text-muted">{hh(plan.opening.close)}</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,7 @@
  */
 import type { Action, Briefing } from "./api";
 import type { Lang } from "./assist";
-import { allowedNumbers, chatJson, grounded, ModelError, type Route } from "./model";
+import { allowedNumbers, chatJson, fmtMoney, grounded, ModelError, type Route } from "./model";
 
 export { ModelError };
 
@@ -15,12 +15,13 @@ const TOP_N = 5;
 
 const SYSTEM_PROMPT = `You help the manager of a small discount store plan their day.
 You receive candidate actions computed from the store's data. Each has an id, a type, the numbers behind it
-and an estimated amount of money at stake in UAH.
+and an estimated amount of money at stake.
 
 Choose the five actions the manager should handle today and order them by urgency. Money at stake matters most,
 but an item that will run out before a delivery can arrive is more urgent than slow stock that can wait a few
 days. Write one short reason per action for a busy store manager: at most 25 words, plain language, no jargon.
-Use only numbers that appear in that action's data. Write a one-sentence summary of the day.
+Use only numbers that appear in that action's data. Money is already written in the store's format (for example "₴2,671"); copy it exactly, never write UAH or kopecks.
+Write a one-sentence summary of the day.
 Write the reasons and the summary in the language given in the request. Return exactly the JSON requested.`;
 
 const SCHEMA = {
@@ -39,13 +40,13 @@ const SCHEMA = {
   required: ["summary", "priorities"],
 };
 
-const valuesOf = (a: Action): unknown[] => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah];
+const valuesOf = (a: Action): unknown[] => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah, a.product_name];
 
 export async function draftBriefing(key: Route, actions: Action[], notices: Action[], lang: Lang = "en"): Promise<Briefing> {
   const cands = actions.slice(0, CANDIDATES);
   const payload = JSON.stringify({
     candidates: cands.map((a) => ({
-      id: a.id, type: a.type, product: a.product_name, risk_uah: a.risk_uah, facts: a.facts, proposal: a.proposal,
+      id: a.id, type: a.type, product: a.product_name, money_at_stake: fmtMoney(a.risk_uah), facts: a.facts, proposal: a.proposal,
     })),
     store_notes: notices.map((n) => n.reason),
     language: lang === "uk" ? "Ukrainian" : "English",
@@ -72,8 +73,8 @@ export async function draftBriefing(key: Route, actions: Action[], notices: Acti
   const total = chosen.reduce((s, a) => s + a.risk_uah, 0);
   const fallback =
     lang === "uk"
-      ? `Сьогодні ${chosen.length} пріоритетів, під загрозою близько ₴${Math.round(total).toLocaleString("uk-UA")}.`
-      : `${chosen.length} priorities today, about ₴${Math.round(total).toLocaleString("en-US")} at stake.`;
+      ? `Сьогодні ${chosen.length} пріоритетів, під загрозою близько ${fmtMoney(total)}.`
+      : `${chosen.length} priorities today, about ${fmtMoney(total)} at stake.`;
   const summary = typeof draft.summary === "string" ? draft.summary.trim() : "";
   const allowed = allowedNumbers(chosen.flatMap(valuesOf));
   return {

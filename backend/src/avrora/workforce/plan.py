@@ -260,6 +260,21 @@ def _event_sentence(sd: StaffData, e: Event) -> str:
     return f"Traffic spike {hh(e.start)}-{hh(e.end)}: about 50% more customers than forecast."
 
 
+def version_label(day: date, version: str) -> str:
+    """'air_alert-12' -> 'the air-raid alert re-plan (12:00-14:00)', for the change log."""
+    e = event_from_version(day, version)
+    if e is None:
+        return "the agent's draft plan"
+    if e.kind == "sick":
+        return f"the sick-cover re-plan for {staff().employee(e.employee_id).name}"
+    what = {"air_alert": "air-raid alert", "power": "power cut", "traffic_spike": "busy-period"}[e.kind]
+    return f"the {what} re-plan ({hh(e.start)}-{hh(e.end)})"
+
+
+def changes_text(n: int) -> str:
+    return f"{n} change" if n == 1 else f"{n} changes"
+
+
 def event_label(e: Event) -> str:
     if e.kind == "sick":
         return f"{staff().employee(e.employee_id).name} sick"

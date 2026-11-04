@@ -137,7 +137,7 @@ def day_inputs(sd: StaffData, day: date, event: Event | None = None) -> DayInput
     if event and event.kind != "sick":
         a, b = event.start, event.end
         label = {"air_alert": "Air-raid alert: store closes, everyone to the shelter",
-                 "power": "Unplanned power cut: tills on the generator",
+                 "power": "Power cut (manager re-plan): tills on the generator",
                  "traffic_spike": "Traffic spike: 50% more customers than forecast"}[event.kind]
         conditions.append({"kind": "air_alert" if event.kind == "air_alert" else "power" if event.kind == "power"
                            else "promotion", "label": label, "from": hh(a), "to": hh(b)})

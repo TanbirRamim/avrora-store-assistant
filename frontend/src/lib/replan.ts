@@ -7,7 +7,7 @@
  */
 import type { Action, ActionType, Signal } from "./api";
 import type { Lang } from "./assist";
-import { allowedNumbers, chatJson, grounded } from "./model";
+import { allowedNumbers, chatJson, fmtMoney, grounded } from "./model";
 
 export interface Replan {
   signalId: string;
@@ -97,17 +97,17 @@ export async function replanWithModel(key: string, s: Signal, priorities: Action
     language: lang === "uk" ? "Ukrainian" : "English",
     event: { kind: s.kind, title: s.title, starts: start, ends: end, already_running: active },
     priorities: priorities.map((a) => ({
-      id: a.id, type: a.type, category: a.category, product: a.product_name, risk_uah: a.risk_uah, facts: a.facts,
+      id: a.id, type: a.type, category: a.category, product: a.product_name, money_at_stake: fmtMoney(a.risk_uah), facts: a.facts,
     })),
   };
-  const out = await chatJson<{ order: unknown; note: unknown }>(key, SYSTEM_PROMPT, JSON.stringify(payload), SCHEMA, 120_000);
+  const out = await chatJson<{ order: unknown; note: unknown }>(key, SYSTEM_PROMPT, JSON.stringify(payload), SCHEMA);
 
   const ids = priorities.map((a) => a.id);
   const order = Array.isArray(out.order) ? out.order.filter((x): x is string => typeof x === "string") : [];
   const permutation = order.length === ids.length && new Set(order).size === ids.length && order.every((id) => ids.includes(id));
   const note = typeof out.note === "string" ? out.note.trim().split(/\n+/).slice(0, 2).join("\n") : "";
   const allowed = allowedNumbers([
-    ...priorities.flatMap((a) => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah]),
+    ...priorities.flatMap((a) => [...Object.values(a.facts), ...Object.values(a.proposal), a.risk_uah, a.product_name]),
     start, end ?? "",
   ]);
   if (!permutation || !note || !grounded(note, allowed, 45)) return replanByRules(s, priorities, lang);
