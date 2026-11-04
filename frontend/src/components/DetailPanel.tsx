@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import type { Action, Decision, DecisionKind, ProductDetail } from "@/lib/api";
 import { fetcher } from "@/lib/api";
@@ -66,6 +66,12 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onGra
   const [mode, setMode] = useState<"idle" | "adjust" | "dismiss">("idle");
   const [value, setValue] = useState(adj?.value ?? 0);
   const { data: product } = useSWR<ProductDetail>(`/api/products/${action.product_id}`, fetcher);
+  // the AI texts use the quantity or discount the manager set, not only the engine's first proposal
+  const setValueNow = decision?.decision === "change" && decision.value != null ? decision.value : value;
+  const asked = useMemo(
+    () => (adj ? { ...action, proposal: { ...action.proposal, [adj.key]: setValueNow } } : action),
+    [action, adj, setValueNow],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -159,9 +165,9 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onGra
           </dl>
         </section>
 
-        <AskSection action={action} product={product} />
+        <AskSection action={asked} product={product} />
 
-        {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={action} />}
+        {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={asked} />}
 
         <section aria-busy={!product} aria-label="Sales and stock">
           <h3 className={H3}>Sales and stock</h3>

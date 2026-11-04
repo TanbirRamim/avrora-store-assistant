@@ -270,7 +270,8 @@ const REPLAN_SCHEMA = {
 };
 
 /** "08:00-16:00" must appear as times the reader recognises: 08:00 or 8:00. */
-const hasTime = (text: string, hhmm: string) => text.includes(hhmm) || text.includes(hhmm.replace(/^0/, ""));
+const hasTime = (text: string, hhmm: string) =>
+  [hhmm, hhmm.replace(/^0/, "")].some((t) => new RegExp(`(?<![\\d:])${t}(?![\\d:])`).test(text));
 
 /** What changed and why, plus one ready-to-send message per affected employee (never sent automatically). */
 export function explainReplan(before: Plan, after: Plan, diff: DiffRow[], opts: AiOptions = {}): Promise<ReplanExplanation> {
@@ -366,6 +367,9 @@ const ASK_SCHEMA = {
   required: ["answer", "employee_ids"],
 };
 
+/** Health and absence reasons stay on this device: the model only learns who can be asked to cover. */
+const neutralStatus = (status: string) => (["working", "available"].includes(status) ? status : "unavailable");
+
 /** Morning / afternoon / evening as times, so "the evening" maps to plan hours. */
 export function dayParts(plan: Plan) {
   const open = plan.hours[0]?.hour ?? "08:00";
@@ -380,7 +384,7 @@ export function teamPayload(plan: Plan, employees: Employee[]) {
     const s = plan.shifts.find((x) => x.employee_id === e.employee_id);
     return {
       employee_id: e.employee_id, name: e.name, role: e.role, skills: e.skills, strength: e.strength ?? null, score: e.score,
-      status_today: e.status_today,
+      status_today: neutralStatus(e.status_today),
       shift_today: s ? { start: s.start, end: s.end, role: s.role } : null,
       hours_this_week: e.hours_this_week, contract_hours_week: e.contract_hours_week,
       hours_left_this_week: Math.max(0, Math.round((e.contract_hours_week - e.hours_this_week) * 10) / 10),

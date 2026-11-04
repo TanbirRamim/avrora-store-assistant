@@ -140,11 +140,11 @@ const kind = (p: Props) => p.r ?? CATEGORIES[p.c].one;
 function source(p: Props): { href: string; label: string } | null {
   if (p.c === "avrora") {
     const id = p.id.split("-").pop();
-    return { href: `https://avrora.ua/index.php?dispatch=store_locator.view&store_location_id=${id}`, label: "View on avrora.ua" };
+    return { href: `https://avrora.ua/index.php?dispatch=store_locator.view&store_location_id=${encodeURIComponent(id ?? "")}`, label: "View on avrora.ua" };
   }
-  if (p.c === "supply") return p.u ? { href: p.u, label: `Source: ${p.l ?? "public record"}` } : null;
+  if (p.c === "supply") return p.u && /^https?:\/\//i.test(p.u) ? { href: p.u, label: `Source: ${p.l ?? "public record"}` } : null;
   const [type, osmId] = p.id.split("/");
-  return osmId ? { href: `https://www.openstreetmap.org/${type}/${osmId}`, label: "View on OpenStreetMap" } : null;
+  return osmId ? { href: `https://www.openstreetmap.org/${encodeURIComponent(type)}/${encodeURIComponent(osmId)}`, label: "View on OpenStreetMap" } : null;
 }
 
 function popupHtml(p: Props) {
@@ -230,7 +230,8 @@ export function NetworkMap() {
   useEffect(() => {
     if (!show.war || war) return;
     let live = true;
-    Promise.all([fetch(STORES_URL).then((r) => r.json()), fetch(LINES_URL).then((r) => r.json())])
+    const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))));
+    Promise.all([get(STORES_URL), get(LINES_URL)])
       .then(([s, l]: [{ stores: WarStore[] }, { features: LineFeature[] }]) => live && setWar({ stores: s.stores, lines: l.features }))
       .catch(() => live && setWarFailed(true));
     return () => {
@@ -259,7 +260,7 @@ export function NetworkMap() {
   useEffect(() => {
     let live = true;
     fetch(DATA)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { features: Feature[] }) => live && setFeatures(d.features))
       .catch(() => live && setFailed(true));
     return () => {
