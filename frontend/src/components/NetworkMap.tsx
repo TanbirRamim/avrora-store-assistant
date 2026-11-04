@@ -95,7 +95,7 @@ const FILTERS: { id: Filter; label: string; cats: Category[] }[] = [
 const inFilter = (filter: Filter, c: Category) => FILTERS.find((f) => f.id === filter)!.cats.includes(c);
 
 type Mode = "network" | "war";
-const NETWORK_LAYERS = ["clusters", "cluster-count", "points", "key-points"];
+const NETWORK_LAYERS = ["clusters", "cluster-letter", "points", "key-points"];
 const WAR_LAYERS = ["war-yellow", "war-orange", "war-red", "war-line", "war-exposed", "war-threat-halo", "war-threats", "war-halo", "war-stores"];
 /** Distribution sites whose exposure matters for deliveries; shops and food producers are left out. */
 const DISTRIBUTION: Category[] = ["supply", "warehouse", "logistics"];
@@ -352,14 +352,21 @@ export function NetworkMap() {
           },
         });
         map.addLayer({
-          id: "cluster-count",
+          id: "cluster-letter",
           type: "symbol",
           source: "places",
           filter: ["has", "point_count"],
           layout: {
-            "text-field": ["get", "point_count_abbreviated"],
+            "text-field": [
+              "case",
+              [">=", ["get", "nAv"], ["max", ["get", "nSt"], ["get", "nFd"]]],
+              "A",
+              [">=", ["get", "nFd"], ["get", "nSt"]],
+              "F",
+              "S",
+            ],
             "text-font": ["Noto Sans Bold"],
-            "text-size": ["step", ["get", "point_count"], 11, 150, 12],
+            "text-size": 13,
             "text-allow-overlap": true,
           },
           paint: { "text-color": "#ffffff" },
