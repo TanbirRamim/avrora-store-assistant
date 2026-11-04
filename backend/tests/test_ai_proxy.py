@@ -1,12 +1,16 @@
+import contextlib
+import dataclasses
 import json
+import time
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from avrora.ai import provider
-from avrora.api import ai, main
+from avrora.api import ai, limits, main
 
+JSON = {"content-type": "application/json"}
 MSGS = [{"role": "system", "content": "Answer in JSON."}, {"role": "user", "content": "hi"}]
 
 
@@ -29,13 +33,14 @@ def upstream(monkeypatch):
     calls: list[dict] = []
     replies: list[httpx.Response] = []
 
-    def fake_post(url, headers=None, json=None, timeout=None):
+    @contextlib.contextmanager
+    def fake_stream(method, url, headers=None, json=None, timeout=None):
         calls.append({"url": url, "headers": headers, "json": json})
         r = replies.pop(0) if replies else httpx.Response(200, json={"choices": [{"message": {"content": '{"ok": true}'}}]})
-        r.request = httpx.Request("POST", url)
-        return r
+        r.request = httpx.Request(method, url)
+        yield r
 
-    monkeypatch.setattr(provider.httpx, "post", fake_post)
+    monkeypatch.setattr(provider.httpx, "stream", fake_stream)
     return calls, replies
 
 
@@ -85,7 +90,7 @@ def test_unreachable_is_502(client, upstream, monkeypatch):
     def boom(*a, **k):
         raise httpx.ConnectError("down")
 
-    monkeypatch.setattr(provider.httpx, "post", boom)
+    monkeypatch.setattr(provider.httpx, "stream", boom)
     assert client.post("/api/ai/chat", json={"messages": MSGS}).status_code == 502
 
 
@@ -96,7 +101,45 @@ def test_bad_body(client, upstream, body):
 
 def test_size_limit(client, upstream):
     big = [{"role": "user", "content": "x" * (ai.MAX_BODY + 10)}]
-    assert client.post("/api/ai/chat", content=json.dumps({"messages": big})).status_code == 413
+    r = client.post("/api/ai/chat", content=json.dumps({"messages": big}), headers=JSON)
+    assert r.status_code == 413
+
+
+def test_size_limit_without_content_length(client, upstream):
+    """A chunked body has no Content-Length: the read itself stops at the cap."""
+    def chunks():
+        for _ in range(ai.MAX_BODY // 1024 + 5):
+            yield b" " * 1024
+
+    assert client.post("/api/ai/chat", content=chunks(), headers=JSON).status_code == 413
+
+
+def test_needs_json_content_type(client, upstream):
+    body = json.dumps({"messages": MSGS})
+    assert client.post("/api/ai/chat", content=body).status_code == 415
+    assert client.post("/api/ai/chat", content=body, headers={"content-type": "text/plain"}).status_code == 415
+    ok = client.post("/api/ai/chat", content=body, headers={"content-type": "application/json; charset=utf-8"})
+    assert ok.status_code == 200
+
+
+def test_rate_limit_evicts_idle_keys():
+    lim = limits.RateLimiter(60, 2)
+    for i in range(limits.IDLE_SWEEP_AT + 5):
+        lim.hits[f"old{i}"] = limits.deque([time.monotonic() - 120])
+    assert not lim.limited("new")
+    assert list(lim.hits) == ["new"]
+
+
+def test_client_key_header_only_when_configured(client, upstream, monkeypatch):
+    """Without the setting a spoofed X-Forwarded-For changes nothing; with it each proxy-seen client has its own budget."""
+    for i in range(ai.PER_WINDOW):
+        assert client.post("/api/ai/chat", json={"messages": MSGS}, headers={"X-Forwarded-For": f"9.9.9.{i}"}).status_code == 200
+    assert client.post("/api/ai/chat", json={"messages": MSGS}, headers={"X-Forwarded-For": "1.1.1.1"}).status_code == 429
+    ai._hits.clear()
+    monkeypatch.setattr(limits, "SETTINGS", dataclasses.replace(limits.SETTINGS, client_ip_header="X-Real-IP"))
+    for i in range(ai.PER_WINDOW + 1):
+        r = client.post("/api/ai/chat", json={"messages": MSGS}, headers={"X-Real-IP": f"9.9.9.{i}"})
+        assert r.status_code == 200
 
 
 def test_rate_limit(client, upstream):
