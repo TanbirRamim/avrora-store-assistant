@@ -213,13 +213,13 @@ export interface TaskStyle {
   text: string;
 }
 export const TASK_META: Record<string, TaskStyle> = {
-  checkout: { label: "Checkout", code: "C", color: "#000000", fg: "#ffffff", text: "#000000" },
-  receiving: { label: "Receiving", code: "R", color: "#ffde00", fg: "#000000", text: "#000000" },
-  replenishment: { label: "Restocking", code: "S", color: "#5c5c57", fg: "#ffffff", text: "#000000" },
-  merchandising: { label: "Merchandising", code: "M", color: "#a6a69e", fg: "#000000", text: "#000000" },
-  customer_service: { label: "Customer help", code: "H", color: "#ffffff", fg: "#000000", outline: true, text: "#000000" },
-  inventory: { label: "Inventory", code: "I", color: "#e2e2dc", fg: "#000000", text: "#000000" },
-  shelter: { label: "Shelter", code: "A", color: "#d9140e", fg: "#ffffff", text: "#d9140e" },
+  checkout: { label: "Checkout", code: "C", color: "#2563eb", fg: "#ffffff", text: "#1d4ed8" },
+  receiving: { label: "Receiving", code: "R", color: "#f59e0b", fg: "#ffffff", text: "#b45309" },
+  replenishment: { label: "Restocking", code: "S", color: "#10b981", fg: "#ffffff", text: "#047857" },
+  merchandising: { label: "Merchandising", code: "M", color: "#8b5cf6", fg: "#ffffff", text: "#6d28d9" },
+  customer_service: { label: "Customer help", code: "H", color: "#06b6d4", fg: "#ffffff", text: "#0e7490" },
+  inventory: { label: "Inventory", code: "I", color: "#64748b", fg: "#ffffff", text: "#334155" },
+  shelter: { label: "Shelter", code: "A", color: "#ef4444", fg: "#ffffff", text: "#b91c1c" },
 };
 export const TASK_ORDER = ["checkout", "receiving", "replenishment", "merchandising", "customer_service", "inventory", "shelter"];
 
@@ -248,12 +248,12 @@ export const CONDITION_META: Record<ConditionKind, { label: string }> = {
 };
 
 export const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  working: { label: "Working", color: "var(--green)" },
-  available: { label: "Free", color: "var(--ink)" },
-  day_off: { label: "Day off", color: "#a6a69e" },
-  sick: { label: "Sick", color: "var(--red)" },
-  vacation: { label: "Vacation", color: "#a6a69e" },
-  unavailable: { label: "Unavailable", color: "#a6a69e" },
+  working: { label: "Working", color: "#10b981" },
+  available: { label: "Free", color: "#3b82f6" },
+  day_off: { label: "Day off", color: "#94a3b8" },
+  sick: { label: "Sick", color: "#ef4444" },
+  vacation: { label: "Vacation", color: "#8b5cf6" },
+  unavailable: { label: "Unavailable", color: "#64748b" },
 };
 export const statusMeta = (s: string) => STATUS_LABEL[s] ?? { label: s.replace(/_/g, " "), color: "#a6a69e" };
 

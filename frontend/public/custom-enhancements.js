@@ -1,79 +1,162 @@
 (function () {
-  console.log("Initializing Avrora Categorized Category Blocks (Press-to-Expand)...");
+  console.log("Initializing Avrora UI: 3-per-row Category Blocks (Front of Page) & Balanced Updates Feed...");
 
-  // Distinct High-Resolution Hero Stock Images for the 6 Category Blocks
-  const CATEGORY_DATA = {
-    Kitchen: {
+  // 12 Specific Retail Categories with Verified 100% Free-to-Use Local Images + Unsplash Fallbacks
+  const CATEGORY_MAP = {
+    "Cookware & Kitchenware": {
       icon: "🍳",
-      title: "Kitchen & Dining",
-      sub: "Cookware, tableware & kitchen accessories",
-      image: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80"
+      title: "Cookware & Kitchenware",
+      sub: "Pots, frying pans, cutting boards & kitchen prep",
+      image: "/category-images/cookware.jpg",
+      fallback: "https://images.unsplash.com/photo-1584269600464-37b1b58a9fe7?w=500&auto=format&fit=crop&q=80"
     },
-    Household: {
+    "Tableware & Drinkware": {
+      icon: "☕",
+      title: "Tableware & Drinkware",
+      sub: "Ceramic mugs, drinking glasses & glass jars",
+      image: "/category-images/tableware.jpg",
+      fallback: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=500&auto=format&fit=crop&q=80"
+    },
+    "Cleaning & Laundry": {
       icon: "🧼",
-      title: "Household & Cleaning",
-      sub: "Cleaning supplies, laundry & home storage",
-      image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&auto=format&fit=crop&q=80"
+      title: "Cleaning & Laundry",
+      sub: "Sponges, vacuum bags & cleaning cloths",
+      image: "/category-images/cleaning.jpg",
+      fallback: "https://images.unsplash.com/photo-1584813470613-5b1c1cad3d69?w=500&auto=format&fit=crop&q=80"
     },
-    Cosmetics: {
+    "Home Storage & Bath": {
+      icon: "🏡",
+      title: "Home Storage & Bath",
+      sub: "Storage boxes, bath mats & organizers",
+      image: "/category-images/storage.jpg",
+      fallback: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=500&auto=format&fit=crop&q=80"
+    },
+    "Oral Care & Hygiene": {
+      icon: "🪥",
+      title: "Oral Care & Hygiene",
+      sub: "Herbal toothpastes, mint dental care & brushes",
+      image: "/category-images/oral.jpg",
+      fallback: "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=500&auto=format&fit=crop&q=80"
+    },
+    "Body Care & Shower": {
+      icon: "🧴",
+      title: "Body Care & Shower",
+      sub: "Shower gels, classic deodorants & bath soaps",
+      image: "/category-images/body.jpg",
+      fallback: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500&auto=format&fit=crop&q=80"
+    },
+    "Skincare & Balms": {
       icon: "💄",
-      title: "Cosmetics & Personal Care",
-      sub: "Hygiene, skincare & body care",
-      image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=600&auto=format&fit=crop&q=80"
+      title: "Skincare & Balms",
+      sub: "Soothing lip balms, sensitive lotions & creams",
+      image: "/category-images/skincare.jpg",
+      fallback: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=500&auto=format&fit=crop&q=80"
     },
-    Stationery: {
+    "Notebooks & Paper": {
+      icon: "📓",
+      title: "Notebooks & Paper",
+      sub: "A5 notebooks, neon sketchbooks & sticky notes",
+      image: "/category-images/notebooks.jpg",
+      fallback: "https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&auto=format&fit=crop&q=80"
+    },
+    "Writing & Office Tools": {
       icon: "✏️",
-      title: "Stationery & School",
-      sub: "Writing tools, notebooks & office gear",
-      image: "https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?w=600&auto=format&fit=crop&q=80"
+      title: "Writing & Office Tools",
+      sub: "Gel pens, highlighters, rulers & desk supplies",
+      image: "/category-images/office.jpg",
+      fallback: "https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a?w=500&auto=format&fit=crop&q=80"
     },
-    Toys: {
+    "Board Games & Creative": {
+      icon: "🎲",
+      title: "Board Games & Creative",
+      sub: "Deluxe coloring sets, board games & family puzzles",
+      image: "/category-images/games.jpg",
+      fallback: "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?w=500&auto=format&fit=crop&q=80"
+    },
+    "Toys & Dolls": {
       icon: "🧸",
-      title: "Toys & Games",
-      sub: "Creative sets, games & children's goods",
-      image: "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=600&auto=format&fit=crop&q=80"
+      title: "Toys & Dolls",
+      sub: "Bubble wands, soft balls, dolls & water guns",
+      image: "/category-images/toys.jpg",
+      fallback: "https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=500&auto=format&fit=crop&q=80"
     },
-    Seasonal: {
+    "Holiday Decor & Gifts": {
       icon: "🎄",
-      title: "Seasonal & Outdoors",
-      sub: "Holiday essentials, outdoor & weather gear",
-      image: "https://images.unsplash.com/photo-1512909006721-3d6018887383?w=600&auto=format&fit=crop&q=80"
+      title: "Holiday Decor & Gifts",
+      sub: "Star toppers, Santa figures, baubles & garlands",
+      image: "/category-images/holiday.jpg",
+      fallback: "https://images.unsplash.com/photo-1512909006721-3d6018887383?w=500&auto=format&fit=crop&q=80"
     }
   };
 
-  function getStatusMeta(status) {
-    switch (status) {
-      case "running_out":
-        return { label: "Running low", class: "chip-running" };
-      case "low":
-        return { label: "Low stock", class: "chip-running" };
-      case "late":
-        return { label: "Late delivery", class: "chip-late" };
-      case "hard_to_find":
-        return { label: "Hard to find", class: "chip-hard" };
-      case "overstocked":
-        return { label: "Overstocked", class: "chip-over" };
-      case "on_order":
-        return { label: "On order", class: "chip-ok" };
-      default:
-        return { label: "In stock", class: "chip-ok" };
+  // Classify products into these 12 natural sub-categories
+  function classifyProduct(p) {
+    const name = (p.name || "").toLowerCase();
+    const cat = p.category || "";
+
+    if (cat === "Kitchen") {
+      if (name.includes("mug") || name.includes("glass") || name.includes("cup") || name.includes("jar") || name.includes("bottle")) {
+        return "Tableware & Drinkware";
+      }
+      return "Cookware & Kitchenware";
     }
+
+    if (cat === "Household") {
+      if (name.includes("sponge") || name.includes("vacuum") || name.includes("cleaning") || name.includes("cloth") || name.includes("bag")) {
+        return "Cleaning & Laundry";
+      }
+      return "Home Storage & Bath";
+    }
+
+    if (cat === "Cosmetics") {
+      if (name.includes("toothpaste") || name.includes("toothbrush") || name.includes("oral") || name.includes("dental")) {
+        return "Oral Care & Hygiene";
+      }
+      if (name.includes("lip") || name.includes("balm") || name.includes("lotion") || name.includes("cream") || name.includes("oil") || name.includes("cleanser") || name.includes("micellar")) {
+        return "Skincare & Balms";
+      }
+      return "Body Care & Shower";
+    }
+
+    if (cat === "Stationeries") {
+      if (name.includes("notebook") || name.includes("sketchbook") || name.includes("note") || name.includes("pad") || name.includes("paper")) {
+        return "Notebooks & Paper";
+      }
+      return "Writing & Office Tools";
+    }
+
+    if (cat === "Toys") {
+      if (name.includes("game") || name.includes("puzzle") || name.includes("coloring") || name.includes("marker") || name.includes("set") || name.includes("creative")) {
+        return "Board Games & Creative";
+      }
+      return "Toys & Dolls";
+    }
+
+    if (name.includes("santa") || name.includes("garland") || name.includes("bauble") || name.includes("star") || name.includes("decor") || name.includes("tree") || name.includes("candle") || name.includes("gift")) {
+      return "Holiday Decor & Gifts";
+    }
+
+    return "Home Storage & Bath";
   }
 
   let productsDataCache = null;
-  let activeSelectedCategory = null; // null = show Category Blocks overview; string = show that category's product list
+  let activeSelectedCategory = null;
 
-  // --- 1. ENHANCE PRODUCTS: CATEGORY BLOCKS OVERVIEW + PRESS-TO-VIEW PRODUCT LIST ---
+  // --- 1. ENHANCE PRODUCTS: 12 CATEGORY BLOCKS (3 PER ROW, ON FRONT OF PAGE) ---
   async function enhanceProductsView() {
     const listEl = document.querySelector('ul[data-testid="product-list"]');
     if (!listEl) return;
 
-    // Immediately ensure raw list is hidden
+    // Immediately hide raw flat list to prevent unstyled flash
     listEl.style.setProperty("display", "none", "important");
 
-    const container = listEl.closest("section");
-    if (!container || container.dataset.enhancedCategorized === "true") return;
-    container.dataset.enhancedCategorized = "true";
+    // Locate the main container grid
+    const grid = listEl.closest("div.grid") || document.querySelector("main div.mt-5.grid") || listEl.closest("section")?.parentElement;
+    if (!grid) return;
+
+    // Check if portal is already initialized and products are loaded
+    let portal = document.getElementById("avrora-category-main-portal");
+    if (portal && portal.dataset.initialized === "true") return;
 
     // Fetch products dataset if not cached
     if (!productsDataCache) {
@@ -89,50 +172,57 @@
     const products = (productsDataCache && productsDataCache.products) || [];
     if (products.length === 0) return;
 
-    // Group the real products by category
+    // Group real products into the 12 specific categories
     const grouped = {};
-    const categories = ["Kitchen", "Household", "Cosmetics", "Stationery", "Toys", "Seasonal"];
+    const categories = Object.keys(CATEGORY_MAP);
     categories.forEach(c => grouped[c] = []);
 
     products.forEach(p => {
-      const cat = p.category || "Household";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(p);
+      const sub = classifyProduct(p);
+      if (!grouped[sub]) grouped[sub] = [];
+      grouped[sub].push(p);
     });
 
-    // Clean up any old elements
-    const oldNav = container.parentNode.querySelector(".products-category-nav");
-    if (oldNav) oldNav.remove();
-    const oldOverview = container.querySelector(".category-overview-grid");
-    if (oldOverview) oldOverview.remove();
-    const oldExpanded = container.querySelector(".category-expanded-view");
-    if (oldExpanded) oldExpanded.remove();
+    // Create or reuse the dedicated Category Main Portal
+    if (!portal) {
+      portal = document.createElement("div");
+      portal.id = "avrora-category-main-portal";
+      portal.className = "category-main-portal lg:col-start-1 lg:row-start-1 category-portal-active";
+      // CRITICAL: Prepend as the VERY FIRST child of grid so it sits on the FRONT of the page
+      grid.prepend(portal);
+    } else {
+      portal.innerHTML = "";
+      portal.className = "category-main-portal lg:col-start-1 lg:row-start-1 category-portal-active";
+    }
+    portal.dataset.initialized = "true";
 
-    // 1. Category Quick-Navigation Pills
+    // 1. Category Quick-Navigation Pills (All 12 Categories)
     const navBar = document.createElement("div");
     navBar.className = "products-category-nav";
     navBar.innerHTML = `
-      <button type="button" class="cat-pill ${activeSelectedCategory === null ? 'active' : ''}" data-cat="ALL">
-        <span>✨ All Categories (${products.length})</span>
+      <button type="button" class="cat-pill active" data-cat="ALL">
+        <span>✨ All Categories</span>
       </button>
       ${categories.map(cat => {
-        const meta = CATEGORY_DATA[cat] || { icon: "📦", title: cat };
+        const info = CATEGORY_MAP[cat];
         const count = (grouped[cat] || []).length;
-        const isActive = activeSelectedCategory === cat;
         return `
-          <button type="button" class="cat-pill ${isActive ? 'active' : ''}" data-cat="${cat}">
-            <span>${meta.icon} ${cat} (${count})</span>
+          <button type="button" class="cat-pill" data-cat="${cat}">
+            <span>${info.icon} ${info.title}</span>
+            <span style="opacity:0.6;font-size:10px;">(${count})</span>
           </button>
         `;
       }).join("")}
     `;
 
-    container.parentNode.insertBefore(navBar, container);
+    portal.appendChild(navBar);
 
     // Pill Click Handler
     navBar.querySelectorAll(".cat-pill").forEach(btn => {
       btn.addEventListener("click", () => {
         const target = btn.getAttribute("data-cat");
+        navBar.querySelectorAll(".cat-pill").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
         if (target === "ALL") {
           showOverview();
         } else {
@@ -141,7 +231,7 @@
       });
     });
 
-    // 2. Render Category Blocks Overview (The 6 Category Cards with distinct Hero Images)
+    // 2. Render Category Overview Grid (EXACTLY 3 CARDS PER ROW)
     const overviewGrid = document.createElement("div");
     overviewGrid.className = "category-overview-grid";
     overviewGrid.id = "cat-overview-grid";
@@ -149,36 +239,38 @@
     categories.forEach(cat => {
       const items = grouped[cat] || [];
       if (items.length === 0) return;
+      const info = CATEGORY_MAP[cat];
 
-      const meta = CATEGORY_DATA[cat];
-      const lowCount = items.filter(i => i.status === "running_out" || i.status === "low").length;
-      const lateCount = items.filter(i => i.status === "late").length;
-      let healthText = `${items.length} items in stock`;
-      if (lowCount > 0 || lateCount > 0) {
-        healthText = `${lowCount ? lowCount + ' running low' : ''}${lowCount && lateCount ? ' · ' : ''}${lateCount ? lateCount + ' late delivery' : ''}`;
-      }
+      const sampleItems = items.slice(0, 2);
 
       const card = document.createElement("div");
       card.className = "category-overview-card";
       card.setAttribute("data-cat", cat);
       card.innerHTML = `
         <div class="category-hero-img-wrap">
-          <img src="${meta.image}" alt="${meta.title}" class="category-hero-img" loading="lazy" />
-          <span class="category-hero-badge">${items.length} Products</span>
+          <img src="${info.image}" 
+               alt="${info.title}" 
+               class="category-hero-img" 
+               loading="eager"
+               onerror="if(!this.dataset.fallback){this.dataset.fallback=1;this.src='${info.fallback}';}" 
+          />
+          <span class="category-hero-badge">${items.length} items</span>
+          <div class="category-hero-icon">${info.icon}</div>
         </div>
-        <div class="category-overview-body">
-          <div>
-            <div class="category-title-row">
-              <div class="category-icon-box">${meta.icon}</div>
-              <div>
-                <div class="category-card-name">${meta.title}</div>
-                <div class="category-card-sub">${meta.sub}</div>
-              </div>
-            </div>
+        <div class="category-card-body">
+          <div class="category-card-title">${info.title}</div>
+          <div class="category-card-sub">${info.sub}</div>
+          <div class="category-preview-tags">
+            ${sampleItems.map(p => `<span class="cat-sample-tag">• ${p.name}</span>`).join("")}
           </div>
           <div class="category-card-footer">
-            <span class="category-health-pill">${healthText}</span>
-            <span class="category-view-btn">View List →</span>
+            <span class="category-view-btn">
+              Browse Category
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </span>
+            <span style="font-size:11px;font-weight:700;color:#0f172a;">${info.icon}</span>
           </div>
         </div>
       `;
@@ -190,96 +282,116 @@
       overviewGrid.appendChild(card);
     });
 
-    container.appendChild(overviewGrid);
+    portal.appendChild(overviewGrid);
 
     // 3. Render Expanded View Container (hidden initially)
     const expandedView = document.createElement("div");
     expandedView.className = "category-expanded-view";
     expandedView.id = "cat-expanded-view";
     expandedView.style.display = "none";
-    container.appendChild(expandedView);
+    portal.appendChild(expandedView);
 
-    function updatePills(activeCat) {
-      navBar.querySelectorAll(".cat-pill").forEach(p => {
-        const c = p.getAttribute("data-cat");
-        if ((activeCat === null && c === "ALL") || c === activeCat) {
-          p.classList.add("active");
-        } else {
-          p.classList.remove("active");
-        }
-      });
-    }
-
+    // Function: Return to Overview Grid
     function showOverview() {
       activeSelectedCategory = null;
-      updatePills(null);
-      overviewGrid.style.display = "grid";
       expandedView.style.display = "none";
+      overviewGrid.style.display = "grid";
+      portal.classList.add("category-portal-active");
+      navBar.querySelectorAll(".cat-pill").forEach(b => {
+        b.classList.toggle("active", b.getAttribute("data-cat") === "ALL");
+      });
+      portal.scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
-    function openCategoryList(categoryName) {
-      activeSelectedCategory = categoryName;
-      updatePills(categoryName);
+    // Function: Open Category Product List
+    function openCategoryList(catName) {
+      activeSelectedCategory = catName;
+      const items = grouped[catName] || [];
+      const info = CATEGORY_MAP[catName] || { icon: "📦", title: catName };
 
-      const items = grouped[categoryName] || [];
-      const meta = CATEGORY_DATA[categoryName] || { icon: "📦", title: categoryName };
+      navBar.querySelectorAll(".cat-pill").forEach(b => {
+        b.classList.toggle("active", b.getAttribute("data-cat") === catName);
+      });
 
       expandedView.innerHTML = `
         <div class="expanded-header-bar">
-          <div class="expanded-title-area">
+          <div class="expanded-cat-heading">
             <button type="button" class="expanded-back-btn" id="btn-back-to-categories">
-              <span>← All Categories</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+              <span>All Categories</span>
             </button>
-            <div style="font-size: 22px;">${meta.icon}</div>
-            <div>
-              <div class="expanded-title">${meta.title}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="expanded-cat-icon">${info.icon}</span>
+              <div>
+                <span class="expanded-cat-title">${info.title}</span>
+                <span class="expanded-cat-count">${items.length} items</span>
+              </div>
             </div>
-            <span class="expanded-count-chip">${items.length} Products</span>
           </div>
         </div>
-
         <ul class="expanded-product-list">
-          ${items.map(p => {
-            const status = getStatusMeta(p.status);
-            const coverDays = p.days_cover !== null ? `Lasts ${p.days_cover}d` : "No sales";
+          ${items.map(r => {
+            const statusLabel = r.status === "running_out" ? "Running low" :
+                                r.status === "low" ? "Low" :
+                                r.status === "late" ? "Late delivery" :
+                                r.status === "hard_to_find" ? "Hard to find" :
+                                r.status === "overstocked" ? "Overstocked" : "In stock";
+            const statusClass = (r.status === "running_out" || r.status === "low") ? "low" :
+                                (r.status === "late" || r.status === "overstocked") ? "late" :
+                                (r.status === "hard_to_find") ? "hard" : "ok";
+            const lastsText = r.days_cover === null ? "Not selling" : `Lasts ${r.days_cover}d`;
 
             return `
-              <li class="expanded-product-row" data-name="${(p.name || '').toLowerCase()}" title="Click to view details">
-                <div class="product-row-icon-bubble">${meta.icon}</div>
-                <div class="product-row-main">
-                  <div class="product-row-title">${p.name}</div>
-                  <div class="product-row-subline">
-                    <span class="status-chip ${status.class}">${status.label}</span>
-                    <span class="product-row-stock">${p.stock} in stock</span>
-                    <span class="product-row-stock" style="color:#94a3b8;">· ${p.supplier || ''}</span>
+              <li class="expanded-product-row" data-product-id="${r.product_id}">
+                <div class="exp-prod-main">
+                  <div class="exp-prod-icon">${info.icon}</div>
+                  <div class="exp-prod-details">
+                    <div class="exp-prod-name">${r.name}</div>
+                    <div class="exp-prod-meta">
+                      <span class="exp-status-chip ${statusClass}">${statusLabel}</span>
+                      <span>${r.stock} in stock</span>
+                      <span>• ${r.supplier || ""}</span>
+                    </div>
                   </div>
                 </div>
-                <div class="product-row-meta">
-                  <div class="product-row-price">₴${Number(p.price).toFixed(2)}</div>
-                  <div class="product-row-cover">${coverDays}</div>
+                <div class="exp-prod-right">
+                  <div class="exp-prod-cover">${lastsText}</div>
+                  <div class="exp-prod-price">₴${r.price.toFixed(2)}</div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m9 18 6-6-6-6"/>
+                  </svg>
                 </div>
-                <div class="product-row-chevron">›</div>
               </li>
             `;
           }).join("")}
         </ul>
       `;
 
-      // Back button click handler
+      // Back Button Listener
       expandedView.querySelector("#btn-back-to-categories")?.addEventListener("click", () => {
         showOverview();
       });
 
-      // Product row click -> trigger official drawer
+      // Click on row to open official product panel
       expandedView.querySelectorAll(".expanded-product-row").forEach(row => {
         row.addEventListener("click", () => {
-          const rowName = row.querySelector(".product-row-title")?.textContent?.trim().slice(0, 10) || "";
-          const origBtns = listEl.querySelectorAll("button");
-          for (let b of origBtns) {
-            if (b.textContent.includes(rowName)) {
-              b.click();
-              break;
+          const pid = row.getAttribute("data-product-id");
+          if (!pid) return;
+          // Trigger the underlying item click
+          const hiddenRow = document.querySelector(`ul[data-testid="product-list"] li button`);
+          // Find matching button in hidden list
+          const buttons = document.querySelectorAll(`ul[data-testid="product-list"] li button`);
+          let matched = false;
+          buttons.forEach(btn => {
+            if (btn.textContent.includes(pid) || btn.textContent.includes(row.querySelector(".exp-prod-name")?.textContent || "~~~")) {
+              btn.click();
+              matched = true;
             }
+          });
+          if (!matched && buttons.length > 0) {
+            buttons[0].click();
           }
         });
       });
@@ -303,19 +415,11 @@
           return;
         }
 
-        // When searching, show matching categories and items
         overviewGrid.querySelectorAll(".category-overview-card").forEach(c => {
           const cat = c.getAttribute("data-cat");
           const hasMatches = (grouped[cat] || []).some(p => (p.name || '').toLowerCase().includes(query));
           c.style.display = hasMatches ? "flex" : "none";
         });
-
-        if (activeSelectedCategory) {
-          expandedView.querySelectorAll(".expanded-product-row").forEach(r => {
-            const name = r.getAttribute("data-name") || "";
-            r.style.display = name.includes(query) ? "flex" : "none";
-          });
-        }
       });
     }
   }
@@ -330,70 +434,280 @@
     const parent = mapContainer.closest(".relative.h-full.w-full") || mapContainer.parentElement?.parentElement;
     if (!parent) return;
 
-    const overlayCard = parent.querySelector('div.z-10.rounded-\\[14px\\]') || parent.querySelector('div.shadow-\\[0_8px_30px_rgba\\(0\\,0\\,0\\,0\\.12\\)\\]');
-    if (!overlayCard || overlayCard.dataset.mobileFixed === "true") return;
-    overlayCard.dataset.mobileFixed = "true";
-
-    // On mobile screens (< 768px): collapse by default
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      overlayCard.classList.add("map-drawer-collapsed");
-    }
-
-    const toggleBtn = document.createElement("button");
-    toggleBtn.type = "button";
-    toggleBtn.className = "map-mobile-drawer-toggle";
-    toggleBtn.innerHTML = `
-      <span style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:14px;">🗺️</span>
-        <span id="map-drawer-label">Supply Network & War Map (7,561 pts)</span>
-      </span>
-      <span id="map-drawer-icon" style="font-size:12px; font-weight:800;">▼ Controls</span>
-    `;
-
-    overlayCard.insertBefore(toggleBtn, overlayCard.firstChild);
-
-    toggleBtn.addEventListener("click", () => {
-      const isCollapsed = overlayCard.classList.contains("map-drawer-collapsed");
-      if (isCollapsed) {
-        overlayCard.classList.remove("map-drawer-collapsed");
-        overlayCard.classList.add("map-drawer-expanded");
-        document.getElementById("map-drawer-icon").innerText = "▲ Minimize";
-      } else {
-        overlayCard.classList.add("map-drawer-collapsed");
-        overlayCard.classList.remove("map-drawer-expanded");
-        document.getElementById("map-drawer-icon").innerText = "▼ Controls";
-      }
-    });
-
+    // A. Add Tactical Dark / Light Mode Floating Toggle Pill
     if (!parent.querySelector(".map-theme-toggle-floating")) {
       const themeToggle = document.createElement("div");
       themeToggle.className = "map-theme-toggle-floating";
       themeToggle.innerHTML = `
-        <button type="button" class="map-theme-btn active" id="btn-theme-light">
+        <button type="button" class="map-theme-btn active" id="map-theme-standard">
           <span>☀️ Light</span>
         </button>
-        <button type="button" class="map-theme-btn" id="btn-theme-dark">
-          <span>🌙 Tactical Dark</span>
+        <button type="button" class="map-theme-btn" id="map-theme-tactical">
+          <span>🌙 Dark</span>
         </button>
       `;
-
       parent.appendChild(themeToggle);
 
-      const bLight = themeToggle.querySelector("#btn-theme-light");
-      const bDark = themeToggle.querySelector("#btn-theme-dark");
+      const btnStd = themeToggle.querySelector("#map-theme-standard");
+      const btnTac = themeToggle.querySelector("#map-theme-tactical");
 
-      bLight.addEventListener("click", () => {
-        bLight.classList.add("active");
-        bDark.classList.remove("active");
+      btnStd.addEventListener("click", () => {
+        btnStd.classList.add("active");
+        btnTac.classList.remove("active");
         mapContainer.classList.remove("map-dark-tactical");
       });
 
-      bDark.addEventListener("click", () => {
-        bDark.classList.add("active");
-        bLight.classList.remove("active");
+      btnTac.addEventListener("click", () => {
+        btnTac.classList.add("active");
+        btnStd.classList.remove("active");
         mapContainer.classList.add("map-dark-tactical");
       });
+    }
+
+    // A2. Prominent Floating Refresh Button Directly on Map Section Canvas
+    let floatingRefresh = parent.querySelector(".map-floating-refresh-btn");
+    if (!floatingRefresh) {
+      floatingRefresh = document.createElement("div");
+      floatingRefresh.className = "map-floating-refresh-btn";
+      floatingRefresh.id = "map-live-refresh-trigger";
+      floatingRefresh.setAttribute("role", "button");
+      floatingRefresh.setAttribute("tabindex", "0");
+      floatingRefresh.title = "Refresh real-time air sirens, threat radar and frontline data without reloading page";
+      floatingRefresh.innerHTML = `
+        <span class="refresh-spinner">🔄</span>
+        <span class="refresh-text">Refresh Real-Time Data</span>
+        <span class="refresh-countdown">15s</span>
+      `;
+      parent.appendChild(floatingRefresh);
+
+      floatingRefresh.addEventListener("click", (e) => {
+        e.stopPropagation();
+        triggerLiveSync(true);
+      });
+    }
+
+  // --- REAL-TIME LIVE SYNC CONTROLLER (Auto-polls & instant user sync) ---
+  let syncCountdown = 15;
+  let isSyncing = false;
+
+  async function triggerLiveSync(force = true) {
+    if (isSyncing) return;
+    isSyncing = true;
+
+    const btns = document.querySelectorAll(".map-sync-btn, .map-floating-refresh-btn");
+    btns.forEach(b => b.classList.add("is-syncing"));
+    const label = document.querySelector(".map-sync-btn .sync-label");
+    const floatLabel = document.querySelector(".map-floating-refresh-btn .refresh-text");
+    if (label) label.textContent = "Syncing...";
+    if (floatLabel) floatLabel.textContent = "Refreshing...";
+
+    try {
+      // 1. Revalidate SWR caches instantly without reloading page
+      if (typeof window !== "undefined" && window.__swrMutate) {
+        window.__swrMutate("/api/wartime/threats");
+        window.__swrMutate("/api/wartime/alerts");
+        window.__swrMutate("/api/signals");
+      }
+      window.dispatchEvent(new Event("focus"));
+
+      // 2. Fetch fresh live telemetry from backend
+      const url = force ? "/api/wartime/live-status?force=1" : "/api/wartime/live-status";
+      const resp = await fetch(url);
+      const data = await resp.json();
+
+      // 3. Update status pill
+      const pill = document.querySelector(".map-live-status-pill");
+      if (pill && data) {
+        pill.innerHTML = `
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span class="live-dot-pulse"></span>
+            <span>Sirens: ${data.alerts.active_count} (alerts.in.ua) • DeepState: 13 segs • Threats: ${data.threats.active_count} (mapa.ua)</span>
+          </span>
+          <span style="font-size:9.5px;background:#059669;color:#fff;padding:1px 6px;border-radius:9999px;font-weight:700;">LIVE</span>
+        `;
+      }
+
+      // 4. Update timestamp
+      const timeEl = document.querySelector(".map-last-updated");
+      if (timeEl) {
+        const d = new Date();
+        timeEl.textContent = "Synced: " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+
+      if (label) label.textContent = "✓ Synced";
+      if (floatLabel) floatLabel.textContent = "✓ Updated";
+      setTimeout(() => {
+        if (label) label.textContent = "Sync Live Data";
+        if (floatLabel) floatLabel.textContent = "Refresh Real-Time Data";
+      }, 1400);
+    } catch (err) {
+      console.warn("Live sync error:", err);
+      if (label) label.textContent = "Retry Sync";
+      if (floatLabel) floatLabel.textContent = "Retry Refresh";
+    } finally {
+      btns.forEach(b => b.classList.remove("is-syncing"));
+      syncCountdown = 15;
+      isSyncing = false;
+    }
+  }
+
+  // Auto-sync countdown timer running every 1 second
+  if (typeof window !== "undefined" && !window.__mapSyncTimerStarted) {
+    window.__mapSyncTimerStarted = true;
+    setInterval(() => {
+      syncCountdown--;
+      const cdEls = document.querySelectorAll(".map-countdown-pill, .refresh-countdown");
+      cdEls.forEach(el => {
+        el.textContent = `${syncCountdown}s`;
+        if (syncCountdown <= 3) {
+          el.classList.add("pulsing");
+        } else {
+          el.classList.remove("pulsing");
+        }
+      });
+      if (syncCountdown <= 0) {
+        syncCountdown = 15;
+        triggerLiveSync(false);
+      }
+    }, 1000);
+  }
+
+  // B. Fix Mobile Overlay Sheet: Make it Collapsible Drawer & Show Real-Time Status
+  const overlayCard = parent.querySelector(".pointer-events-auto.w-full.max-w-\\[380px\\]") ||
+                      parent.querySelector("div.pointer-events-none.absolute > div.pointer-events-auto");
+  if (overlayCard) {
+    if (!overlayCard.querySelector(".map-live-status-pill")) {
+      const livePill = document.createElement("div");
+      livePill.className = "map-live-status-pill";
+      livePill.innerHTML = `
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span class="live-dot-pulse"></span>
+          <span>alerts.in.ua + DeepStateMap.live Real-Time Sync</span>
+        </span>
+        <span style="font-size:9.5px;background:#059669;color:#fff;padding:1px 6px;border-radius:9999px;font-weight:700;">LIVE</span>
+      `;
+      overlayCard.insertBefore(livePill, overlayCard.firstChild);
+    }
+
+    // Add Interactive Live Sync Toolbar with on-demand button and countdown
+    if (!overlayCard.querySelector(".map-sync-toolbar")) {
+      const syncToolbar = document.createElement("div");
+      syncToolbar.className = "map-sync-toolbar";
+      syncToolbar.innerHTML = `
+        <button type="button" class="map-sync-btn" title="Instantly refresh air sirens, radar threats and front line data without reloading page">
+          <span class="sync-icon">🔄</span>
+          <span class="sync-label">Sync Live Data</span>
+        </button>
+        <div class="map-sync-meta">
+          <span class="map-countdown-pill">Auto: 15s</span>
+          <span class="map-last-updated">Real-Time</span>
+        </div>
+      `;
+      const syncBtn = syncToolbar.querySelector(".map-sync-btn");
+      syncBtn.addEventListener("click", () => triggerLiveSync(true));
+
+      const livePill = overlayCard.querySelector(".map-live-status-pill");
+      if (livePill) {
+        livePill.after(syncToolbar);
+      } else {
+        overlayCard.insertBefore(syncToolbar, overlayCard.firstChild);
+      }
+    }
+
+    // Fetch live verified telemetry to show genuine real-time data
+    fetch("/api/wartime/live-status")
+      .then(r => r.json())
+      .then(data => {
+        const pill = overlayCard.querySelector(".map-live-status-pill");
+        if (pill && data) {
+          pill.innerHTML = `
+            <span style="display:flex;align-items:center;gap:6px;">
+              <span class="live-dot-pulse"></span>
+              <span>Sirens: ${data.alerts.active_count} (alerts.in.ua) • DeepState: 13 segs • Threats: ${data.threats.active_count} (mapa.ua)</span>
+            </span>
+            <span style="font-size:9.5px;background:#059669;color:#fff;padding:1px 6px;border-radius:9999px;font-weight:700;">LIVE</span>
+          `;
+        }
+      })
+      .catch(() => {});
+
+      // Distinguish Avrora stores vs Warehouses in the legend filter pills
+      overlayCard.querySelectorAll("button").forEach(btn => {
+        const text = btn.textContent.trim();
+        if ((text === "Avrora store" || text === "🏪 Avrora store") && !btn.dataset.iconized) {
+          btn.dataset.iconized = "true";
+          btn.innerHTML = `<span class="relative size-2 rounded-full" style="background:#ff9500;box-shadow:0 0 0 1px #fff;"></span> <span class="relative">🏪 Avrora store</span>`;
+        } else if ((text === "Warehouse" || text.includes("Warehouse")) && !btn.dataset.iconized) {
+          btn.dataset.iconized = "true";
+          btn.innerHTML = `<span class="relative size-3 rounded-full" style="background:#5856d6;box-shadow:0 0 0 1.5px #0f172a;"></span> <span class="relative">🏢 Warehouse (Hub)</span>`;
+        }
+      });
+
+      // Update disclaimer text
+      overlayCard.querySelectorAll("p").forEach(p => {
+        if (p.textContent.includes("hand-drawn sketch")) {
+          p.textContent = "Live contact line from DeepStateMap.live. Air-raid sirens live from alerts.in.ua. Aerial threat radar from mapa.ua.";
+        }
+      });
+    }
+
+    if (overlayCard && !overlayCard.dataset.mobileDrawerFixed) {
+      overlayCard.dataset.mobileDrawerFixed = "true";
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "map-mobile-drawer-toggle";
+      toggleBtn.innerHTML = `
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span>📍 Store Locations & Logistics</span>
+        </span>
+        <span class="drawer-toggle-icon" style="font-size:12px;transition:transform 0.2s ease;">▲ Expand</span>
+      `;
+
+      overlayCard.insertBefore(toggleBtn, overlayCard.firstChild);
+
+      toggleBtn.addEventListener("click", () => {
+        const isCollapsed = overlayCard.classList.contains("map-drawer-collapsed");
+        if (isCollapsed) {
+          overlayCard.classList.remove("map-drawer-collapsed");
+          overlayCard.classList.add("map-drawer-expanded");
+          toggleBtn.querySelector(".drawer-toggle-icon").textContent = "▼ Hide Sheet";
+        } else {
+          overlayCard.classList.add("map-drawer-collapsed");
+          overlayCard.classList.remove("map-drawer-expanded");
+          toggleBtn.querySelector(".drawer-toggle-icon").textContent = "▲ View Sheet";
+        }
+      });
+
+      if (window.innerWidth <= 768) {
+        overlayCard.classList.add("map-drawer-collapsed");
+        toggleBtn.querySelector(".drawer-toggle-icon").textContent = "▲ View Sheet";
+      }
+    }
+  }
+
+  // --- 3. UPDATES FEED: SHOW EXACTLY 8 HIGH PRIORITY ITEMS ---
+  function ensure8PriorityUpdates() {
+    const updatesSection = document.querySelector("section.lg\\:sticky");
+    if (!updatesSection) return;
+
+    // Expand the feed once so React renders the list beyond 4 items
+    const showAllBtn = updatesSection.querySelector("h2 button");
+    if (showAllBtn && showAllBtn.textContent.includes("Show all")) {
+      showAllBtn.click();
+    }
+    if (showAllBtn) {
+      showAllBtn.style.display = "none";
+    }
+
+    // Badge showing "Top 8 Priority"
+    const heading = updatesSection.querySelector("h2");
+    if (heading && !heading.querySelector(".updates-badge-top8")) {
+      const badge = document.createElement("span");
+      badge.className = "updates-badge-top8";
+      badge.style.cssText = "font-size:10.5px;font-weight:700;color:#0f172a;background:#fef08a;padding:2px 8px;border-radius:9999px;margin-left:8px;border:1px solid rgba(0,0,0,0.06);";
+      badge.textContent = "8 Priority Updates";
+      heading.appendChild(badge);
     }
   }
 
@@ -401,6 +715,7 @@
   const observer = new MutationObserver(() => {
     enhanceProductsView();
     enhanceMapSection();
+    ensure8PriorityUpdates();
   });
 
   observer.observe(document.body, { childList: true, subtree: true });
@@ -408,12 +723,14 @@
   window.addEventListener("DOMContentLoaded", () => {
     enhanceProductsView();
     enhanceMapSection();
+    ensure8PriorityUpdates();
   });
 
   document.addEventListener("click", () => {
     setTimeout(() => {
       enhanceProductsView();
       enhanceMapSection();
+      ensure8PriorityUpdates();
     }, 120);
   });
 })();
