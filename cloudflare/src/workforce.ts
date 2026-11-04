@@ -36,6 +36,10 @@ const DATES = Object.keys(WF.plans).sort();
 const TODAY = DATES[0];
 const KINDS = ["sick", "air_alert", "power", "traffic_spike"] as const;
 const EVENT_HOURS: Record<string, number> = { air_alert: 2, power: 4, traffic_spike: 3 };
+/** Drafted audit rows kept per plan date; older ones are pruned on write. */
+const AUDIT_KEEP = 200;
+/** Replans allowed per minute across all dates (counted from the audit table, so it holds across isolates). */
+const REPLANS_PER_MINUTE = 30;
 const OPEN = 8;
 const CLOSE = 21;
 const DEFAULT_START = 12;
@@ -137,10 +141,16 @@ async function audit(db: D1Database, date: string): Promise<AuditRow[]> {
 
 async function log(db: D1Database, date: string, version: string, action: string, by: string, summary: string, reason: string | null = null) {
   const at = now();
-  await db
-    .prepare("INSERT INTO workforce_audit (date, version, action, by, summary, reason, at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(date, version, action, by, summary, reason, at)
-    .run();
+  await db.batch([
+    db
+      .prepare("INSERT INTO workforce_audit (date, version, action, by, summary, reason, at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(date, version, action, by, summary, reason, at),
+    // Keep the newest AUDIT_KEEP "drafted" rows per day so replan spam cannot grow the table (read in full by
+    // planStates). Approvals and rejections are never pruned: they decide which plan is in force.
+    db
+      .prepare("DELETE FROM workforce_audit WHERE date = ? AND action = 'drafted' AND id <= (SELECT id FROM workforce_audit WHERE date = ? AND action = 'drafted' ORDER BY id DESC LIMIT 1 OFFSET ?)")
+      .bind(date, date, AUDIT_KEEP),
+  ]);
   return at;
 }
 
@@ -232,11 +242,11 @@ function version(v: unknown): string {
 async function body(req: Request): Promise<Record<string, unknown>> {
   try {
     const b = await req.json();
-    if (b && typeof b === "object") return b as Record<string, unknown>;
+    if (b && typeof b === "object" && !Array.isArray(b)) return b as Record<string, unknown>;
   } catch {
     /* fall through */
   }
-  throw new HttpError(422, "Body must be JSON");
+  throw new HttpError(400, "Body must be a JSON object");
 }
 
 async function route(req: Request, db: D1Database, pathname: string): Promise<Response | null> {
@@ -252,7 +262,12 @@ async function route(req: Request, db: D1Database, pathname: string): Promise<Re
   if (method === "GET" && pathname === "/api/workforce/employees") return json(WF.employees);
   const emp = pathname.match(/^\/api\/workforce\/employees\/([^/]+)$/);
   if (method === "GET" && emp) {
-    const id = decodeURIComponent(emp[1]);
+    let id: string;
+    try {
+      id = decodeURIComponent(emp[1]);
+    } catch {
+      throw new HttpError(400, "Malformed employee id");
+    }
     const row = EMP.get(id);
     if (!row || !Object.hasOwn(WF.profiles, id)) throw new HttpError(404, `Unknown employee ${id}`);
     return json({ ...Object.fromEntries(PROFILE_FROM_ROW.map((k) => [k, row[k]])), ...WF.profiles[id] });
@@ -269,6 +284,12 @@ async function route(req: Request, db: D1Database, pathname: string): Promise<Re
       throw new HttpError(422, (err as Error).message);
     }
     const doc = planFor(d, e.key);
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const recent = await db
+      .prepare("SELECT COUNT(*) AS n FROM workforce_audit WHERE action = 'drafted' AND at >= ?")
+      .bind(since.replace(/\.\d{3}Z$/, "+00:00"))
+      .first<{ n: number }>();
+    if ((recent?.n ?? 0) >= REPLANS_PER_MINUTE) throw new HttpError(429, "Too many replans. Wait a minute.");
     await log(db, d, e.key, "drafted", "agent", `Replanned for ${label(e)}: ${doc.diff!.length} changes`);
     return json(withAudit(doc, await audit(db, d)));
   }
