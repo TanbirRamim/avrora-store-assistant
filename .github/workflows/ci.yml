@@ -59,7 +59,20 @@ jobs:
       - run: cd ../backend && uv sync --frozen
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # Chromium projects: a desktop and a phone layout. Playwright starts both local servers.
+      # Start both servers and wait until the dev build has compiled: a cold Next dev server
+      # answers 500 for its first requests, which would fail the first tests for no reason.
+      - name: Start servers
+        run: |
+          (cd ../backend && AVRORA_LLM=none uv run uvicorn avrora.api.main:app --port 8000 > /tmp/api.log 2>&1 &)
+          (npm run dev > /tmp/web.log 2>&1 &)
+          for i in $(seq 1 120); do
+            api=$(curl -s -o /dev/null -w '%{http_code}' localhost:8000/api/health || true)
+            web=$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/ || true)
+            [ "$api" = 200 ] && [ "$web" = 200 ] && break
+            sleep 2
+          done
+          curl -sf localhost:3000/ > /dev/null && curl -sf localhost:8000/api/health > /dev/null
+      # Chromium projects: a desktop and a phone layout (Playwright reuses the running servers).
       - run: npx playwright test --project=desktop --project=android
       - if: failure()
         uses: actions/upload-artifact@v4
