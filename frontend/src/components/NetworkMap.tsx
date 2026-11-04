@@ -131,7 +131,7 @@ function threatHtml(p: { kind: string; amount: number; seen: string }) {
     <div class="nm-kind" style="color:${THREAT_COLOR}"><span class="nm-dot" style="background:${THREAT_COLOR}"></span>Aerial threat</div>
     <div class="nm-name">${esc(threatKind(p.kind))}${n}</div>
     ${p.seen ? `<div class="nm-row">Last reported ${esc(p.seen)}</div>` : ""}
-    <div class="nm-row nm-note">Unofficial position estimate from mapa.ua, not a confirmed strike. Follow official air-raid alerts for safety.</div>`;
+`;
 }
 
 /** Kind line above the name: the role for supply nodes and food sites, else the category. */

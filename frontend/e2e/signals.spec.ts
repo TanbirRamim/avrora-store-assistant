@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
 const AI = "**/api/ai/chat";
+/** The Today briefing the store AI writes on its own at load; these tests leave it on the rules. */
+const isBriefing = (body: { messages: { content: string }[] }) => body.messages[0].content.startsWith("You help the manager of a small discount store plan their day");
 /** The store server reports its AI as set up (or not). */
 const storeAi = (page: Page, on = true) =>
   page.route("**/api/ai/status", (r) => r.fulfill({ json: on ? { configured: true, model: "test-model" } : { configured: false, model: null } }));
@@ -51,8 +53,14 @@ async function mockSignals(page: Page, signals: object[] | null) {
 type Body = { messages: { content: string }[] };
 async function mockModel(page: Page, answer: (kind: "replan" | "briefing", user: Record<string, unknown>) => object) {
   const calls: { kind: string; user: Record<string, unknown> }[] = [];
+  let auto = true;
   await page.route(AI, async (route) => {
     const body = JSON.parse(route.request().postData()!) as Body;
+    // the first briefing is the one written on its own at load; fail it so the page keeps the rules
+    if (auto && isBriefing(body)) {
+      auto = false;
+      return route.fulfill({ status: 503, json: { detail: "test" } });
+    }
     const kind = body.messages[0].content.includes("outside event") ? "replan" : "briefing";
     const user = JSON.parse(body.messages[1].content);
     calls.push({ kind, user });
@@ -93,14 +101,10 @@ test("card lists power, alert and weather with simulated badges and sources", as
   await open(page);
   const card = live(page);
   await expect(card.getByTestId("signal")).toHaveCount(3);
-  await expect(card.getByText("Simulated, not real", { exact: true })).toHaveCount(2);
+  await expect(card.getByText(/simulated|example|not connected|sources/i)).toHaveCount(0);
   await expect(card.getByText(/^Now · ends in \d+ min$/)).toBeVisible();
   await expect(card.getByText(/^Starts in 1 h (2[89]|30) min$/)).toBeVisible();
   await expect(card.getByText("Frost down to −7 °C")).toBeVisible();
-  // sources sit behind a quiet disclosure
-  await card.getByText("Sources", { exact: true }).click();
-  await expect(card.getByText(/Weather: Open.Meteo \(CC BY 4\.0\)\./)).toBeVisible();
-  await expect(card.getByText(/not connected/i)).toHaveCount(0);
   // the card sits above the store note
   const cardBox = (await card.boundingBox())!;
   const noteBox = (await page.getByText("Store note", { exact: true }).boundingBox())!;

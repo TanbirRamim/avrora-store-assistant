@@ -192,7 +192,6 @@ export function EmployeeSheet({ id, fallback, today, onClose }: { id: string; fa
               </div>
             </section>
           )}
-          <p className="text-center text-[13px] text-muted">Demo data. Names are made up.</p>
         </div>
       )}
     </TeamSheet>

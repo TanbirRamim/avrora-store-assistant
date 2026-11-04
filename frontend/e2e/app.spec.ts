@@ -132,7 +132,7 @@ test("AI settings: store AI status, own key add (bad, good) and remove", async (
   expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("avrora.")))).toEqual([]);
 });
 
-test("AI settings: store AI connected writes through /api/ai/chat", async ({ page }) => {
+test("store AI connected: the briefing is written on its own through /api/ai/chat", async ({ page }) => {
   await page.route("**/api/ai/status", (r) => r.fulfill({ json: { configured: true, model: "store-model" } }));
   await page.route("**/api/ai/chat", async (route) => {
     const body = JSON.parse(route.request().postData()!);
@@ -145,12 +145,9 @@ test("AI settings: store AI connected writes through /api/ai/chat", async ({ pag
     await route.fulfill({ json: { content, model: "store-model" } });
   });
   await page.reload();
-  await page.getByRole("button", { name: "Write with AI" }).click();
-  const dialog = page.getByRole("dialog", { name: "AI settings" });
-  await expect(dialog.getByTestId("ai-status")).toHaveText("Store AI connected · store-model");
-  await dialog.getByRole("button", { name: "Write briefing", exact: true }).click();
-  await expect(dialog).toBeHidden();
+  // the briefing is written on its own once the store AI reports in
   await expect(page.getByText("Store AI summary.")).toBeVisible();
+  await expect(page.getByText("Written by AI. Numbers checked against store data.")).toBeVisible();
 });
 
 test("light appearance uses the neutral canvas background", async ({ page }) => {
@@ -419,7 +416,7 @@ async function checkBar(page: Page) {
   await page.getByRole("button", { name: "Decisions", exact: true }).click();
   await clearsBar(page, page.getByText(/No decisions yet|Undo$/).last(), "Decisions");
   await bar.getByRole("button", { name: "More", exact: true }).click();
-  await clearsBar(page, page.getByText(/^Store data is made up/), "More");
+  await clearsBar(page, page.getByRole("button", { name: "Notifications" }), "More");
   await page.getByRole("button", { name: /^All suggestions/ }).click();
   await clearsBar(page, page.locator("main li").last(), "All suggestions");
   await bar.getByRole("button", { name: "Map", exact: true }).click();
