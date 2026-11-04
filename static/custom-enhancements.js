@@ -140,6 +140,7 @@
   }
 
   let productsDataCache = null;
+  let productsFetchPromise = null;
   let activeSelectedCategory = null;
 
   // --- 1. ENHANCE PRODUCTS: 12 CATEGORY BLOCKS (3 PER ROW, ON FRONT OF PAGE) ---
@@ -156,17 +157,28 @@
 
     // Check if portal is already initialized and products are loaded
     let portal = document.getElementById("avrora-category-main-portal");
-    if (portal && portal.dataset.initialized === "true") return;
-
-    // Fetch products dataset if not cached
-    if (!productsDataCache) {
-      try {
-        const res = await fetch("/api/products");
-        productsDataCache = await res.json();
-      } catch (err) {
-        console.warn("Could not load products data:", err);
-        return;
+    if (portal && portal.dataset.initialized === "true") {
+      if (!grid.contains(portal)) {
+        grid.prepend(portal);
       }
+      return;
+    }
+
+    // Fetch products dataset if not cached (with deduplication)
+    if (!productsDataCache) {
+      if (!productsFetchPromise) {
+        productsFetchPromise = fetch("/api/products")
+          .then(r => r.json())
+          .then(data => {
+            productsDataCache = data;
+            return data;
+          })
+          .catch(err => {
+            console.warn("Could not load products data:", err);
+            productsFetchPromise = null;
+          });
+      }
+      await productsFetchPromise;
     }
 
     const products = (productsDataCache && productsDataCache.products) || [];
@@ -425,267 +437,6 @@
   }
 
   // --- 2. ENHANCE MAP SECTION: MOBILE FIX & BRIGHTER BORDER LINE ---
-  function enhanceMapSection() {
-    const mapContainer = document.querySelector('div[aria-label="Map of the Ukraine supply network"]') || document.querySelector('.h-full.w-full[role="region"]');
-    if (!mapContainer) return;
-
-    mapContainer.classList.add("ukraine-border-glow");
-
-    const parent = mapContainer.closest(".relative.h-full.w-full") || mapContainer.parentElement?.parentElement;
-    if (!parent) return;
-
-    // A. Add Tactical Dark / Light Mode Floating Toggle Pill
-    if (!parent.querySelector(".map-theme-toggle-floating")) {
-      const themeToggle = document.createElement("div");
-      themeToggle.className = "map-theme-toggle-floating";
-      themeToggle.innerHTML = `
-        <button type="button" class="map-theme-btn active" id="map-theme-standard">
-          <span>☀️ Light</span>
-        </button>
-        <button type="button" class="map-theme-btn" id="map-theme-tactical">
-          <span>🌙 Dark</span>
-        </button>
-      `;
-      parent.appendChild(themeToggle);
-
-      const btnStd = themeToggle.querySelector("#map-theme-standard");
-      const btnTac = themeToggle.querySelector("#map-theme-tactical");
-
-      btnStd.addEventListener("click", () => {
-        btnStd.classList.add("active");
-        btnTac.classList.remove("active");
-        mapContainer.classList.remove("map-dark-tactical");
-      });
-
-      btnTac.addEventListener("click", () => {
-        btnTac.classList.add("active");
-        btnStd.classList.remove("active");
-        mapContainer.classList.add("map-dark-tactical");
-      });
-    }
-
-    // A2. Prominent Floating Refresh Button Directly on Map Section Canvas
-    let floatingRefresh = parent.querySelector(".map-floating-refresh-btn");
-    if (!floatingRefresh) {
-      floatingRefresh = document.createElement("div");
-      floatingRefresh.className = "map-floating-refresh-btn";
-      floatingRefresh.id = "map-live-refresh-trigger";
-      floatingRefresh.setAttribute("role", "button");
-      floatingRefresh.setAttribute("tabindex", "0");
-      floatingRefresh.title = "Refresh real-time air sirens, threat radar and frontline data without reloading page";
-      floatingRefresh.innerHTML = `
-        <span class="refresh-spinner">🔄</span>
-        <span class="refresh-text">Refresh Real-Time Data</span>
-        <span class="refresh-countdown">15s</span>
-      `;
-      parent.appendChild(floatingRefresh);
-
-      floatingRefresh.addEventListener("click", (e) => {
-        e.stopPropagation();
-        triggerLiveSync(true);
-      });
-    }
-
-  // --- REAL-TIME LIVE SYNC CONTROLLER (Auto-polls & instant user sync) ---
-  let syncCountdown = 15;
-  let isSyncing = false;
-
-  async function triggerLiveSync(force = true) {
-    if (isSyncing) return;
-    isSyncing = true;
-
-    const btns = document.querySelectorAll(".map-sync-btn, .map-floating-refresh-btn");
-    btns.forEach(b => b.classList.add("is-syncing"));
-    const label = document.querySelector(".map-sync-btn .sync-label");
-    const floatLabel = document.querySelector(".map-floating-refresh-btn .refresh-text");
-    if (label) label.textContent = "Syncing...";
-    if (floatLabel) floatLabel.textContent = "Refreshing...";
-
-    try {
-      // 1. Revalidate SWR caches instantly without reloading page
-      if (typeof window !== "undefined" && window.__swrMutate) {
-        window.__swrMutate("/api/wartime/threats");
-        window.__swrMutate("/api/wartime/alerts");
-        window.__swrMutate("/api/signals");
-      }
-      window.dispatchEvent(new Event("focus"));
-
-      // 2. Fetch fresh live telemetry from backend
-      const url = force ? "/api/wartime/live-status?force=1" : "/api/wartime/live-status";
-      const resp = await fetch(url);
-      const data = await resp.json();
-
-      // 3. Update status pill
-      const pill = document.querySelector(".map-live-status-pill");
-      if (pill && data) {
-        pill.innerHTML = `
-          <span style="display:flex;align-items:center;gap:6px;">
-            <span class="live-dot-pulse"></span>
-            <span>Sirens: ${data.alerts.active_count} (alerts.in.ua) • DeepState: 13 segs • Threats: ${data.threats.active_count} (mapa.ua)</span>
-          </span>
-          <span style="font-size:9.5px;background:#059669;color:#fff;padding:1px 6px;border-radius:9999px;font-weight:700;">LIVE</span>
-        `;
-      }
-
-      // 4. Update timestamp
-      const timeEl = document.querySelector(".map-last-updated");
-      if (timeEl) {
-        const d = new Date();
-        timeEl.textContent = "Synced: " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      }
-
-      if (label) label.textContent = "✓ Synced";
-      if (floatLabel) floatLabel.textContent = "✓ Updated";
-      setTimeout(() => {
-        if (label) label.textContent = "Sync Live Data";
-        if (floatLabel) floatLabel.textContent = "Refresh Real-Time Data";
-      }, 1400);
-    } catch (err) {
-      console.warn("Live sync error:", err);
-      if (label) label.textContent = "Retry Sync";
-      if (floatLabel) floatLabel.textContent = "Retry Refresh";
-    } finally {
-      btns.forEach(b => b.classList.remove("is-syncing"));
-      syncCountdown = 15;
-      isSyncing = false;
-    }
-  }
-
-  // Auto-sync countdown timer running every 1 second
-  if (typeof window !== "undefined" && !window.__mapSyncTimerStarted) {
-    window.__mapSyncTimerStarted = true;
-    setInterval(() => {
-      syncCountdown--;
-      const cdEls = document.querySelectorAll(".map-countdown-pill, .refresh-countdown");
-      cdEls.forEach(el => {
-        el.textContent = `${syncCountdown}s`;
-        if (syncCountdown <= 3) {
-          el.classList.add("pulsing");
-        } else {
-          el.classList.remove("pulsing");
-        }
-      });
-      if (syncCountdown <= 0) {
-        syncCountdown = 15;
-        triggerLiveSync(false);
-      }
-    }, 1000);
-  }
-
-  // B. Fix Mobile Overlay Sheet: Make it Collapsible Drawer & Show Real-Time Status
-  const overlayCard = parent.querySelector(".pointer-events-auto.w-full.max-w-\\[380px\\]") ||
-                      parent.querySelector("div.pointer-events-none.absolute > div.pointer-events-auto");
-  if (overlayCard) {
-    if (!overlayCard.querySelector(".map-live-status-pill")) {
-      const livePill = document.createElement("div");
-      livePill.className = "map-live-status-pill";
-      livePill.innerHTML = `
-        <span style="display:flex;align-items:center;gap:6px;">
-          <span class="live-dot-pulse"></span>
-          <span>alerts.in.ua + DeepStateMap.live Real-Time Sync</span>
-        </span>
-        <span style="font-size:9.5px;background:#059669;color:#fff;padding:1px 6px;border-radius:9999px;font-weight:700;">LIVE</span>
-      `;
-      overlayCard.insertBefore(livePill, overlayCard.firstChild);
-    }
-
-    // Add Interactive Live Sync Toolbar with on-demand button and countdown
-    if (!overlayCard.querySelector(".map-sync-toolbar")) {
-      const syncToolbar = document.createElement("div");
-      syncToolbar.className = "map-sync-toolbar";
-      syncToolbar.innerHTML = `
-        <button type="button" class="map-sync-btn" title="Instantly refresh air sirens, radar threats and front line data without reloading page">
-          <span class="sync-icon">🔄</span>
-          <span class="sync-label">Sync Live Data</span>
-        </button>
-        <div class="map-sync-meta">
-          <span class="map-countdown-pill">Auto: 15s</span>
-          <span class="map-last-updated">Real-Time</span>
-        </div>
-      `;
-      const syncBtn = syncToolbar.querySelector(".map-sync-btn");
-      syncBtn.addEventListener("click", () => triggerLiveSync(true));
-
-      const livePill = overlayCard.querySelector(".map-live-status-pill");
-      if (livePill) {
-        livePill.after(syncToolbar);
-      } else {
-        overlayCard.insertBefore(syncToolbar, overlayCard.firstChild);
-      }
-    }
-
-    // Fetch live verified telemetry to show genuine real-time data
-    fetch("/api/wartime/live-status")
-      .then(r => r.json())
-      .then(data => {
-        const pill = overlayCard.querySelector(".map-live-status-pill");
-        if (pill && data) {
-          pill.innerHTML = `
-            <span style="display:flex;align-items:center;gap:6px;">
-              <span class="live-dot-pulse"></span>
-              <span>Sirens: ${data.alerts.active_count} (alerts.in.ua) • DeepState: 13 segs • Threats: ${data.threats.active_count} (mapa.ua)</span>
-            </span>
-            <span style="font-size:9.5px;background:#059669;color:#fff;padding:1px 6px;border-radius:9999px;font-weight:700;">LIVE</span>
-          `;
-        }
-      })
-      .catch(() => {});
-
-      // Distinguish Avrora stores vs Warehouses in the legend filter pills
-      overlayCard.querySelectorAll("button").forEach(btn => {
-        const text = btn.textContent.trim();
-        if ((text === "Avrora store" || text === "🏪 Avrora store") && !btn.dataset.iconized) {
-          btn.dataset.iconized = "true";
-          btn.innerHTML = `<span class="relative size-2 rounded-full" style="background:#ff9500;box-shadow:0 0 0 1px #fff;"></span> <span class="relative">🏪 Avrora store</span>`;
-        } else if ((text === "Warehouse" || text.includes("Warehouse")) && !btn.dataset.iconized) {
-          btn.dataset.iconized = "true";
-          btn.innerHTML = `<span class="relative size-3 rounded-full" style="background:#5856d6;box-shadow:0 0 0 1.5px #0f172a;"></span> <span class="relative">🏢 Warehouse (Hub)</span>`;
-        }
-      });
-
-      // Update disclaimer text
-      overlayCard.querySelectorAll("p").forEach(p => {
-        if (p.textContent.includes("hand-drawn sketch")) {
-          p.textContent = "Live contact line from DeepStateMap.live. Air-raid sirens live from alerts.in.ua. Aerial threat radar from mapa.ua.";
-        }
-      });
-    }
-
-    if (overlayCard && !overlayCard.dataset.mobileDrawerFixed) {
-      overlayCard.dataset.mobileDrawerFixed = "true";
-
-      const toggleBtn = document.createElement("button");
-      toggleBtn.type = "button";
-      toggleBtn.className = "map-mobile-drawer-toggle";
-      toggleBtn.innerHTML = `
-        <span style="display:flex;align-items:center;gap:6px;">
-          <span>📍 Store Locations & Logistics</span>
-        </span>
-        <span class="drawer-toggle-icon" style="font-size:12px;transition:transform 0.2s ease;">▲ Expand</span>
-      `;
-
-      overlayCard.insertBefore(toggleBtn, overlayCard.firstChild);
-
-      toggleBtn.addEventListener("click", () => {
-        const isCollapsed = overlayCard.classList.contains("map-drawer-collapsed");
-        if (isCollapsed) {
-          overlayCard.classList.remove("map-drawer-collapsed");
-          overlayCard.classList.add("map-drawer-expanded");
-          toggleBtn.querySelector(".drawer-toggle-icon").textContent = "▼ Hide Sheet";
-        } else {
-          overlayCard.classList.add("map-drawer-collapsed");
-          overlayCard.classList.remove("map-drawer-expanded");
-          toggleBtn.querySelector(".drawer-toggle-icon").textContent = "▲ View Sheet";
-        }
-      });
-
-      if (window.innerWidth <= 768) {
-        overlayCard.classList.add("map-drawer-collapsed");
-        toggleBtn.querySelector(".drawer-toggle-icon").textContent = "▲ View Sheet";
-      }
-    }
-  }
-
   // --- 3. UPDATES FEED: SHOW EXACTLY 8 HIGH PRIORITY ITEMS ---
   function ensure8PriorityUpdates() {
     const updatesSection = document.querySelector("section.lg\\:sticky");
@@ -714,7 +465,7 @@
   // Observers
   const observer = new MutationObserver(() => {
     enhanceProductsView();
-    enhanceMapSection();
+    // map untouched (original)
     ensure8PriorityUpdates();
   });
 
@@ -722,14 +473,14 @@
 
   window.addEventListener("DOMContentLoaded", () => {
     enhanceProductsView();
-    enhanceMapSection();
+    // map untouched (original)
     ensure8PriorityUpdates();
   });
 
   document.addEventListener("click", () => {
     setTimeout(() => {
       enhanceProductsView();
-      enhanceMapSection();
+      // map untouched (original)
       ensure8PriorityUpdates();
     }, 120);
   });
