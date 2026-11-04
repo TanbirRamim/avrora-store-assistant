@@ -7,6 +7,7 @@ creates actions or numbers of its own.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import pandas as pd
@@ -55,7 +56,8 @@ def _order_and_delivery(m: pd.DataFrame) -> list[Action]:
             risk = r.overdue_qty * r.price * DELAY_RISK_SHARE
             out.append(_a(ActionType.CHECK_DELIVERY, r, risk,
                           {"overdue_qty": int(r.overdue_qty), "overdue_days": int(r.overdue_days),
-                           "days_cover": round(r.days_cover, 1), "supplier": r.supplier},
+                           "days_cover": round(r.days_cover, 1) if math.isfinite(r.days_cover) else None,
+                           "supplier": r.supplier},
                           {"step": f"Contact {r.supplier} about {int(r.overdue_qty)} units"},
                           f"Delivery of {int(r.overdue_qty)} units from {r.supplier} is "
                           f"{int(r.overdue_days)} days late."))
@@ -92,13 +94,20 @@ def _discounts(m: pd.DataFrame, s: Settings) -> list[Action]:
 
 def _visibility(data: StoreData, m: pd.DataFrame, s: Settings) -> list[Action]:
     today = pd.Timestamp(s.today)
-    c = clean_sales(data)
-    recent = c[c["date"] >= today - pd.Timedelta(days=14)].groupby("product_id")["deseasoned"].mean()
-    base = c[(c["date"] >= today - pd.Timedelta(days=75)) & (c["date"] < today - pd.Timedelta(days=22))]
-    base = base.groupby("product_id")["deseasoned"].mean()
+    def rates(c: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+        recent = c[c["date"] >= today - pd.Timedelta(days=14)].groupby("product_id")["deseasoned"].mean()
+        base = c[(c["date"] >= today - pd.Timedelta(days=75)) & (c["date"] < today - pd.Timedelta(days=22))]
+        return recent, base.groupby("product_id")["deseasoned"].mean()
+
+    recent, base = rates(clean_sales(data))
+    # a product promoted on all recent days has no plain days: use its uplift-adjusted rate, not zero
+    recent_adj, base_adj = rates(clean_sales(data, adjust_promo=True))
+    recent, base = recent.combine_first(recent_adj), base.combine_first(base_adj)
     out = []
     for r in m.itertuples(index=False):
-        b, now = base.get(r.product_id, 0.0), recent.get(r.product_id, 0.0)
+        if r.product_id not in recent.index:
+            continue  # no recent sales rows: unknown, not "sales fell 100%"
+        b, now = base.get(r.product_id, 0.0), recent[r.product_id]
         if b >= s.visibility_min_baseline and now < s.visibility_drop_ratio * b and r.stock >= b * 7:
             risk = (b - now) * 14 * r.price
             drop = round((1 - now / b) * 100)
@@ -123,6 +132,8 @@ def _store_anomalies(data: StoreData, s: Settings) -> list[Action]:
         ref_idx = ref.index.day_of_week.map(wk)
         expected = (ref / ref_idx.values).mean() * wk[day.day_of_week]
         actual = daily[day]
+        if not expected > 0:  # no reference days: nothing to compare with
+            continue
         if actual >= (1 - s.anomaly_drop_ratio) * expected:
             continue
         ev = data.events[(data.events["date"] == day) & data.events["type"].isin(["power_outage", "air_raid_alert"])]

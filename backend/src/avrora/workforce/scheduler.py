@@ -30,6 +30,28 @@ def paid_hours(span: int) -> float:
     return span - RULES.break_minutes / 60 if span > RULES.break_after_hours else float(span)
 
 
+def assign_breaks(shifts: dict[str, tuple[int, int]]) -> dict[str, int]:
+    """Start hour of the 30-minute break for every shift longer than the break threshold.
+
+    The break sits near the middle of the shift, but moves to the hour where the most people stay
+    on the floor, so breaks are staggered instead of piling up.
+    """
+    cnt = {h: 0 for h in HOURS}
+    for s, t in shifts.values():
+        for h in range(s, t):
+            cnt[h] += 1
+    off = {h: 0 for h in HOURS}
+    out: dict[str, int] = {}
+    for eid, (s, t) in sorted(shifts.items(), key=lambda x: (x[1][0], x[1][1], x[0])):
+        if t - s <= RULES.break_after_hours:
+            continue
+        mid = s + (t - s) // 2
+        h = max(range(s + 1, t - 1), key=lambda x: (cnt[x] - off[x], -abs(x - mid), -x))
+        out[eid] = h
+        off[h] += 1
+    return out
+
+
 @dataclass
 class Person:
     emp: Employee
@@ -276,9 +298,12 @@ def check_rules(shifts: dict[str, tuple[int, int]], people: dict[str, Person], w
         out.append("No one who can open starts at 08:00")
     if not closer:
         out.append("No one who can close stays until 21:00")
+    on_break = {h: 0 for h in HOURS}
+    for h in assign_breaks({e: x for e, x in shifts.items() if e in people and people[e].window is not None}).values():
+        on_break[h] += 1
     for h in HOURS:
-        if cnt[h] < RULES.min_on_site:
-            out.append(f"Fewer than {RULES.min_on_site} people on site at {h:02d}:00")
+        if cnt[h] - on_break[h] < RULES.min_on_site:
+            out.append(f"Fewer than {RULES.min_on_site} people on the floor at {h:02d}:00 (breaks included)")
         if lead[h] == 0:
             out.append(f"No shift lead or senior cashier at {h:02d}:00")
     return out

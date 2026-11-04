@@ -50,7 +50,7 @@ def _station_fit(perf: pd.DataFrame, emp: Employee, station: str) -> float:
     if station == "Lead checkout":
         fit *= 1 - float(perf.loc[emp.employee_id, "scan_error_rate"]) / 10  # 2% errors cost 20%
     if station == "Receiving dock":  # lifting and speed count equally
-        fit = (fit + float(perf.loc[emp.employee_id, "cases_received_per_hour"]) / float(perf["cases_received_per_hour"].max())) / 2
+        fit = (fit + float(perf.loc[emp.employee_id, "cases_received_per_hour"]) / (float(perf["cases_received_per_hour"].max()) or 1.0)) / 2
     return round(fit, 4)
 
 
