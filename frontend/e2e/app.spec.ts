@@ -76,7 +76,7 @@ test("AI settings never offer a key; without store AI only the language shows", 
   await page.route("**/api/ai/status", (route) => route.fulfill({ json: { configured: false, model: null } }));
   await page.evaluate(() => localStorage.setItem("avrora.aiOwn", JSON.stringify({ baseUrl: "https://x.test/v1", model: "m", key: "k" })));
   await page.reload(); // the status was read on the first load
-  await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
+  await expect(page.getByText("From store data.")).toBeVisible();
   // no AI: no "Write with AI" on Today, and an old saved key is cleared
   await expect(page.getByRole("button", { name: "Write with AI" })).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("avrora.aiOwn"))).toBeNull();

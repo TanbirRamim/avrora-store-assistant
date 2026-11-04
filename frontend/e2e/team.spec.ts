@@ -392,7 +392,7 @@ test("AI texts: plan explanation, ask, replan messages and coaching, with no sou
   await openTeam(page);
   const why = page.getByTestId("why");
   await expect(why).toContainText("Model sentence one about the plan.");
-  await expect(page.getByText(/Written by AI|Fixed rules/)).toHaveCount(0);
+  await expect(page.getByText(/Written by AI|Store plan/)).toHaveCount(0);
 
   await page.getByLabel("Question about the team").fill("Who can cover the evening?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
@@ -411,7 +411,7 @@ test("AI texts: plan explanation, ask, replan messages and coaching, with no sou
   await page.getByRole("tab", { name: "People" }).click();
   await page.getByTestId("people-list").getByRole("button").first().click();
   await expect(page.getByTestId("coaching")).toBeVisible();
-  await expect(page.getByTestId("coaching").getByText(/Written by AI|Fixed rules/)).toHaveCount(0);
+  await expect(page.getByTestId("coaching").getByText(/Written by AI|Store plan/)).toHaveCount(0);
 });
 
 test("without a key the fixed rules write the texts", async ({ page }) => {
@@ -421,7 +421,7 @@ test("without a key the fixed rules write the texts", async ({ page }) => {
   await mockWorkforce(page);
   const plan = await expected();
   await openTeam(page);
-  await expect(page.getByText(/Written by AI|Fixed rules/)).toHaveCount(0);
+  await expect(page.getByText(/Written by AI|Store plan/)).toHaveCount(0);
   await expect(page.getByTestId("why")).toContainText((plan as unknown as { explain: string[] }).explain[0]);
   await expect(page.getByTestId("kpi-card")).toBeVisible();
 });

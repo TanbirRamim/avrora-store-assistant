@@ -54,7 +54,7 @@ test.describe("workforce AI texts", () => {
     expect(r.source).toBe("rules");
     expect(r.sentences).toEqual(PLAN.explain.slice(0, 5));
     expect(r.watchOut).toContain("Short 1 person 17:00-20:00");
-    expect(SOURCE_LABEL.en[r.source]).toBe("Fixed rules");
+    expect(SOURCE_LABEL.en[r.source]).toBe("Store plan");
     const uk = await explainPlan(PLAN, { lang: "uk" });
     expect(uk.sentences.length).toBeGreaterThanOrEqual(3);
     expect(uk.watchOut[0]).toBe("Бракує 1 ос. 09:00-11:00");

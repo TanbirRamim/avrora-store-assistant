@@ -124,7 +124,7 @@ test("without a key the re-plan uses the rules and can be reverted", async ({ pa
   const before = await rowNames(page);
   await expect(live(page).getByText("Simulated, not real", { exact: true })).toHaveCount(0);
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
-  await expect(live(page).getByText("Sorted by fixed rules, not AI.")).toBeVisible();
+  await expect(live(page).getByText("Sorted by store priorities.")).toBeVisible();
   await expect(page.getByTestId("replan-note")).toContainText("Orders and price changes first");
   const after = await rowNames(page);
   expect(after).toEqual(["Ceramic mug Black", "Bubble wand 100 pcs", "Frying pan Set of 3", "Vacuum bags White", "Bath mat S"]);
@@ -163,7 +163,7 @@ test("a model note with an invented number or a new action falls back to the rul
   await mockSignals(page, [alert()]);
   await open(page, { key: true });
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
-  await expect(live(page).getByText("Sorted by fixed rules, not AI.")).toBeVisible();
+  await expect(live(page).getByText("Sorted by store priorities.")).toBeVisible();
   await expect(page.getByText(/450/)).toHaveCount(0);
   await expect(page.getByTestId("replan-note")).toContainText("floor work waits for the all-clear");
 });
