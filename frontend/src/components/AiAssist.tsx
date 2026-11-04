@@ -5,7 +5,7 @@ import { aiRoute, useAi } from "@/lib/ai";
 import type { Action, ProductDetail } from "@/lib/api";
 import { askAboutAction, draftSupplierMessage, FALLBACK, type Lang, QUESTIONS } from "@/lib/assist";
 import { ModelError } from "@/lib/model";
-import { ArrowUpIcon, SparkleIcon } from "./icons";
+import { ArrowUpIcon } from "./icons";
 
 interface QA { q: string; a: string | null; error?: boolean }
 
@@ -20,37 +20,8 @@ const SEG = (on: boolean) =>
 
 const errorText = (e: unknown) => (e instanceof ModelError ? e.message : FALLBACK);
 
-function NoKey({ onAddKey }: { onAddKey?: () => void }) {
-  return (
-    <div className={`${CARD} flex items-start gap-3 p-4`}>
-      <span className="mt-0.5 shrink-0 text-muted">
-        <SparkleIcon size={20} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="t-subhead text-muted">
-          AI isn&apos;t set up yet. Add a key to ask questions and draft messages.
-          {!onAddKey && (
-            <>
-              {" "}Open <span className="font-medium text-label">More, AI settings</span>.
-            </>
-          )}
-        </p>
-        {onAddKey && (
-          <button
-            type="button"
-            onClick={onAddKey}
-            className={`${PRIMARY} mt-3`}
-          >
-            Add key
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /** "Ask" about one action: chips, a text field and a short answer history kept per action. */
-export function AskSection({ action, product, onAddKey }: { action: Action; product?: ProductDetail; onAddKey?: () => void }) {
+export function AskSection({ action, product }: { action: Action; product?: ProductDetail }) {
   const { hasKey } = useAi();
   const [log, setLog] = useState<Record<string, QA[]>>({});
   const [text, setText] = useState("");
@@ -74,12 +45,12 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
     }
   };
 
+  // No AI on this device (or its status is still loading): leave the section out, never ask for a key.
+  if (!hasKey) return null;
+
   return (
     <section aria-label="Ask about this">
       <h3 className={HEADING}>Ask</h3>
-      {!hasKey ? (
-        <NoKey onAddKey={onAddKey} />
-      ) : (
         <div className={`${CARD} p-4`}>
           {items.length === 0 && (
             <p className="t-subhead mb-3 text-muted">Ask anything about this item. Answers use only the store data.</p>
@@ -146,13 +117,12 @@ export function AskSection({ action, product, onAddKey }: { action: Action; prod
             </button>
           </form>
         </div>
-      )}
     </section>
   );
 }
 
 /** A message to the supplier for ORDER and CHECK_DELIVERY actions. Never sent from here. */
-export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?: () => void }) {
+export function SupplierDraft({ action }: { action: Action }) {
   const { hasKey } = useAi();
   const [lang, setLang] = useState<Lang>("uk");
   const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string } | string>>({});
@@ -181,13 +151,12 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
   };
 
   const supplier = action.proposal.supplier ?? action.facts.supplier;
+  // No AI on this device (or its status is still loading): leave the section out, never ask for a key.
+  if (!hasKey) return null;
 
   return (
     <section aria-label="Draft message to supplier">
       <h3 className={HEADING}>Message to supplier</h3>
-      {!hasKey ? (
-        <NoKey onAddKey={onAddKey} />
-      ) : (
         <div className={`${CARD} p-4`}>
           <div className="flex flex-wrap items-center gap-2">
             <div role="radiogroup" aria-label="Language" className="flex rounded-[10px] bg-[#f4f4f5] p-[3px]">
@@ -259,7 +228,6 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
             </>
           )}
         </div>
-      )}
     </section>
   );
 }

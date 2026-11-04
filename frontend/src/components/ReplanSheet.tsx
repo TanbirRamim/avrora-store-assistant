@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { aiRoute, useAi } from "@/lib/ai";
+import { aiRoute, aiStatus, useAi } from "@/lib/ai";
 import { explainReplan, type ReplanExplanation } from "@/lib/workforce-ai";
 import { SourceTag } from "./TeamInsights";
 import { money } from "@/lib/format";
@@ -74,6 +74,7 @@ export function ReplanSheet({
     try {
       const next = await workforce.replan(plan.date, ev);
       setProposal(next);
+      await aiStatus();
       void explainReplan(plan, next, next.diff ?? [], { key: aiRoute(), lang: ai.lang }).then(setStory);
     } catch {
       setError("Couldn't work out a new plan. Check the connection and try again.");

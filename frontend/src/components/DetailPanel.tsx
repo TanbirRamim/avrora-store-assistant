@@ -43,8 +43,6 @@ interface Props {
   onUndo: () => void;
   /** Phones: a press on the grabber or header starts the swipe-down-to-close gesture. */
   onGrab?: (e: React.PointerEvent) => void;
-  /** Opens the key sheet; without it the AI sections show a short hint instead. */
-  onAddKey?: () => void;
 }
 
 /** Single-key shortcuts stay quiet while the manager types, uses a modifier or has a dialog open. */
@@ -63,7 +61,7 @@ function formatFact(key: string, v: number | string) {
   return `${v}${unit === "%" ? "%" : unit ? ` ${unit}` : ""}`;
 }
 
-export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAddKey, onGrab }: Props) {
+export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onGrab }: Props) {
   const adj = adjustable(action);
   const [mode, setMode] = useState<"idle" | "adjust" | "dismiss">("idle");
   const [value, setValue] = useState(adj?.value ?? 0);
@@ -161,9 +159,9 @@ export function DetailPanel({ action, decision, onClose, onDecide, onUndo, onAdd
           </dl>
         </section>
 
-        <AskSection action={action} product={product} onAddKey={onAddKey} />
+        <AskSection action={action} product={product} />
 
-        {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={action} onAddKey={onAddKey} />}
+        {(action.type === "ORDER" || action.type === "CHECK_DELIVERY") && <SupplierDraft action={action} />}
 
         <section aria-busy={!product} aria-label="Sales and stock">
           <h3 className={H3}>Sales and stock</h3>

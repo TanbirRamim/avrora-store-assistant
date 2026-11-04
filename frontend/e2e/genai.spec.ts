@@ -46,7 +46,7 @@ test("ask: a grounded answer is shown and kept in the history", async ({ page })
   const ask = panel(page).getByRole("region", { name: "Ask about this" });
   await ask.getByRole("button", { name: "Why this quantity?" }).click();
   await expect(ask.getByTestId("ask-answer")).toHaveText(/120 units cover the wait/);
-  const sent = calls[0].user as { action: { proposal: { order_qty: number } }; product: { history: unknown[] }; question: string };
+  const sent = calls.find((c) => c.kind === "ask" && (c.user as { question?: string }).question)!.user as { action: { proposal: { order_qty: number } }; product: { history: unknown[] }; question: string };
   expect(sent.action.proposal.order_qty).toBe(120);
   expect(sent.product.history.length).toBeGreaterThan(0);
   expect(sent.question).toBe("Why this quantity?");
@@ -113,9 +113,45 @@ test("supplier draft with an invented number is not shown", async ({ page }) => 
   await expect(sec.getByText(/999/)).toHaveCount(0);
 });
 
-test("without store AI the sections ask for a key; unreachable AI shows a plain error", async ({ page }) => {
+/** Nothing on screen may ask for a key, point at AI settings, or say AI is missing. */
+const NO_KEY_TEXT = /add (a )?key|add key|your own key|needs? a key|isn.t set up|connect ai|AI settings first/i;
+
+test("store AI configured: ask and supplier draft work without any key prompt", async ({ page }) => {
+  await mockModel(page, (kind) =>
+    kind === "draft" ? { subject: "Order", body: "Please deliver 120 units." } : { in_scope: true, answer: "Delivery takes 6 days, so 120 units cover the wait." },
+  );
+  await openTop(page);
+  await expect(panel(page).getByText(NO_KEY_TEXT)).toHaveCount(0);
+  const ask = panel(page).getByRole("region", { name: "Ask about this" });
+  await ask.getByRole("button", { name: "Why this quantity?" }).click();
+  await expect(ask.getByTestId("ask-answer")).toBeVisible();
+  const sec = panel(page).getByRole("region", { name: "Draft message to supplier" });
+  await expect(sec.getByRole("button", { name: "Write draft" })).toBeEnabled();
+  await expect(page.getByRole("dialog", { name: "AI settings" })).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(NO_KEY_TEXT);
+});
+
+test("while the AI status is still loading nothing says key", async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  await page.route("**/api/ai/status", async (r) => {
+    await gate;
+    await r.fulfill({ json: { configured: true, model: "test-model" } });
+  });
+  await page.goto("/");
+  await page.getByText(TOP).first().click();
+  await expect(panel(page)).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(NO_KEY_TEXT);
+  release();
+  await expect(panel(page).getByRole("region", { name: "Ask about this" })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(NO_KEY_TEXT);
+});
+
+test("without store AI the sections stay hidden; unreachable AI shows a plain error", async ({ page }) => {
   await openTop(page, false);
-  await expect(panel(page).getByText("AI isn't set up yet. Add a key to ask questions and draft messages.")).toHaveCount(2);
+  await expect(panel(page).getByRole("region", { name: "Ask about this" })).toHaveCount(0);
+  await expect(panel(page).getByRole("region", { name: "Draft message to supplier" })).toHaveCount(0);
+  await expect(panel(page)).not.toContainText(NO_KEY_TEXT);
 
   await page.route(AI, (route) => route.abort("failed"));
   await page.unroute("**/api/ai/status");

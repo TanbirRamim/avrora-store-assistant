@@ -3,7 +3,7 @@
  *
  * Integration note (Team UI):
  * - Every function is a plain async function: `await explainPlan(plan, { key: aiRoute(), lang })`.
- *   `key` comes from `aiRoute()` in ./ai ("server", "own" or ""); with "" the fixed rules answer at once, offline.
+ *   `key` comes from `aiRoute()` in ./ai ("server" or ""); with "" the fixed rules answer at once, offline.
  *   They never throw: a model failure (AI not reachable, bad key, ungrounded answer) returns the
  *   rules result with `error` set to a message you may show quietly.
  * - Show `SOURCE_LABEL[lang][result.source]` next to every text ("Written by AI" / "Fixed rules").

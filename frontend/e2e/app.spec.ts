@@ -71,65 +71,43 @@ test("Today shows the date, summary, store note and five priorities", async ({ p
   expect(errors).toEqual([]);
 });
 
-test("AI settings: store AI status, own key add (bad, good) and remove", async ({ page }) => {
-  // The store AI is off here; the manager's own provider is called straight from the browser (mocked).
-  let sentKey = "";
-  let storeCalls = 0;
+test("AI settings never offer a key; without store AI only the language shows", async ({ page }) => {
   // pin "store AI off" whatever the server running the tests has configured
   await page.route("**/api/ai/status", (route) => route.fulfill({ json: { configured: false, model: null } }));
+  await page.evaluate(() => localStorage.setItem("avrora.aiOwn", JSON.stringify({ baseUrl: "https://x.test/v1", model: "m", key: "k" })));
   await page.reload(); // the status was read on the first load
-  await page.route("**/api/ai/chat", (route) => {
-    storeCalls++;
-    return route.fulfill({ status: 503, json: { detail: "AI is not set up" } });
-  });
-  await page.route("https://ai.example.test/v1/chat/completions", async (route) => {
-    sentKey = route.request().headers()["authorization"] ?? "";
-    if (sentKey === "Bearer sk-wrong-key") return route.fulfill({ status: 401, body: "" });
+  await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
+  // no AI: no "Write with AI" on Today, and an old saved key is cleared
+  await expect(page.getByRole("button", { name: "Write with AI" })).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("avrora.aiOwn"))).toBeNull();
+  await openNav(page, "AI settings");
+  const dialog = page.getByRole("dialog", { name: "AI settings" });
+  await expect(dialog.getByRole("radiogroup", { name: "Briefing language" })).toBeVisible();
+  await expect(dialog.getByTestId("ai-status")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Write briefing", exact: true })).toHaveCount(0);
+  await expect(dialog).not.toContainText(/key|Without AI|Not set up/i);
+  await expect(dialog.getByRole("textbox")).toHaveCount(0);
+});
+
+test("AI settings with store AI: no model name, no key, rewrite works", async ({ page }) => {
+  await page.route("**/api/ai/status", (r) => r.fulfill({ json: { configured: true, model: "store-model" } }));
+  await page.route("**/api/ai/chat", async (route) => {
     const body = JSON.parse(route.request().postData()!);
-    expect(body.model).toBe("my-model");
     const { candidates } = JSON.parse(body.messages[1].content);
     const content = JSON.stringify({
-      summary: "Restock the mugs first; the rest can follow.",
-      priorities: candidates.slice(0, 5).map((c: { id: string }) => ({ action_id: c.id, reason: "Plain reason from the model." })),
+      summary: "Store AI summary.",
+      priorities: candidates.slice(0, 5).map((c: { id: string }) => ({ action_id: c.id, reason: "Store AI reason." })),
     });
-    await route.fulfill({ json: { choices: [{ message: { content } }] } });
+    await route.fulfill({ json: { content, model: "store-model" } });
   });
-
-  await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
-  await page.getByRole("button", { name: "Write with AI" }).click();
-  const dialog = page.getByRole("dialog", { name: "AI settings" });
-  await expect(dialog.getByTestId("ai-status")).toHaveText("Not set up");
-  await expect(dialog.getByRole("button", { name: "Write briefing", exact: true })).toBeDisabled();
-
-  await dialog.getByRole("button", { name: "Use my own key" }).click();
-  const submit = dialog.getByRole("button", { name: "Save and write briefing" });
-  await expect(submit).toBeDisabled();
-  await dialog.getByLabel("Base URL").fill("https://ai.example.test/v1");
-  await dialog.getByLabel("Model").fill("my-model");
-  await dialog.getByLabel("API key").fill("sk-wrong-key");
-  await submit.click();
-  await expect(dialog.getByRole("alert")).toContainText("This key didn't work");
-
-  await dialog.getByLabel("API key").fill("sk-test-key-123");
-  await submit.click();
-  await expect(dialog).toBeHidden();
-  expect(sentKey).toBe("Bearer sk-test-key-123");
-  expect(storeCalls).toBe(0);
-  await expect(todayList(page).getByText("Plain reason from the model.")).toHaveCount(5);
-  await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
-  await expect(page.getByText("Written by AI. Numbers checked against store data.")).toBeVisible();
-
   await page.reload();
-  await expect(page.getByText("Restock the mugs first; the rest can follow.")).toBeVisible();
-
-  await page.getByRole("button", { name: "AI settings" }).click();
-  await expect(dialog.getByTestId("ai-status")).toHaveText("Using your own key · my-model");
-  await expect(dialog.getByLabel("API key")).toHaveAttribute("placeholder", "Saved in this browser");
-  await dialog.getByRole("button", { name: "Remove my key" }).click();
-  await expect(dialog.getByTestId("ai-status")).toHaveText("Not set up");
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("Fixed rules, not AI.")).toBeVisible();
-  expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("avrora.")))).toEqual([]);
+  await expect(page.getByText("Store AI summary.")).toBeVisible();
+  await openNav(page, "AI settings");
+  const dialog = page.getByRole("dialog", { name: "AI settings" });
+  await expect(dialog.getByTestId("ai-status")).toHaveText("Written by the store's AI");
+  await expect(dialog).not.toContainText(/store-model|key|Without AI/i);
+  await dialog.getByRole("button", { name: "Write briefing", exact: true }).click();
+  await expect(dialog).toBeHidden();
 });
 
 test("store AI connected: the briefing is written on its own through /api/ai/chat", async ({ page }) => {
@@ -555,7 +533,7 @@ test("no accessibility violations on Today, All suggestions and the detail panel
   await openNav(page, "All suggestions");
   await scan("all");
   await openNav(page, "Today");
-  await page.getByRole("button", { name: "Write with AI" }).click();
+  await openNav(page, "AI settings");
   await scan("ai sheet");
 });
 
@@ -597,7 +575,7 @@ test("screens for review", async ({ page }, info) => {
   await page.screenshot({ path: `${dir}/${info.project.name}-advance-toast.png` });
   await page.keyboard.press("Escape");
   await page.locator("main").evaluate((m) => m.scrollTo({ top: 0 }));
-  await page.getByRole("button", { name: "Write with AI" }).click();
+  await openNav(page, "AI settings");
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${dir}/${info.project.name}-ai.png` });
   await page.keyboard.press("Escape");

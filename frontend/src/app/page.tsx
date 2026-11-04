@@ -15,7 +15,7 @@ import { TeamTodayCard, TeamView } from "@/components/TeamView";
 import { BackIcon, BellIcon, BoltIcon, CheckIcon, ChevronIcon, ClockIcon, CloseIcon, GridIcon, ListIcon, MapIcon, MoreIcon, SparkleIcon, SunIcon, UsersIcon } from "@/components/icons";
 import { TagProgress } from "@/components/Ring";
 import type { Action, ActionType, Briefing, Decision, DecisionKind, Overview, Signal, Signals } from "@/lib/api";
-import { aiRoute, useAi, writeBriefing } from "@/lib/ai";
+import { aiRoute, aiStatus, useAi, writeBriefing } from "@/lib/ai";
 import { applyOrder, type Replan, replanByRules, replanWithModel } from "@/lib/replan";
 import { api, fetcher } from "@/lib/api";
 import { SCRIM_FADE, SETTLE_MS, SHEET_SPRING, TOAST_SPRING } from "@/lib/motion";
@@ -152,15 +152,22 @@ export default function Home() {
   // With the store AI connected the briefing is written by the model on its own, once per visit;
   // if the model fails, the rules briefing stays and the AI sheet can try again.
   const [autoWriting, setAutoWriting] = useState(false);
+  const [writeFailed, setWriteFailed] = useState(false);
   const autoWrote = useRef(false);
+  // Also behind "Write with AI": writes straight away with the store AI, no settings sheet.
+  const writeWithAi = useCallback(() => {
+    if (!actions || !baseBriefing) return;
+    setAutoWriting(true);
+    setWriteFailed(false);
+    writeBriefing(actions, baseBriefing.notices)
+      .catch(() => setWriteFailed(true))
+      .finally(() => setAutoWriting(false));
+  }, [actions, baseBriefing]);
   useEffect(() => {
     if (autoWrote.current || !ai.hasKey || ai.briefing || !actions || !baseBriefing) return;
     autoWrote.current = true;
-    setAutoWriting(true);
-    writeBriefing(actions, baseBriefing.notices)
-      .catch(() => {})
-      .finally(() => setAutoWriting(false));
-  }, [ai.hasKey, ai.briefing, actions, baseBriefing]);
+    writeWithAi();
+  }, [ai.hasKey, ai.briefing, actions, baseBriefing, writeWithAi]);
   // Outside conditions; if the route is missing or fails, the card simply stays hidden.
   const { data: signals } = useSWR<Signals>("/api/signals", fetcher, { refreshInterval: 60_000, shouldRetryOnError: false });
   const [replanState, setReplan] = useState<Replan | null>(null);
@@ -255,8 +262,12 @@ export default function Home() {
   const runReplan = async (s: Signal) => {
     const base = briefing?.priorities ?? [];
     setReplanError(null);
-    if (!ai.hasKey) return setReplan(replanByRules(s, base, ai.lang));
     setReplanBusy(true);
+    await aiStatus();
+    if (!aiRoute()) {
+      setReplanBusy(false);
+      return setReplan(replanByRules(s, base, ai.lang));
+    }
     try {
       setReplan(await replanWithModel(aiRoute(), s, base, ai.lang));
     } catch (err) {
@@ -441,10 +452,17 @@ export default function Home() {
                           <p className="t-footnote min-w-0 text-muted">
                             {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "Fixed rules, not AI."}
                           </p>
-                          <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
-                            <SparkleIcon size={14} />
-                            {briefing.source === "model" ? "AI settings" : "Write with AI"}
-                          </button>
+                          {briefing.source === "model" ? (
+                            <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
+                              <SparkleIcon size={14} />
+                              AI settings
+                            </button>
+                          ) : ai.hasKey ? (
+                            <button onClick={writeWithAi} disabled={autoWriting} className="btn-tag hit shrink-0 disabled:opacity-60">
+                              <SparkleIcon size={14} />
+                              {autoWriting ? "Writing…" : writeFailed ? "Try again" : "Write with AI"}
+                            </button>
+                          ) : null}
                         </div>
                       )}
                     </section>
@@ -523,7 +541,7 @@ export default function Home() {
                           replan={replan}
                           busy={replanBusy}
                           error={replanError}
-                          hasKey={ai.hasKey}
+                          hasKey={ai.ready ? ai.hasKey : undefined}
                           lang={ai.lang}
                           onReplan={runReplan}
                           onRevert={() => setReplan(null)}
@@ -867,7 +885,6 @@ export default function Home() {
               onClose={() => setSelectedId(null)}
               onDecide={(kind, opts) => decideFromPanel(selected, kind, opts)}
               onUndo={() => void undo(selected.id)}
-              onAddKey={() => setAiOpen(true)}
               onGrab={wide ? undefined : (e) => sheetDrag.start(e)}
             />
           </motion.div>

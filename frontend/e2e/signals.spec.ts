@@ -182,22 +182,26 @@ test("Ukrainian briefing and re-plan note, language kept in this browser", async
   );
   await mockSignals(page, [power()]);
   await open(page, { key: true });
-  await page.getByRole("button", { name: "Write with AI" }).click();
+  // the language is changed in AI settings (under More on phones); no key is asked for
+  const settings = page.getByRole("button", { name: "AI settings" }).filter({ visible: true });
+  if (!(await settings.count())) await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "More", exact: true }).click();
+  await settings.first().click();
   const sheet = page.getByRole("dialog", { name: "AI settings" });
   await expect(sheet.getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
   await sheet.getByRole("radio", { name: "Українська" }).click();
   await sheet.getByRole("button", { name: "Write briefing" }).click();
   await expect(sheet).toHaveCount(0);
+  await page.getByRole("button", { name: /^Today( \d+ to decide)?$/ }).filter({ visible: true }).first().click();
   await expect(page.getByTestId("summary")).toHaveText("Сьогодні 5 пріоритетів; найбільше під загрозою 6 041,22 ₴ на кухлях.");
   await expect(page.getByTestId("summary")).toHaveAttribute("lang", "uk");
   await expect(page.getByText("Залишилось 7 шт.", { exact: false })).toBeVisible();
-  expect((calls[0].user as { language: string }).language).toBe("Ukrainian");
+  expect((calls.at(-1)!.user as { language: string }).language).toBe("Ukrainian");
   expect(await page.evaluate(() => localStorage.getItem("avrora.lang"))).toBe("uk");
 
   await live(page).getByRole("button", { name: /Re-plan for this/ }).click();
   await expect(page.getByTestId("replan-note")).toContainText("спершу замовлення");
   await expect(page.getByTestId("replan-note")).toHaveAttribute("lang", "uk");
-  expect((calls[1].user as { language: string }).language).toBe("Ukrainian");
+  expect((calls.at(-1)!.user as { language: string }).language).toBe("Ukrainian");
 });
 
 test("Ukrainian rules note without a key", async ({ page }) => {
