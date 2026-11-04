@@ -9,16 +9,21 @@ from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlparse
 
 import httpx
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from avrora.actions.engine import Plan, build_plan
 from avrora.actions.models import Action, ActionType
 from avrora.ai.briefing import Briefing, build_briefing
+from avrora.ai.provider import fetch
 from avrora.analytics.forecast import sales_history
 from avrora.analytics.products import ProductFacts, build_products, store_feed
 from avrora.analytics.purchases import purchase_history
@@ -31,12 +36,49 @@ from avrora.data.loader import StoreData, load
 from avrora.evaluation import evaluate
 
 app = FastAPI(title="Avrora Store Assistant", version="0.1.0")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+    # like FastAPI's default, minus the echoed input (inf/NaN there cannot be serialised)
+    errors = [{"type": e["type"], "loc": list(e["loc"]), "msg": e["msg"]} for e in exc.errors()]
+    return JSONResponse({"detail": errors}, status_code=422)
+
+
+LOOPBACK = ("localhost", "127.0.0.1", "[::1]", "::1")
+
+
+def _origin_allowed(origin: str, request: Request) -> bool:
+    """A listed origin, this server itself, the page the dev proxy (next dev) forwarded for, or any local port."""
+    if origin in SETTINGS.cors_origins:
+        return True
+    url = urlparse(origin)
+    if url.hostname in LOOPBACK:  # next dev on any port; a foreign page cannot have a loopback origin
+        return True
+    hosts = {request.headers.get("host"), *request.headers.get("x-forwarded-host", "").split(",")}
+    return url.netloc in {h.strip() for h in hosts if h}
+
+
+@app.middleware("http")
+async def same_origin_guard(request: Request, call_next):
+    """Browser-sent write requests must come from an allowed origin (CSRF). This is not authentication:
+    clients that send no Origin header (curl, the tests) pass. Full auth is still to do."""
+    if request.method not in ("GET", "HEAD", "OPTIONS"):
+        origin = request.headers.get("origin")
+        if request.headers.get("sec-fetch-site", "").lower() == "cross-site" or (
+            origin is not None and not _origin_allowed(origin, request)
+        ):
+            return JSONResponse({"detail": "Cross-origin write requests are not allowed"}, status_code=403)
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=list(SETTINGS.cors_origins),
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(SETTINGS.allowed_hosts))  # outermost: DNS rebinding
 app.include_router(ai_router)
 app.include_router(signals_router)
 app.include_router(workforce_router)
@@ -217,7 +259,7 @@ class DecisionIn(BaseModel):
     action_id: str
     decision: Decision
     reason: str | None = Field(default=None, max_length=200)
-    value: float | None = Field(default=None, ge=0, description="Changed quantity or discount")
+    value: float | None = Field(default=None, ge=0, allow_inf_nan=False, description="Changed quantity or discount")
 
 
 class DecisionOut(DecisionIn):
@@ -276,7 +318,7 @@ def products() -> ProductList:
 
 
 @app.get("/api/products/{product_id}", response_model=ProductDetail)
-def product(product_id: str, days: int = 30) -> ProductDetail:
+def product(product_id: str, days: int = Query(30, ge=1, le=365)) -> ProductDetail:
     m = _plan().metrics
     row = m[m["product_id"] == product_id]
     if row.empty:
@@ -346,8 +388,10 @@ def summarise_alerts(alerts: list[dict], fetched_at: str) -> dict:
     oblasts: set[str] = set()
     hromadas: set[str] = set()
     for a in alerts:
+        if not isinstance(a, dict):
+            continue
         title, kind = a.get("location_title"), a.get("location_type")
-        if not title:
+        if not title or not isinstance(title, str):
             continue
         if kind in ("oblast", "city"):
             oblasts.add(title)
@@ -364,9 +408,12 @@ def wartime_alerts() -> dict:
     if not token:
         return {"connected": False, "reason": "no_token"}
     try:
-        r = httpx.get(ALERTS_URL, headers={"Authorization": f"Bearer {token}"}, timeout=8)
+        r = fetch("GET", ALERTS_URL, headers={"Authorization": f"Bearer {token}"}, timeout=8)
         r.raise_for_status()
-        alerts = r.json().get("alerts", [])
+        body = r.json()
+        alerts = body.get("alerts", []) if isinstance(body, dict) else []
     except (httpx.HTTPError, ValueError):
         return {"connected": False, "reason": "unavailable"}
+    if not isinstance(alerts, list):
+        alerts = []
     return summarise_alerts(alerts, datetime.now(UTC).isoformat())

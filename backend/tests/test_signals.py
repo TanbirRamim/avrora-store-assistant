@@ -11,9 +11,9 @@ SCHEDULE = {"queue": "3.1", "example": False, "days": {"2026-11-03": [["14:00", 
 @pytest.fixture()
 def client(monkeypatch):
     monkeypatch.setattr(signals, "_weather", lambda now: [])
-    monkeypatch.delenv("AVRORA_DEMO_KEY", raising=False)
+    monkeypatch.setenv("AVRORA_DEMO_KEY", "secret")
     signals._SIMULATED.clear()
-    return TestClient(main.app)
+    return TestClient(main.app, headers={"X-Demo-Key": "secret"})
 
 
 def test_schedule_in_kyiv_time():
@@ -45,7 +45,39 @@ def test_simulate_and_clear(client):
 
 
 def test_simulate_needs_demo_key_when_set(client, monkeypatch):
-    monkeypatch.setenv("AVRORA_DEMO_KEY", "secret")
-    assert client.post("/api/signals/simulate", json={"kind": "power"}).status_code == 403
-    r = client.post("/api/signals/simulate", json={"kind": "power"}, headers={"X-Demo-Key": "secret"})
+    assert client.post("/api/signals/simulate", json={"kind": "power"}, headers={"X-Demo-Key": "no"}).status_code == 403
+    r = client.post("/api/signals/simulate", json={"kind": "power"})
     assert r.status_code == 201 and r.json()["severity"] == "high"
+
+
+@pytest.mark.parametrize("key", [None, "", "x"])
+def test_simulate_fails_closed_without_configured_key(client, monkeypatch, key):
+    monkeypatch.delenv("AVRORA_DEMO_KEY", raising=False)
+    headers = {"X-Demo-Key": key} if key is not None else {}
+    assert client.post("/api/signals/simulate", json={"kind": "power"}, headers=headers).status_code == 403
+    monkeypatch.setenv("AVRORA_DEMO_KEY", "")
+    assert client.post("/api/signals/simulate", json={"kind": "power"}, headers={"X-Demo-Key": ""}).status_code == 403
+    assert client.delete("/api/signals/simulate", headers={"X-Demo-Key": ""}).status_code == 403
+
+
+def test_simulated_list_is_capped(client):
+    for _ in range(signals.MAX_SIMULATED):
+        assert client.post("/api/signals/simulate", json={"kind": "power"}).status_code == 201
+    assert client.post("/api/signals/simulate", json={"kind": "power"}).status_code == 429
+
+
+def test_bad_outage_entries_are_skipped():
+    now = datetime(2026, 11, 3, 11, 0, tzinfo=UTC)
+    bad = {"queue": "3.1", "example": False, "days": {"2026-11-03": [["xx", "18:00"], ["14:00"], 5, ["14:00", "25:99"], ["14:00", "18:00"]],
+                                                      "2026-11-04": "oops"}}
+    assert [s.title for s in signals.scheduled_power(now, bad)] == ["Power cut 14:00–18:00"]
+
+
+@pytest.mark.parametrize("daily", [{}, {"time": ["2026-11-03"]}, {"time": ["nope"], "temperature_2m_min": [1], "temperature_2m_max": [1],
+                                                                  "wind_gusts_10m_max": [1], "weather_code": [1]},
+                                   {"time": ["2026-11-03"], "temperature_2m_min": [None], "temperature_2m_max": [1],
+                                    "wind_gusts_10m_max": [None], "weather_code": [None]}, []])
+def test_bad_weather_payload_is_not_a_500(monkeypatch, daily):
+    signals._cache["weather"] = (signals.time.monotonic(), daily)
+    assert signals._weather(datetime(2026, 11, 3, 8, tzinfo=UTC)) is None
+    signals._cache.clear()

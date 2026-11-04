@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from avrora.analytics.purchases import order_row
 from avrora.api import main as api_main
 from avrora.api.main import app
+from avrora.api.workforce import _replan_limiter as replan_limit
 from avrora.api.workforce import kpi_base
 from avrora.workforce.people import employee_list, employee_profile
 from avrora.workforce.plan import all_events, base_plan, plan_dates, replan
@@ -146,6 +147,8 @@ def verify_workforce(client: TestClient, wf: dict) -> None:
 
 
 def main(out: Path) -> None:
+    replan_limit.hits.clear()
+    replan_limit.per_window = 10**9  # the export replays every replan once; the per-client cap is for browsers
     client = TestClient(app)
     get = lambda path: client.get(path).raise_for_status().json()
     product_list = get("/api/products")
