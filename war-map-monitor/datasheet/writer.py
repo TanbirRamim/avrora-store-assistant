@@ -8,6 +8,23 @@ from config import CSV_OUTPUT_PATH, JSON_OUTPUT_PATH, EXCEL_OUTPUT_PATH, METRICS
 
 logger = logging.getLogger(__name__)
 
+PRIVATE_COLUMNS = ["manager_name", "manager_phone"]
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _sanitize_cell(value):
+    """Neutralise spreadsheet formula injection (CSV and XLSX)."""
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
+def _sanitize_df(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    for col in df.columns:
+        df[col] = df[col].map(_sanitize_cell)
+    return df.rename(columns=lambda c: _sanitize_cell(c) if isinstance(c, str) else c)
+
 
 class DataSheetWriter:
     """
@@ -39,14 +56,15 @@ class DataSheetWriter:
 
         # 3. Export Clean CSV
         try:
-            df = pd.DataFrame(rows)
+            df = pd.DataFrame(rows).drop(columns=PRIVATE_COLUMNS, errors="ignore")
+            df = _sanitize_df(df)
             column_order = [
                 "store_id", "city", "address", "dist_frontline_km",
                 "threat_zone", "alert_status", "action_en", "shelter_nearby",
                 "comms_status", "ack_status", "power_status",
                 "generator_fuel_l", "generator_runtime_hours",
                 "delivery_eta", "priority_restock", "surge_level", "surge_category",
-                "manager_name", "manager_phone", "updated_at"
+                "updated_at"
             ]
             cols_to_use = [c for c in column_order if c in df.columns] + [c for c in df.columns if c not in column_order]
             df = df[cols_to_use]
@@ -63,7 +81,7 @@ class DataSheetWriter:
                 safety_cols = [
                     "store_id", "city", "address", "dist_frontline_km",
                     "threat_zone", "alert_label", "action_en", "shelter_nearby",
-                    "comms_status", "ack_label", "manager_name", "manager_phone"
+                    "comms_status", "ack_label"
                 ]
                 safety_df = df[[c for c in safety_cols if c in df.columns]]
                 safety_df.to_excel(writer, sheet_name="Life Safety View", index=False)

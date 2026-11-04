@@ -7,3 +7,6 @@ __pycache__/
 env/
 venv/
 data/cached_frontline.geojson
+output/
+data/acknowledgments.json
+data/cached_frontline.meta.json
