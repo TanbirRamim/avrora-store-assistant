@@ -191,3 +191,14 @@ def test_second_pass_when_every_model_was_busy(client, upstream, monkeypatch):
     r = client.post("/api/ai/chat", json={"messages": MSGS})
     assert r.status_code == 200 and r.json()["model"] == "a"
     assert [c["json"]["model"] for c in calls] == ["a", "b", "a"]
+
+
+def test_cut_off_json_tries_next_model(client, upstream, monkeypatch):
+    """An answer that ran out of tokens mid-JSON is not passed on; the next model gets a turn."""
+    monkeypatch.setenv("AI_MODEL", "a,b")
+    calls, replies = upstream
+    replies.append(httpx.Response(200, json={"choices": [{"message": {"content": '{"answer": "There is a gap fr'}}]}))
+    r = client.post("/api/ai/chat", json={"messages": MSGS, "schema": {"type": "object"}})
+    assert r.status_code == 200
+    assert r.json() == {"content": '{"ok": true}', "model": "b"}
+    assert [c["json"]["model"] for c in calls] == ["a", "b"]

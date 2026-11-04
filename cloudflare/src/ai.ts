@@ -152,10 +152,23 @@ export async function aiChat(req: Request, env: AiEnv): Promise<Response> {
         last = "The AI provider sent no answer";
         continue;
       }
+      if (input.schema && !isJson(content)) {
+        last = "The AI answer was cut off"; // ran out of tokens mid-answer: the next model may finish
+        continue;
+      }
       return json({ content, model });
     }
     return fail(502, last);
   } catch {
     return fail(502, "Can't reach the AI provider");
+  }
+}
+
+function isJson(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
   }
 }

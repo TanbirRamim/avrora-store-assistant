@@ -354,7 +354,7 @@ today's shift on the plan (null = not working today), hours worked and hours lef
 Answer in at most 60 words, plainly, using only people, numbers and times from the data, copied exactly as given, with names
 written exactly as given. Never add up or invent numbers. Write plain words, never data field names or codes
 (write "day off", not "day_off").
-Cover questions: name people who could take that time. Good candidates are not sick or on vacation, are not already on shift
+Cover questions: name people who could take that time. Good candidates are not "unavailable", are not already on shift
 then (status "available" or "day_off" and no overlapping shift today), have hours left this week and the needed skill. Also
 say who already works then and any gap. If nobody fits, say so and why.
 "Fastest on the till" means checkout speed: use the strength "Fast checkout", then the score.
@@ -368,7 +368,7 @@ const ASK_SCHEMA = {
 };
 
 /** Health and absence reasons stay on this device: the model only learns who can be asked to cover. */
-const neutralStatus = (status: string) => (["working", "available"].includes(status) ? status : "unavailable");
+const neutralStatus = (status: string) => (["working", "available", "day_off"].includes(status) ? status : "unavailable");
 
 /** Morning / afternoon / evening as times, so "the evening" maps to plan hours. */
 export function dayParts(plan: Plan) {

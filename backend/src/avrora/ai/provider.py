@@ -8,6 +8,7 @@ next one answers. AI_REASONING_EFFORT (optional, e.g. "low") keeps thinking mode
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -83,6 +84,14 @@ def chat(cfg: AiConfig, messages: list[dict], schema: dict | None = None, max_to
     return answer(cfg, messages, schema, max_tokens)[0]
 
 
+def _is_json(text: str) -> bool:
+    try:
+        json.loads(text)
+    except ValueError:
+        return False
+    return True
+
+
 def answer(cfg: AiConfig, messages: list[dict], schema: dict | None = None,
            max_tokens: int = MAX_TOKENS) -> tuple[str, str]:
     """Like chat, trying the fallback models in order; returns (text, model that answered).
@@ -118,6 +127,9 @@ def answer(cfg: AiConfig, messages: list[dict], schema: dict | None = None,
             content = None
         if not isinstance(content, str) or not content.strip():
             last = "The AI provider sent no answer"
+            continue
+        if schema and not _is_json(content):
+            last = "The AI answer was cut off"  # ran out of tokens mid-answer: the next model may finish
             continue
         return content, model
     raise ProviderError(last)
