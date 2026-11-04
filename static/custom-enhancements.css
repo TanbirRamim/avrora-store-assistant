@@ -1469,3 +1469,9 @@ div[role="dialog"] h2 {
   font-weight: 800 !important;
   letter-spacing: -0.02em !important;
 }
+
+
+/* Remove obsolete sorting options bar on Products page */
+div[role="tablist"][aria-label="Sort"] {
+  display: none !important;
+}

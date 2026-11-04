@@ -10,12 +10,8 @@ import { ProductPanel } from "./ProductPanel";
 import { ScreenHeader } from "./ScreenHeader";
 import { CoverBar, coverText, dayLabel, StatusChip, UPDATE_COLOR } from "./ProductStatus";
 
-type Sort = "attention" | "name" | "cover";
-const SORTS: { id: Sort; label: string }[] = [
-  { id: "attention", label: "Needs attention" },
-  { id: "name", label: "A–Z" },
-  { id: "cover", label: "Lasts least" },
-];
+type Sort = "attention";
+const SORTS: { id: Sort; label: string }[] = [];
 const FEED_PREVIEW = 4;
 const PANEL_W = 400;
 
@@ -233,22 +229,24 @@ export function ProductsView({ onOpenAction, onPanel }: { onOpenAction?: (action
               </button>
             )}
           </label>
-          <div role="tablist" aria-label="Sort" className="flex items-center gap-1">
-            <span className="t-subhead mr-1 text-muted">Sort</span>
-            {SORTS.map((s) => (
-              <button
-                key={s.id}
-                role="tab"
-                aria-selected={sort === s.id}
-                onClick={() => setSort(s.id)}
-                className={`t-subhead min-h-[44px] whitespace-nowrap rounded-full px-3 font-medium transition-colors ${
-                  sort === s.id ? "text-ink underline decoration-[2px] underline-offset-[6px]" : "text-muted hover:text-ink"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+          {SORTS.length > 0 && (
+            <div role="tablist" aria-label="Sort" className="flex items-center gap-1">
+              <span className="t-subhead mr-1 text-muted">Sort</span>
+              {SORTS.map((s) => (
+                <button
+                  key={s.id}
+                  role="tab"
+                  aria-selected={sort === s.id}
+                  onClick={() => setSort(s.id)}
+                  className={`t-subhead min-h-[44px] whitespace-nowrap rounded-full px-3 font-medium transition-colors ${
+                    sort === s.id ? "text-ink underline decoration-[2px] underline-offset-[6px]" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div role="group" aria-label="Category" className="-mx-4 mt-2 flex gap-2 overflow-x-auto px-4 py-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
