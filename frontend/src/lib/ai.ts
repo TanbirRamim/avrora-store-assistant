@@ -68,10 +68,26 @@ export function aiRoute(): Route {
   return serverModel ? "server" : "";
 }
 
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** The saved briefing carries the day it was written; one from another day, or a broken value, is ignored. */
+function parseBriefing(raw: string | null): Briefing | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as { date?: unknown; briefing?: Briefing } | null;
+    return v && v.date === today() && v.briefing && Array.isArray(v.briefing.priorities) ? v.briefing : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useAi() {
   const server = useSyncExternalStore(subscribe, () => serverModel, () => "");
   const raw = useSyncExternalStore(subscribe, () => read(BRIEFING), () => null);
-  const briefing = useMemo(() => (raw ? (JSON.parse(raw) as Briefing) : null), [raw]);
+  const briefing = useMemo(() => parseBriefing(raw), [raw]);
   const lang = useSyncExternalStore(subscribe, savedLang, () => "en" as Lang);
   const ready = useSyncExternalStore(subscribe, () => statusKnown, () => false);
   /**
@@ -86,5 +102,5 @@ export const setLang = (l: Lang) => write(LANG, l);
 
 export async function writeBriefing(actions: Action[], notices: Action[], lang: Lang = savedLang()): Promise<void> {
   const b = await draftBriefing(aiRoute(), actions, notices, lang);
-  write(BRIEFING, JSON.stringify(b));
+  write(BRIEFING, JSON.stringify({ date: today(), briefing: b }));
 }

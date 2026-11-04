@@ -84,7 +84,15 @@ export default function Home() {
   const { data: overview, error: overviewError, mutate: retryOverview, isValidating: retrying } = useSWR<Overview>("/api/overview", fetcher);
   const { data: baseBriefing } = useSWR<Briefing>("/api/briefing", fetcher);
   const ai = useAi();
-  const briefing = ai.briefing ?? baseBriefing;
+  const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
+  // a saved AI briefing only counts when all its priorities are still among today's actions
+  const aiBriefing = useMemo(() => {
+    if (!ai.briefing || !actions) return null;
+    const ids = new Set(actions.map((a) => a.id));
+    const priorities = ai.briefing.priorities.filter((a) => ids.has(a.id));
+    return priorities.length ? { ...ai.briefing, priorities } : null;
+  }, [ai.briefing, actions]);
+  const briefing = aiBriefing ?? baseBriefing;
   const [aiOpen, setAiOpen] = useState(false);
   // the Products view reports its fixed panel so the content column and the tab bar make room for it
   const [productPanel, setProductPanel] = useState(false);
@@ -146,8 +154,6 @@ export default function Home() {
     main.addEventListener("scroll", onScroll, { passive: true });
     return () => main.removeEventListener("scroll", onScroll);
   }, [view]);
-
-  const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
 
   // With the store AI connected the briefing is written by the model on its own, once per visit;
   // if the model fails, the rules briefing stays and the AI sheet can try again.
@@ -259,8 +265,10 @@ export default function Home() {
       }, "The undo wasn't saved. Check the connection and try again."),
     [save],
   );
+  const replanSeq = useRef(0);
   const runReplan = async (s: Signal) => {
     const base = briefing?.priorities ?? [];
+    const id = ++replanSeq.current;
     setReplanError(null);
     setReplanBusy(true);
     await aiStatus();
@@ -269,11 +277,12 @@ export default function Home() {
       return setReplan(replanByRules(s, base, ai.lang));
     }
     try {
-      setReplan(await replanWithModel(aiRoute(), s, base, ai.lang));
+      const r = await replanWithModel(aiRoute(), s, base, ai.lang);
+      if (id === replanSeq.current) setReplan(r);
     } catch (err) {
-      setReplanError(err instanceof ModelError ? err.message : "The new order could not be worked out. Try again.");
+      if (id === replanSeq.current) setReplanError(err instanceof ModelError ? err.message : "The new order could not be worked out. Try again.");
     } finally {
-      setReplanBusy(false);
+      if (id === replanSeq.current) setReplanBusy(false);
     }
   };
   // An approved row stays in place for a moment with its check filled, then moves to Handled.
