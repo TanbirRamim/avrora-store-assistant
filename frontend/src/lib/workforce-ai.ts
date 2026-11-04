@@ -6,7 +6,7 @@
  *   `key` comes from `aiRoute()` in ./ai ("server" or ""); with "" the fixed rules answer at once, offline.
  *   They never throw: a model failure (AI not reachable, bad key, ungrounded answer) returns the
  *   rules result with `error` set to a message you may show quietly.
- * - Show `SOURCE_LABEL[lang][result.source]` next to every text ("Written by AI" / "Fixed rules").
+ * - Show `SOURCE_LABEL[lang][result.source]` next to every text ("Written by AI" / "Store plan").
  * - explainPlan(plan): `sentences` (3-5) + `watchOut` list for the plan header.
  * - explainReplan(before, after, diff): `summary` + one ready-to-send `messages[i].text` per affected
  *   employee. Nothing is ever sent: render a Copy button (navigator.clipboard.writeText) per message.
@@ -26,8 +26,8 @@ import type { DiffRow, Employee, Plan, Profile } from "./workforce";
 export type Source = "model" | "rules";
 
 export const SOURCE_LABEL: Record<Lang, Record<Source, string>> = {
-  en: { model: "Written by AI", rules: "Fixed rules" },
-  uk: { model: "Написано ШІ", rules: "Фіксовані правила" },
+  en: { model: "Written by AI", rules: "Store plan" },
+  uk: { model: "Написано ШІ", rules: "План магазину" },
 };
 
 export interface AiOptions {
@@ -73,7 +73,7 @@ export interface CoachingNote extends Result {
 }
 
 const LANGUAGE: Record<Lang, string> = { en: "English", uk: "Ukrainian" };
-const UNUSABLE = "The AI answer didn't pass the checks, so the fixed rules wrote this.";
+const UNUSABLE = "The AI answer didn't pass the checks, so this is the store plan.";
 
 /* ---------------------------------------------------------------- checks */
 

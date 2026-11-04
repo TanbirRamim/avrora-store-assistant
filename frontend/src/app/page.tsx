@@ -406,7 +406,7 @@ export default function Home() {
     <div className="flex h-full overflow-hidden">
       <main
         ref={mainRef}
-        className={`relative min-w-0 flex-1 ${
+        className={`relative min-w-0 flex-1 transition-[margin-right] duration-[240ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${
           view === "map"
             ? "overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0"
             : "pb-tabbar overflow-y-auto overscroll-contain"
@@ -461,7 +461,7 @@ export default function Home() {
                       {briefing && (
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--divider)] pt-3">
                           <p className="t-footnote min-w-0 text-muted">
-                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "Fixed rules, not AI."}
+                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "From store data."}
                           </p>
                           {briefing.source === "model" ? (
                             <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
@@ -800,7 +800,7 @@ export default function Home() {
       {/* Tab bar: one floating pill on every screen size, centred in the content area beside an open panel */}
       <nav
         aria-label="Sections"
-        className={`pointer-events-none fixed inset-x-0 bottom-[var(--dock-bottom)] z-10 flex justify-center px-3 ${
+        className={`pointer-events-none fixed inset-x-0 bottom-[var(--dock-bottom)] z-10 flex justify-center px-3 transition-[right] duration-[240ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${
           (selected || (productPanel && view === "products")) ? "lg:right-[400px]" : ""
         }`}
       >
@@ -857,7 +857,7 @@ export default function Home() {
                     void undo(toast.undoId!);
                     setToast(null);
                   }}
-                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-white underline underline-offset-4 active:bg-white/10"
+                  className="t-subhead min-h-[44px] shrink-0 rounded-[10px] px-3 font-semibold text-yellow active:bg-white/10"
                 >
                   Undo
                 </button>

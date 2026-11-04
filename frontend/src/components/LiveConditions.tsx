@@ -138,7 +138,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                   <SparkleIcon size={20} />
                 </span>
                 <span className="t-subhead flex-1 font-semibold text-ink underline-offset-4 hover:underline">{busy ? "Re-planning, about 20 seconds…" : "Re-plan for this"}</span>
-                {hasKey !== undefined && <span className="t-footnote whitespace-nowrap text-muted">{hasKey ? "With AI" : "Fixed rules"}</span>}
+                {hasKey !== undefined && <span className="t-footnote whitespace-nowrap text-muted">{hasKey ? "With AI" : "Store plan"}</span>}
               </button>
               {error && (
                 <p role="alert" className="t-footnote px-4 pb-3 pl-[48px]" style={{ color: "var(--order-text)" }}>
@@ -165,7 +165,7 @@ export function LiveConditions({ data, replan, busy, error, hasKey, lang, onRepl
                     {replan.note}
                   </p>
                   <p className="t-footnote mt-1.5 text-muted">
-                    {replan.source === "model" ? "Reordered by AI. Numbers checked against store data." : "Sorted by fixed rules, not AI."}
+                    {replan.source === "model" ? "Reordered by AI. Numbers checked against store data." : "Sorted by store priorities."}
                   </p>
                 </div>
               </div>

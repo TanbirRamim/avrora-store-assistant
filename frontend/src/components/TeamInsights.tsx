@@ -54,7 +54,7 @@ export function WhyThisPlan({ plan }: { plan: Plan }) {
           </div>
         )}
         <p className="border-t border-[var(--divider)] py-3 text-[13px] leading-[18px] text-muted">
-          {data?.error ? "The AI answer couldn't be used, so fixed rules wrote this. " : ""}You decide; nothing goes to staff before approval.
+          {data?.error ? "The AI answer couldn't be used, so this is the store plan. " : ""}You decide; nothing goes to staff before approval.
         </p>
       </div>
     </section>

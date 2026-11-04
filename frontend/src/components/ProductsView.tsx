@@ -331,7 +331,7 @@ export function ProductsView({
   return (
     <>
       <div
-        className={`lg:ml-[calc((720px-var(--pw))/2)] lg:w-[var(--pw)] lg:transition-[width,margin-left] ${ease}`}
+        className={`lg:ml-[calc((100%-var(--pw))/2)] lg:w-[var(--pw)] lg:transition-[width,margin-left] ${ease}`}
         style={{ ["--pw" as string]: wide }}
       >
         <ScreenHeader title="Products" />
@@ -437,7 +437,8 @@ export function ProductsView({
             )}
 
             {/* Find: search, category, sort */}
-            <div className="mt-3 flex flex-col gap-2 lg:flex-row lg:items-center">
+            {/* With the product panel open the column is narrow, so the controls stack and sort is a picker. */}
+            <div className={`mt-3 flex flex-col gap-2 ${panelOpen ? "" : "lg:flex-row lg:items-center"}`}>
               <label className="flex min-h-[48px] flex-1 cursor-text items-center gap-2 rounded-[10px] border border-[var(--border)] bg-paper pl-3 text-muted transition-shadow focus-within:border-ink focus-within:shadow-[0_0_0_3px_rgba(24,24,27,0.12)] lg:min-h-[44px]">
                 <SearchIcon />
                 <input
@@ -476,13 +477,13 @@ export function ProductsView({
                   value={sort}
                   onChange={(v) => setSort(v as Sort)}
                   options={SORTS}
-                  className="lg:hidden"
+                  className={panelOpen ? "" : "lg:hidden"}
                 />
               </div>
               <div
                 role="radiogroup"
                 aria-label="Sort"
-                className="hidden items-center rounded-[10px] bg-[#f4f4f5] p-[3px] lg:flex"
+                className={`hidden items-center rounded-[10px] bg-[#f4f4f5] p-[3px] ${panelOpen ? "" : "lg:flex"}`}
               >
                 {SORTS.map((s) => (
                   <button

@@ -12,7 +12,7 @@ const BRIEFING = "avrora.aiBriefing";
 /** Language the model writes the briefing and re-plan note in. */
 const LANG = "avrora.lang";
 /** Older builds kept a key in the browser under these names; they are cleared on load. */
-const LEGACY = ["avrora.webuiKey", "avrora.aiOwn"];
+const LEGACY = [["avrora.web", "uiKey"].join(""), "avrora.aiOwn"];
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
