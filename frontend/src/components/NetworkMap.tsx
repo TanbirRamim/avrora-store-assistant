@@ -697,6 +697,56 @@ export function NetworkMap() {
           })}
         </div>
 
+        <section aria-label="Map legend" className="mb-3 rounded-[10px] border border-separator bg-white/75 px-2.5 py-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            {show.network && (
+              <>
+                {[
+                  ["A", "Avrora", CATEGORIES.avrora.color],
+                  ["S", "Storage", CATEGORIES.warehouse.color],
+                  ["F", "Food", CATEGORIES.food.color],
+                ].map(([letter, label, color]) => (
+                  <span key={label} className="t-caption inline-flex items-center gap-1 text-label-2">
+                    <span className="grid size-[17px] place-items-center rounded-full text-[10px] font-bold leading-none text-white" style={{ background: color }}>
+                      {letter}
+                    </span>
+                    {label}
+                  </span>
+                ))}
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-2.5 rounded-full border border-white" style={{ background: CATEGORIES.supply.color }} />
+                  Supply
+                </span>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-2.5 rounded-full border border-white" style={{ background: CATEGORIES.logistics.color }} />
+                  Logistics
+                </span>
+              </>
+            )}
+            {show.war && (
+              <>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-3 rounded-full border-2 border-[#ff3b30] bg-[rgba(255,59,48,0.14)]" />
+                  Risk site
+                </span>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="size-2.5 rounded-full" style={{ background: THREAT_COLOR }} />
+                  Aerial threat
+                </span>
+                <span className="t-caption inline-flex items-center gap-1 text-label-2">
+                  <span className="h-0.5 w-4 rounded-full bg-[#d70015]" />
+                  Front line
+                </span>
+              </>
+            )}
+          </div>
+          {show.war && (
+            <p className="t-caption mt-1.5 border-t border-separator pt-1.5 text-label-2">
+              Risk rings mark supply sites affected by front-line distance or a nearby active threat. Select one to see why and the recommended action.
+            </p>
+          )}
+        </section>
+
         {show.network && (
           <>
         <h1 className="t-headline px-1">Supply network</h1>
