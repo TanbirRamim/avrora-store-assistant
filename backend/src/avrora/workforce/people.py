@@ -58,7 +58,7 @@ def _score(perf: pd.DataFrame, emp: Employee, rows: pd.DataFrame) -> int:
     v = float(rows[col].mean())
     prod = _clamp(50 + 100 * (v / team - 1)) if team and v else 60.0
     err = float(rows["scan_error_rate"].mean())
-    quality = _clamp(100 - 30 * err) if err else 80.0
+    quality = _clamp(100 - 30 * err) if not pd.isna(err) else 80.0
     punct = _clamp((float(rows["punctuality_pct"].mean()) - 80) * 5)
     rating = _clamp((float(rows["customer_rating"].mean()) - 3) / 2 * 100)
     attend = _clamp(100 - 20 * float(rows["absences"].sum()))

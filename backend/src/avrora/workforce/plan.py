@@ -23,7 +23,7 @@ from avrora.workforce.model import (
     parse_hh,
     team_rates,
 )
-from avrora.workforce.scheduler import Person, check_rules, paid_hours, schedule_day
+from avrora.workforce.scheduler import Person, assign_breaks, check_rules, paid_hours, schedule_day
 from avrora.workforce.tasks import allocate
 
 DAYS_AHEAD = 7
@@ -159,11 +159,13 @@ def replan_day(day: date, event: Event) -> DayPlan:
     base = base_week()
     b = base[day]
     absent = event.employee_id if event.kind == "sick" else None
-    people = _people(sd, day, b.week_other, b.prev_end, b.next_start, absent=absent)
+    # base plans only knew the days before; a replan must also respect the later days of the week
+    week_other = _week_other(sd, base, day)
+    people = _people(sd, day, week_other, b.prev_end, b.next_start, absent=absent)
     seed = {e: s for e, s in b.shifts.items() if e != absent}
     inputs = day_inputs(sd, day, event)
     sched = schedule_day(people, inputs.required, seed=seed)
-    return DayPlan(day, inputs, sched.shifts, people, b.week_other, b.prev_end, b.next_start)
+    return DayPlan(day, inputs, sched.shifts, people, week_other, b.prev_end, b.next_start)
 
 
 def violations(p: DayPlan) -> list[str]:
@@ -274,18 +276,28 @@ def plan_document(p: DayPlan, version: str = "base", event: Event | None = None)
     gaps = _gaps(p, scheduled, absences)
     tasks = _alloc(sd, p)
     shifts = []
+    breaks = assign_breaks(p.shifts)
     for eid, (s, t) in sorted(p.shifts.items(), key=lambda x: (x[1][0], x[1][1], x[0])):
         e = sd.employee(eid)
         shifts.append({"employee_id": eid, "name": e.name, "role": e.role, "start": hh(s), "end": hh(t),
-                       "break_at": hh(s + (t - s) // 2) if t - s > RULES.break_after_hours else None,
+                       "break_at": hh(breaks[eid]) if eid in breaks else None,
                        "hours": paid_hours(t - s), "tasks": tasks[eid]})
     labour = sum(x["hours"] for x in shifts)
     cost = sum(x["hours"] * sd.employee(x["employee_id"]).hourly_cost_uah for x in shifts)
     req_total = sum(i.required.values())
     covered = sum(min(i.required[h], scheduled[h]) for h in HOURS)
     revenue = sum(i.units.values()) * team_rates(sd).price_per_unit
-    overtime = sum(max(0.0, paid_hours(t - s) + p.week_other.get(e, 0.0) - sd.employee(e).contract_hours_week)
-                   for e, (s, t) in p.shifts.items())
+    # this day's share of the week's overtime, so that summing the day documents gives the week's overtime
+    before: dict[str, float] = {}
+    for d in _week(p.day):
+        if d < p.day:
+            for e, (s, t) in _shifts_on(sd, base_week(), d).items():
+                before[e] = before.get(e, 0.0) + paid_hours(t - s)
+    overtime = 0.0
+    for e, (s, t) in p.shifts.items():
+        contract = sd.employee(e).contract_hours_week
+        overtime += (max(0.0, before.get(e, 0.0) + paid_hours(t - s) - contract)
+                     - max(0.0, before.get(e, 0.0) - contract))
     return {
         "date": p.day.isoformat(),
         "generated_at": generated_at(p.day),
