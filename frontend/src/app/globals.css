@@ -299,3 +299,20 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .scroll-row::-webkit-scrollbar { display: none; }
 .scroll-row > * { scroll-snap-align: start; }
 @media (min-width: 768px) { .scroll-row { -webkit-mask-image: none; mask-image: none; padding-right: 0; } }
+
+/* ---- Yellow "shop floor" theme (restored from 8a01d07) ---- */
+:root { --selected: #fff6b8; }
+@theme inline { --color-yellow: var(--yellow); }
+.price-tag { background: var(--yellow); color: var(--ink); border: 0; border-radius: 14px; box-shadow: none; padding: 20px 20px 18px 20px; }
+.price-tag::before { content: ""; position: absolute; top: 14px; left: 14px; width: 8px; height: 8px; border-radius: 999px; background: var(--floor); }
+.tag-figure { font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 1; }
+@media (min-width: 768px) { .tag-figure { font-size: 56px; } }
+.price-tag .btn-tag { background: var(--ink); color: #fff; border: 0; box-shadow: none; border-radius: 999px; font-weight: 600; }
+.price-tag .tag-bar { background: rgba(0, 0, 0, 0.14); }
+.dock { border-radius: 999px; background: var(--ink); border: 0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.22); }
+.dock-item { color: rgba(255, 255, 255, 0.72); }
+.dock-item[aria-current="page"], .dock-item[aria-selected="true"] { color: var(--ink); background: var(--yellow); border-radius: 999px; }
+.dock-item[aria-current="page"]::before, .dock-item[aria-selected="true"]::before { display: none; }
+.dock-item:focus-visible { border-radius: 999px; }
+:focus-visible { outline: 3px solid var(--ink); box-shadow: 0 0 0 5px var(--yellow); outline-offset: 1px; border-radius: 8px; }
+.edge-yellow { box-shadow: none; border-left: 6px solid var(--yellow); }
