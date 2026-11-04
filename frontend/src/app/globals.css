@@ -209,7 +209,7 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .maplibregl-ctrl-group { border-radius: 10px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.06) !important; overflow: hidden; }
-.maplibregl-ctrl-group button { width: 36px; height: 36px; }
+.maplibregl-ctrl-group button { width: 44px !important; height: 44px !important; }
 .maplibregl-ctrl-attrib { font-family: var(--font-sans); }
 /* phones: pinch to zoom, so the +/- buttons go (as in Apple Maps) */
 @media (max-width: 767px) { .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { display: none; } }
@@ -243,7 +243,7 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .btn-text:hover { text-decoration: underline; }
 .btn-text:active { opacity: 0.6; }
 /* small secondary button inside a summary card */
-.btn-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--border); box-shadow: var(--shadow-xs); font-weight: 500; font-size: 14px; white-space: nowrap; }
+.btn-tag { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 8px; background: var(--paper); color: var(--ink); border: 1px solid var(--border); box-shadow: var(--shadow-xs); font-weight: 500; font-size: 14px; white-space: nowrap; }
 .btn-tag:hover { background: #fafafa; }
 .btn-tag.hit::after { inset: -4px; }
 /* phones: every shared control reaches a 44 px hit area */
@@ -251,6 +251,8 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   .btn-tag { min-height: 44px; padding: 0 14px; }
   .segmented > button, .segmented > [role="tab"], .segmented > * > button { min-height: 44px; }
 }
+/* Products sort segment reaches 44 px on desktop too */
+[role="radiogroup"][aria-label="Sort"] > button[role="radio"] { min-height: 44px; }
 /* action-type glyph: small neutral square */
 .type-glyph { display: inline-block; width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .type-glyph[data-outline] { background: transparent !important; box-shadow: inset 0 0 0 1.5px #71717a; }

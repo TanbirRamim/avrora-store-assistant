@@ -156,3 +156,57 @@ test("phones: map controls start folded so the map gets the screen", async ({ pa
   await bar.click();
   await expect(page.getByRole("checkbox", { name: "Supply network" })).toBeHidden();
 });
+
+/** Screen position of a lng/lat from the map's visible bounds (web mercator). */
+async function screenPoint(page: Page, lng: number, lat: number) {
+  const region = page.getByRole("region", { name: "Map of the Ukraine supply network" });
+  const box = (await region.boundingBox())!;
+  const [w, s, e, n] = (await region.getAttribute("data-bounds"))!.split(",").map(Number);
+  const y = (d: number) => Math.log(Math.tan(Math.PI / 4 + (d * Math.PI) / 360));
+  return { x: box.x + ((lng - w) / (e - w)) * box.width, y: box.y + ((y(n) - y(lat)) / (y(n) - y(s))) * box.height };
+}
+
+test("map opens fitted to Ukraine, clear of the controls card", async ({ page }, info) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Map$/ }).filter({ visible: true }).first().click();
+  const region = page.getByRole("region", { name: "Map of the Ukraine supply network" });
+  await expect(region).toHaveAttribute("data-bounds", /,/);
+  await page.waitForTimeout(1500);
+  const vp = page.viewportSize()!;
+  const card = page.getByTestId("map-card");
+  const check = async () => {
+    // Ukraine's centre and Kyiv are on screen and not under the card
+    const c = (await card.boundingBox())!;
+    for (const [lng, lat] of [[31.2, 48.4], [30.52, 50.45]]) {
+      const p = await screenPoint(page, lng, lat);
+      expect(p.x).toBeGreaterThan(0);
+      expect(p.x).toBeLessThan(vp.width);
+      expect(p.y).toBeGreaterThan(0);
+      expect(p.y).toBeLessThan(vp.height);
+      expect(p.x > c.x && p.x < c.x + c.width && p.y > c.y && p.y < c.y + c.height).toBe(false);
+    }
+    // Ukraine fills the map rather than a zoomed-out region view
+    const [w, , e] = (await region.getAttribute("data-bounds"))!.split(",").map(Number);
+    expect(e - w).toBeLessThan(30);
+  };
+  await check();
+  await page.screenshot({ path: `e2e/screens/${info.project.name}-map-initial.png` });
+
+  if (vp.width < 768) {
+    await openMapControls(page);
+    await page.waitForTimeout(1200);
+    const c = (await card.boundingBox())!;
+    expect(c.height / vp.height).toBeLessThanOrEqual(0.45);
+    await check();
+    await page.screenshot({ path: `e2e/screens/${info.project.name}-map-panel-open.png` });
+  } else {
+    for (const b of await page.locator(".maplibregl-ctrl-group button").all()) {
+      const z = (await b.boundingBox())!;
+      expect(z.height).toBeGreaterThanOrEqual(44);
+      expect(z.width).toBeGreaterThanOrEqual(44);
+    }
+  }
+  for (const t of await page.getByRole("checkbox", { name: /Supply network|War-time risk/ }).all()) expect((await t.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  for (const t of await page.getByRole("tab").filter({ visible: true }).all()) expect((await t.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await page.getByRole("searchbox", { name: "Search places" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+});

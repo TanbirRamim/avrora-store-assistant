@@ -148,6 +148,7 @@ export default function Home() {
   }, [view]);
 
   const { data: actions } = useSWR<Action[]>("/api/actions", fetcher);
+  const { data: accuracy } = useSWR<{ planted: number; found: number; precision: number; recall: number }>("/api/evaluation", fetcher, { shouldRetryOnError: false });
 
   // With the store AI connected the briefing is written by the model on its own, once per visit;
   // if the model fails, the rules briefing stays and the AI sheet can try again.
@@ -613,6 +614,24 @@ export default function Home() {
                     </div>
                   ))}
                 </dl>
+              )}
+              {accuracy && accuracy.planted > 0 && (
+                <section aria-label="Accuracy check" className="card mt-4 flex items-center gap-3 px-4 py-3">
+                  <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-fill text-ink">
+                    <CheckIcon size={14} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="t-subhead font-semibold">Accuracy check</div>
+                    <div className="t-footnote text-muted">
+                      {accuracy.found === accuracy.planted && accuracy.precision === 1
+                        ? `Checked against ${accuracy.planted} known issues: all found, none wrong`
+                        : `Checked against ${accuracy.planted} known issues: ${accuracy.found} found, ${Math.round(accuracy.precision * 100)}% correct`}
+                    </div>
+                  </div>
+                  <span className="num shrink-0 text-[17px] font-semibold tracking-[-0.01em]">
+                    {accuracy.found}/{accuracy.planted}
+                  </span>
+                </section>
               )}
               <section className="mt-6">
                 <div className="flat-list">

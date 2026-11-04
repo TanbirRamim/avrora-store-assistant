@@ -187,12 +187,14 @@ function cardOffset(el: HTMLElement | null, cardEl: HTMLElement | null): [number
 function fitPadding(el: HTMLElement | null, cardEl: HTMLElement | null) {
   const p = cardPadding(el, cardEl);
   const dock = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dock-h")) || 60;
-  return { top: p.top + 16, left: p.left + 16, right: 16, bottom: dock + 32 };
+  const side = (el?.clientWidth ?? 0) < 768 ? 8 : 16;
+  return { top: p.top + 16, left: p.left + side, right: side, bottom: dock + 32 };
 }
 
 export function NetworkMap() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibre | null>(null);
+  const moved = useRef(false);
   const popupRef = useRef<Popup | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const popupCat = useRef<Category | null>(null);
@@ -330,6 +332,16 @@ export function NetworkMap() {
         if (!attribOpened) container.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
       });
       mapRef.current = map;
+      const mark = () => {
+        const b = map.getBounds();
+        container.current?.setAttribute("data-bounds", [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(3)).join(","));
+      };
+      map.on("moveend", mark);
+      mark();
+      // any move other than our own re-fit (user gesture, flight to a site) ends the automatic fitting
+      map.on("movestart", (e) => {
+        if (!(e as { refit?: boolean }).refit) moved.current = true;
+      });
 
       const el = document.createElement("div");
       el.className = "nm-store";
@@ -584,6 +596,14 @@ export function NetworkMap() {
     };
   }, []);
 
+  // phones: when the controls card opens or closes, keep Ukraine in the map area it leaves free
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || moved.current || (container.current?.clientWidth ?? 0) >= 768) return;
+    const id = requestAnimationFrame(() => map.fitBounds(UKRAINE, { padding: fitPadding(container.current, card.current), duration: 400 }, { refit: true }));
+    return () => cancelAnimationFrame(id);
+  }, [controlsOpen]);
+
   // keep the source in step with the filter
   useEffect(() => {
     const map = mapRef.current;
@@ -693,10 +713,11 @@ export function NetworkMap() {
 
       <motion.div
         ref={card}
+        data-testid="map-card"
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        className={`absolute left-3 right-3 top-[calc(env(safe-area-inset-top)+12px)] z-10 rounded-[12px] border border-[var(--border)] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] ${controlsOpen ? "max-h-[60%] overflow-y-auto" : "overflow-hidden"} overscroll-contain md:left-4 md:overflow-y-auto md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]`}
+        className={`absolute left-3 right-3 top-[calc(env(safe-area-inset-top)+12px)] z-10 rounded-[12px] border border-[var(--border)] bg-white p-3 shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] ${controlsOpen ? "max-h-[42%] overflow-y-auto" : "overflow-hidden"} overscroll-contain md:left-4 md:overflow-y-auto md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]`}
       >
         <button
           type="button"
@@ -727,7 +748,7 @@ export function NetworkMap() {
                   if (on) popupRef.current?.remove();
                   setShow((v) => ({ ...v, [m]: !on }));
                 }}
-                className={`flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-[8px] px-2 text-[13px] font-medium transition-colors ${
+                className={`flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[8px] px-2 text-[13px] font-medium transition-colors ${
                   on ? "bg-white text-ink shadow-[0_1px_2px_rgba(16,24,40,0.08),0_1px_3px_rgba(16,24,40,0.06)]" : "text-muted hover:text-ink"
                 }`}
               >
@@ -787,7 +808,7 @@ export function NetworkMap() {
             )}
           </div>
           {show.war && (
-            <p className="t-caption mt-1.5 border-t border-separator pt-1.5 text-label-2">
+            <p className="t-caption mt-1.5 hidden border-t border-separator pt-1.5 text-label-2 md:block">
               Risk rings mark supply sites affected by front-line distance or a nearby active threat. Select one to see why and the recommended action.
             </p>
           )}
@@ -807,7 +828,7 @@ export function NetworkMap() {
               role="tab"
               aria-selected={filter === f}
               onClick={() => setFilter(f)}
-              className={`t-caption relative flex min-h-[32px] flex-1 items-center justify-center gap-1 rounded-[8px] px-1 py-[5px] font-medium transition-colors ${filter === f ? "text-ink" : "text-muted hover:text-ink"}`}
+              className={`t-caption relative flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-[8px] px-1 py-[5px] font-medium transition-colors ${filter === f ? "text-ink" : "text-muted hover:text-ink"}`}
             >
               {filter === f && (
                 <motion.span
@@ -832,7 +853,7 @@ export function NetworkMap() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search store, address or partner"
             aria-label="Search places"
-            className="min-h-[40px] w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-[16px] outline-none transition-shadow placeholder:text-[var(--text-3)] focus:border-ink focus:shadow-[0_0_0_3px_rgba(24,24,27,0.12)] focus-visible:outline-none"
+            className="min-h-[44px] w-full rounded-[10px] border border-[var(--border)] bg-white px-3 text-[16px] outline-none transition-shadow placeholder:text-[var(--text-3)] focus:border-ink focus:shadow-[0_0_0_3px_rgba(24,24,27,0.12)] focus-visible:outline-none"
           />
           {query && (
             <button
@@ -883,7 +904,7 @@ export function NetworkMap() {
 
       <button
         onClick={toStore}
-        className="absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+124px)] z-10 flex min-h-[44px] items-center gap-2 rounded-[10px] border border-[var(--border)] bg-white py-1.5 pl-2 pr-3.5 text-[14px] font-medium text-ink shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] hover:bg-[#fafafa]"
+        className="absolute bottom-[calc(var(--nav-clear)+44px)] right-[10px] md:bottom-[calc(var(--nav-clear)+150px)] z-10 flex min-h-[44px] items-center gap-2 rounded-[10px] border border-[var(--border)] bg-white py-1.5 pl-2 pr-3.5 text-[14px] font-medium text-ink shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] hover:bg-[#fafafa]"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- static export, SVG mark */}
         <img src="/avrora-mark.svg" alt="" width={24} height={24} className="size-6 rounded-full" />
