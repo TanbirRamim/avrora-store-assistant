@@ -93,12 +93,13 @@ test.describe("workforce AI texts", () => {
     }
   });
 
-  test("model unreachable or key refused: rules with the error message", async () => {
+  test("model refuses the call: rules with a plain error message", async () => {
     const m = mockAi(401);
     restore = m.restore;
     const r = await explainPlan(PLAN, KEY);
     expect(r.source).toBe("rules");
-    expect(r.error).toMatch(/key/);
+    expect(r.error).toMatch(/problem/);
+    expect(r.error).not.toMatch(/key/);
   });
 
   test("explainReplan: one ready-to-send message per changed person, times must match", async () => {
