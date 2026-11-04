@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { aiRoute, useAi } from "@/lib/ai";
 import { explainReplan, type ReplanExplanation } from "@/lib/workforce-ai";
-import { SourceTag } from "./TeamInsights";
 import { money } from "@/lib/format";
 import { type Employee, EVENT_HOURS, type Plan, type ReplanEvent, workforce } from "@/lib/workforce";
 import { Avatar } from "./EmployeeSheet";
@@ -217,9 +216,6 @@ export function ReplanSheet({
               <p className="text-[15px] leading-[22px]" lang={story.lang}>
                 {story.summary}
               </p>
-              <div className="mt-1">
-                <SourceTag source={story.source} lang={story.lang} error={story.error} />
-              </div>
             </section>
           )}
 

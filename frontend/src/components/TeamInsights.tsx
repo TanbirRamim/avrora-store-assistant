@@ -6,17 +6,13 @@ import { aiRoute, useAi } from "@/lib/ai";
 import { fetcher } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { Change, Employee, Plan } from "@/lib/workforce";
-import { askTeam, explainPlan, SOURCE_LABEL, type Source, type TeamAnswer } from "@/lib/workforce-ai";
-import { SparkleIcon } from "./icons";
+import { askTeam, explainPlan, type Source, type TeamAnswer } from "@/lib/workforce-ai";
 import { Badge, CARD, H2, ROW } from "./TeamSheet";
 
-export function SourceTag({ source, lang, error }: { source: Source; lang: "en" | "uk"; error?: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-1 text-[12px] leading-4 text-muted" title={error}>
-      <SparkleIcon size={13} />
-      {SOURCE_LABEL[lang][source]}
-    </span>
-  );
+/** Where a text came from is internal; the UI no longer prints it. Kept so callers need no change. */
+export function SourceTag(props: { source: Source; lang: "en" | "uk"; error?: string }) {
+  void props;
+  return null;
 }
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -35,7 +31,6 @@ export function WhyThisPlan({ plan }: { plan: Plan }) {
         <h2 id="why-h" className={H2}>
           Why this plan
         </h2>
-        {data && <SourceTag source={data.source} lang={data.lang} error={data.error} />}
       </div>
       <div className={`px-4 ${CARD}`} data-testid="why">
         <ol className="text-[14px] leading-[21px]" lang={data?.lang}>
@@ -127,7 +122,6 @@ export function AskTeam({ plan, employees }: { plan: Plan; employees: Employee[]
               {answer.answer}
             </p>
             <div className="mt-2 flex items-center justify-between gap-3">
-              <SourceTag source={answer.source} lang={answer.lang} error={answer.error} />
               <button onClick={() => (setAnswer(null), setQ(""))} className="btn-text">
                 New question
               </button>

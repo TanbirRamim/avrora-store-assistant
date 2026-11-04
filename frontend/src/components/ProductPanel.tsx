@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { SHEET_SPRING } from "@/lib/motion";
 import { useEffect } from "react";
 import useSWR from "swr";
 import type { Action, ProductDetail, ProductRow } from "@/lib/api";
@@ -83,7 +84,7 @@ export function ProductPanel({ row, today, onClose, onOpenAction }: Props) {
       initial={reduce ? { opacity: 0 } : { y: 24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={reduce ? { opacity: 0 } : { y: 24, opacity: 0 }}
-      transition={reduce ? { duration: 0.15 } : { type: "spring", stiffness: 420, damping: 38 }}
+      transition={reduce ? { duration: 0.15 } : SHEET_SPRING}
       className="flex h-full flex-col overflow-hidden rounded-t-[16px] border border-[var(--border)] bg-floor shadow-[0_8px_24px_rgba(16,24,40,0.08),0_2px_6px_rgba(16,24,40,0.04)] lg:rounded-[12px]"
       aria-label={`Product ${row.name}`}
     >
