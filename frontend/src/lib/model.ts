@@ -1,63 +1,30 @@
 /**
  * One chat with the store's AI model, plus the number check every answer must pass.
  *
- * By default the request goes to this app's own server (`POST /api/ai/chat`), which forwards it to the
- * store's OpenAI-compatible model with a key kept on the server. A manager may instead save their own
- * base URL, model and key on this device (see ./ai): then the browser calls that provider directly.
+ * Requests go to this app's own server (`POST /api/ai/chat`), which forwards them to the store's
+ * model with a key kept on the server. The browser never holds a key.
  */
 
 export class ModelError extends Error {}
 
-/** Where to send a chat: the store server, this device's own provider, or "" for no AI (rules only). */
-export type Route = "server" | "own" | "";
-
-export interface OwnProvider {
-  baseUrl: string;
-  model: string;
-  key: string;
-}
-
-const OWN = "avrora.aiOwn";
-
-export function readOwn(): OwnProvider | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const v = JSON.parse(window.localStorage.getItem(OWN) ?? "null") as OwnProvider | null;
-    return v && v.baseUrl && v.model ? v : null;
-  } catch {
-    return null;
-  }
-}
+/** Where to send a chat: the store server, or "" for no AI (rules only). */
+export type Route = "server" | "";
 
 const UNREACHABLE = "Can't reach the AI service. Check your connection and try again.";
 
 /** Sends one system + user message and returns the parsed JSON the model wrote. */
 export async function chatJson<T>(route: Route | string, system: string, user: string, schema: object, timeoutMs = 180_000): Promise<T> {
   const messages = [{ role: "system", content: system }, { role: "user", content: user }];
-  const own = route === "own" ? readOwn() : null;
   let content: unknown;
   try {
-    if (own) {
-      const url = `${own.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (own.key) headers.Authorization = `Bearer ${own.key}`;
-      const base = { model: own.model, messages, temperature: 0, stream: false, max_tokens: 1500 };
-      const call = (fmt: object) =>
-        fetch(url, { method: "POST", headers, body: JSON.stringify({ ...base, response_format: fmt }), signal: AbortSignal.timeout(timeoutMs) });
-      let res = await call({ type: "json_schema", json_schema: { name: "answer", schema } });
-      if (res.status === 400) res = await call({ type: "json_object" });
-      check(res);
-      content = ((await res.json()) as { choices?: { message?: { content?: unknown } }[] }).choices?.[0]?.message?.content;
-    } else {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, schema }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      check(res);
-      content = ((await res.json()) as { content?: unknown }).content;
-    }
+    const res = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, schema }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    check(res);
+    content = ((await res.json()) as { content?: unknown }).content;
   } catch (e) {
     if (e instanceof ModelError) throw e;
     throw new ModelError(UNREACHABLE);
@@ -71,7 +38,6 @@ export async function chatJson<T>(route: Route | string, system: string, user: s
 
 function check(res: Response) {
   if (res.ok) return;
-  if (res.status === 401 || res.status === 403) throw new ModelError("This key didn't work. Check it and paste it again.");
   if (res.status === 503) throw new ModelError("AI isn't set up for this store yet.");
   if (res.status === 429) throw new ModelError("Too many AI requests. Wait a minute and try again.");
   throw new ModelError("The AI service had a problem. Try again.");

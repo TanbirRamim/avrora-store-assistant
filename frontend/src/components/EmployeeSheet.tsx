@@ -50,7 +50,7 @@ export function EmployeeSheet({ id, fallback, today, onClose }: { id: string; fa
   const { data, error } = useSWR<Profile>(profileKey(id), fetcher);
   const p: (Partial<Profile> & Employee) | undefined = data ?? fallback;
   const ai = useAi();
-  const { data: coach } = useSWR(data ? ["coach", id, ai.lang, ai.hasKey] : null, () => coachingNote(data!, { key: aiRoute(), lang: ai.lang }));
+  const { data: coach } = useSWR(data && ai.ready ? ["coach", id, ai.lang, ai.hasKey] : null, () => coachingNote(data!, { key: aiRoute(), lang: ai.lang }));
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const st = p ? statusMeta(String(p.status_today)) : null;
 

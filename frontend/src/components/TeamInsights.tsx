@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { aiRoute, useAi } from "@/lib/ai";
+import { aiRoute, aiStatus, useAi } from "@/lib/ai";
 import { fetcher } from "@/lib/api";
 import { money } from "@/lib/format";
 import type { Change, Employee, Plan } from "@/lib/workforce";
@@ -24,7 +24,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: 
 /** "Why this plan": the model's rewrite when a key is saved, the fixed rules otherwise. */
 export function WhyThisPlan({ plan }: { plan: Plan }) {
   const ai = useAi();
-  const { data } = useSWR(["explain", plan.date, String(plan.version), plan.status, ai.lang, ai.hasKey], () =>
+  const { data } = useSWR(!ai.ready ? null : ["explain", plan.date, String(plan.version), plan.status, ai.lang, ai.hasKey], () =>
     explainPlan(plan, { key: aiRoute(), lang: ai.lang }),
   );
   const sentences = data?.sentences ?? plan.explain;
@@ -78,6 +78,7 @@ export function AskTeam({ plan, employees }: { plan: Plan; employees: Employee[]
     if (!question.trim()) return;
     setQ(question);
     setBusy(true);
+    await aiStatus();
     setAnswer(await askTeam(question.trim(), plan, employees, { key: aiRoute(), lang: ai.lang }));
     setBusy(false);
   };
