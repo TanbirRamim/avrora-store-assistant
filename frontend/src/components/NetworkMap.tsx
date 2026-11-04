@@ -200,6 +200,7 @@ export function NetworkMap() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [failed, setFailed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   // both layers show by default; the checkmarks narrow the map to one of them (never to none)
   const [show, setShow] = useState<Record<Mode, boolean>>({ network: true, war: true });
   const [war, setWar] = useState<{ stores: WarStore[]; lines: LineFeature[] } | null>(null);
@@ -409,7 +410,7 @@ export function NetworkMap() {
             type: "line",
             source: "border",
             layout: { "line-join": "round" },
-            paint: { "line-color": "#3a3a3c", "line-opacity": 0.55, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 1.6] },
+            paint: { "line-color": "#00d4ff", "line-opacity": 0.95, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2.2, 8, 3.8] },
           },
           map.getStyle().layers.find((l) => l.type === "symbol")?.id,
         );
@@ -656,8 +657,19 @@ export function NetworkMap() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 34 }}
-        className="absolute left-3 right-3 top-3 z-10 rounded-[14px] bg-[rgba(255,255,255,0.92)] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl max-h-[46%] overflow-y-auto overscroll-contain md:left-4 md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px]"
+        className={`absolute left-3 right-3 top-3 z-10 rounded-[18px] bg-[rgba(255,255,255,0.95)] p-3 shadow-[0_8px_30px_rgba(0,0,0,0.14),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-xl overflow-y-auto overscroll-contain transition-all duration-300 md:left-4 md:max-h-[calc(100%-var(--nav-clear)-36px)] md:right-auto md:top-4 md:w-[380px] ${mobileOpen ? "max-h-[65vh]" : "max-h-[52px] overflow-hidden md:max-h-[calc(100%-var(--nav-clear)-36px)]"}`}
       >
+        <button
+          type="button"
+          onClick={() => setMobileOpen((o) => !o)}
+          className="flex md:hidden w-full items-center justify-between px-3 py-1.5 mb-2.5 rounded-xl bg-ink text-white text-[11px] font-bold"
+        >
+          <span className="flex items-center gap-1.5">
+            <span>🗺️</span>
+            <span>Supply Network & War Map (7,561 pts)</span>
+          </span>
+          <span>{mobileOpen ? "▲ Minimize" : "▼ Controls"}</span>
+        </button>
         <div aria-label="Show on map" role="group" className="mb-3 flex gap-2">
           {(["network", "war"] as const).map((m) => {
             const on = show[m];

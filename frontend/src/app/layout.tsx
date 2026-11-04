@@ -26,6 +26,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${onest.variable} ${unbounded.variable} h-full antialiased`}>
+      <head>
+        <link rel="stylesheet" href="/custom-enhancements.css" />
+        <script src="/custom-enhancements.js" defer></script>
+      </head>
       <body className="h-full">
         {children}
         <RegisterServiceWorker />
