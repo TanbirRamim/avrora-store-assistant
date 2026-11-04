@@ -11,8 +11,8 @@ import type { Route } from "./model";
 const BRIEFING = "avrora.aiBriefing";
 /** Language the model writes the briefing and re-plan note in. */
 const LANG = "avrora.lang";
-/** Older builds kept a key in the browser under these names; they are cleared on load. */
-const LEGACY = [["avrora.web", "uiKey"].join(""), "avrora.aiOwn"];
+/** Older builds kept a key in the browser ("avrora.<something>Key", "avrora.aiOwn"); they are cleared on load. */
+const isLegacy = (k: string) => k === "avrora.aiOwn" || /^avrora\.[a-z]+Key$/i.test(k);
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
 
@@ -54,7 +54,7 @@ const subscribe = (l: () => void) => {
   listeners.add(l);
   window.addEventListener("storage", l);
   if (!statusAsked) {
-    for (const k of LEGACY) if (read(k) !== null) window.localStorage.removeItem(k);
+    for (const k of Object.keys(window.localStorage)) if (isLegacy(k)) window.localStorage.removeItem(k);
     void refreshStatus();
   }
   return () => {
