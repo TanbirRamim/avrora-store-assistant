@@ -19,11 +19,21 @@ export interface OwnProvider {
 
 const OWN = "avrora.aiOwn";
 
+/** A key is only sent over https; plain http is allowed for a model running on this machine. */
+export function validBaseUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === "https:" || (u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1"));
+  } catch {
+    return false;
+  }
+}
+
 export function readOwn(): OwnProvider | null {
   if (typeof window === "undefined") return null;
   try {
     const v = JSON.parse(window.localStorage.getItem(OWN) ?? "null") as OwnProvider | null;
-    return v && v.baseUrl && v.model ? v : null;
+    return v && v.baseUrl && v.model && validBaseUrl(v.baseUrl) ? v : null;
   } catch {
     return null;
   }
@@ -111,7 +121,8 @@ function readings(token: string): number[] {
  * the word limit. Accepts English (6,041.5) and Ukrainian (6 041,5) number formatting.
  */
 export function grounded(text: string, allowed: Set<number>, maxWords = 40): boolean {
-  const ok = (x: number) => allowed.has(x) || allowed.has(Math.round(x)) || allowed.has(round1(x)) || (x <= 7 && Number.isInteger(x));
+  // the written number itself must be in the data (allowedNumbers already adds the rounded forms of each data value)
+  const ok = (x: number) => allowed.has(x) || (x <= 7 && Number.isInteger(x));
   for (const m of text.match(TOKEN) ?? []) {
     const whole = readings(m).some(ok);
     // "з 7 120 штук" may be two numbers, not one grouped number

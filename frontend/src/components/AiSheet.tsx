@@ -34,14 +34,16 @@ export function AiSheet({ actions, notices, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, onClose]);
 
-  const write = async () => {
+  const write = async (): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
       await writeBriefing(actions, notices, lang);
       onClose();
+      return true;
     } catch (err) {
       setError(err instanceof ModelError ? err.message : "The AI briefing couldn't be written. Try again.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -49,9 +51,16 @@ export function AiSheet({ actions, notices, onClose }: Props) {
 
   const saveOwnAndWrite = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveOwn({ baseUrl, model, key: key || own?.key || "" });
-    setKey("");
-    await write();
+    let rollback: () => void;
+    try {
+      rollback = saveOwn({ baseUrl, model, key: key || own?.key || "" });
+    } catch (err) {
+      setError(err instanceof ModelError ? err.message : "These settings couldn't be saved.");
+      return;
+    }
+    // the provider is only kept once it has written a briefing
+    if (await write()) setKey("");
+    else rollback();
   };
 
   const status = own
@@ -161,8 +170,8 @@ export function AiSheet({ actions, notices, onClose }: Props) {
                 <form onSubmit={saveOwnAndWrite} aria-label="Your own AI key">
                   <h3 className="text-[15px] font-semibold">Your own key</h3>
                   <p className="t-footnote pt-1 text-muted">
-                    Any OpenAI-compatible service. Saved only in this browser and used instead of the store AI on
-                    this device.
+                    Any OpenAI-compatible service. The key is stored on this device (in this browser, unencrypted)
+                    and used instead of the store AI here. It is kept only after a briefing was written with it.
                   </p>
                   <label className="mt-3 block">
                     <span className="mb-1.5 block text-[14px] font-medium text-ink">Base URL</span>

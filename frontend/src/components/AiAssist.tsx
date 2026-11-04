@@ -158,7 +158,7 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
   const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string } | string>>({});
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
-  const k = `${action.id}:${lang}`;
+  const k = `${action.id}:${lang}:${action.proposal.order_qty ?? ""}`;
   const draft = drafts[k];
 
   const write = async () => {
@@ -176,8 +176,12 @@ export function SupplierDraft({ action, onAddKey }: { action: Action; onAddKey?:
 
   const copy = async () => {
     if (typeof draft !== "object") return;
-    await navigator.clipboard.writeText(`${draft.subject}\n\n${draft.body}`);
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(`${draft.subject}\n\n${draft.body}`);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const supplier = action.proposal.supplier ?? action.facts.supplier;

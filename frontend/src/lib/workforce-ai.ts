@@ -258,7 +258,8 @@ const REPLAN_SCHEMA = {
 };
 
 /** "08:00-16:00" must appear as times the reader recognises: 08:00 or 8:00. */
-const hasTime = (text: string, hhmm: string) => text.includes(hhmm) || text.includes(hhmm.replace(/^0/, ""));
+const hasTime = (text: string, hhmm: string) =>
+  [hhmm, hhmm.replace(/^0/, "")].some((t) => new RegExp(`(?<![\\d:])${t}(?![\\d:])`).test(text));
 
 /** What changed and why, plus one ready-to-send message per affected employee (never sent automatically). */
 export function explainReplan(before: Plan, after: Plan, diff: DiffRow[], opts: AiOptions = {}): Promise<ReplanExplanation> {
@@ -347,13 +348,16 @@ const ASK_SCHEMA = {
   required: ["answer", "employee_ids"],
 };
 
+/** Health and absence reasons stay on this device: the model only learns who can be asked to cover. */
+const neutralStatus = (status: string) => (["working", "available"].includes(status) ? status : "unavailable");
+
 /** A grounded answer about the plan and team; refuses rather than invent people or numbers. */
 export function askTeam(question: string, plan: Plan, employees: Employee[], opts: AiOptions = {}): Promise<TeamAnswer> {
   const lang = opts.lang ?? "en";
   const q = question.trim().slice(0, 300);
   return withModel(opts, () => askTeamByRules(q, plan, employees, lang), async (key) => {
     const team = employees.map((e) => ({
-      employee_id: e.employee_id, name: e.name, role: e.role, skills: e.skills, status_today: e.status_today,
+      employee_id: e.employee_id, name: e.name, role: e.role, skills: e.skills, status_today: neutralStatus(e.status_today),
       hours_this_week: e.hours_this_week, contract_hours_week: e.contract_hours_week, score: e.score, strength: e.strength,
     }));
     const out = await chatJson<{ answer: unknown; employee_ids: unknown }>(

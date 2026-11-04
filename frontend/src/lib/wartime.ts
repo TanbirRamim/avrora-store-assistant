@@ -96,9 +96,9 @@ export interface Exposure {
   action: string;
 }
 
-/** Radii for "affected": the front line's drone-corridor band, and an active aerial threat nearby. */
-export const EXPOSURE_FRONT_KM = 65; // ZONES.orange: 120 km swept in most of the east
-export const EXPOSURE_THREAT_KM = 15;
+/** Radii for "affected": the front line's drone-corridor band (ZONES.yellow), and an active aerial threat nearby. */
+export const EXPOSURE_FRONT_KM = 120;
+export const EXPOSURE_THREAT_KM = 30;
 
 /**
  * Rate one site. Rules of thumb, not a model: within 25 km of the line or 15 km of an active threat
@@ -123,7 +123,7 @@ export function exposure(
   const threatNear = near && threatKm <= EXPOSURE_THREAT_KM;
   if (frontKm > EXPOSURE_FRONT_KM && !threatNear) return null;
   const grade: Grade =
-    frontKm <= ZONES.red.km || (threatNear && threatKm <= 5)
+    frontKm <= ZONES.red.km || (threatNear && threatKm <= 15)
       ? "critical"
       : frontKm <= ZONES.orange.km || threatNear
         ? "high"
