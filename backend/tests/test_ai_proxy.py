@@ -202,3 +202,33 @@ def test_cut_off_json_tries_next_model(client, upstream, monkeypatch):
     assert r.status_code == 200
     assert r.json() == {"content": '{"ok": true}', "model": "b"}
     assert [c["json"]["model"] for c in calls] == ["a", "b"]
+
+
+def test_slow_model_hands_over_within_the_budget(monkeypatch):
+    """A model that times out costs at most ATTEMPT_S; the next one answers and the total stays bounded."""
+    cfg = provider.AiConfig("https://ai.example/v1", ("slow", "fast"), "k")
+    timeouts = []
+
+    def fake(method, url, **kw):
+        timeouts.append(kw["timeout"])
+        if kw["json"]["model"] == "slow":
+            raise httpx.ReadTimeout("slow")
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(provider, "fetch", fake)
+    assert provider.answer(cfg, MSGS) == ("ok", "fast")
+    assert all(t <= provider.ATTEMPT_S for t in timeouts)
+
+
+def test_gives_up_when_the_budget_is_spent(monkeypatch):
+    cfg = provider.AiConfig("https://ai.example/v1", ("a", "b"), "k")
+    calls = []
+
+    def busy(method, url, **kw):
+        calls.append(kw["timeout"])
+        return httpx.Response(503, json={})
+
+    monkeypatch.setattr(provider, "fetch", busy)
+    with pytest.raises(provider.ProviderError):
+        provider.answer(cfg, MSGS, total_s=provider.MIN_ATTEMPT_S - 1)
+    assert calls == []

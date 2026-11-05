@@ -120,6 +120,17 @@ function label(e: Event): string {
   return `${what} ${hh(e.start!)}-${hh(e.end!)}`;
 }
 
+/** plan.version_label: "air_alert-12" -> "the air-raid alert re-plan (12:00-14:00)". */
+function versionLabel(version: string): string {
+  const e = fromVersion(version);
+  if (!e) return "the agent's draft plan";
+  if (e.kind === "sick") return `the sick-cover re-plan for ${EMP.get(e.employee_id!)!.name}`;
+  const what = { air_alert: "air-raid alert", power: "power cut", traffic_spike: "busy-period" }[e.kind as "power"];
+  return `the ${what} re-plan (${hh(e.start!)}-${hh(e.end!)})`;
+}
+
+const changesText = (n: number) => `${n} ${n === 1 ? "change" : "changes"}`;
+
 /** export.expand_replan. */
 function planFor(date: string, key: string): Doc {
   const base = WF.plans[date];
@@ -290,7 +301,7 @@ async function route(req: Request, db: D1Database, pathname: string): Promise<Re
       .bind(since.replace(/\.\d{3}Z$/, "+00:00"))
       .first<{ n: number }>();
     if ((recent?.n ?? 0) >= REPLANS_PER_MINUTE) throw new HttpError(429, "Too many replans. Wait a minute.");
-    await log(db, d, e.key, "drafted", "agent", `Replanned for ${label(e)}: ${doc.diff!.length} changes`);
+    await log(db, d, e.key, "drafted", "agent", `Replanned for ${label(e)}: ${changesText(doc.diff!.length)}`);
     return json(withAudit(doc, await audit(db, d)));
   }
   if (method === "POST" && (pathname === "/api/workforce/plan/approve" || pathname === "/api/workforce/plan/reject")) {
@@ -299,13 +310,13 @@ async function route(req: Request, db: D1Database, pathname: string): Promise<Re
     const d = day(b.date);
     const v = version(b.version);
     if (pathname.endsWith("/approve")) {
-      const at = await log(db, d, v, "approved", "manager", `Manager approved plan ${v}`);
+      const at = await log(db, d, v, "approved", "manager", `Manager approved ${versionLabel(v)}`);
       return json({ status: "approved", at, date: d, version: v });
     }
     const reason = b.reason;
     if (typeof reason !== "string" || reason.length < 1 || reason.length > 200)
       throw new HttpError(422, "reason must be 1 to 200 characters");
-    const at = await log(db, d, v, "rejected", "manager", `Manager rejected plan ${v}: ${reason}`, reason);
+    const at = await log(db, d, v, "rejected", "manager", `Manager rejected ${versionLabel(v)}: ${reason}`, reason);
     return json({ status: "rejected", at, date: d, version: v, reason });
   }
   return null;

@@ -1,7 +1,13 @@
 import pytest
 
 from avrora.actions.engine import build_plan
-from avrora.ai.briefing import BriefingDraft, Pick, build_briefing, reason_is_grounded
+from avrora.ai.briefing import (
+    BriefingDraft,
+    Pick,
+    build_briefing,
+    reason_is_grounded,
+    tidy_money,
+)
 from avrora.data.generate import generate
 from avrora.data.loader import load
 
@@ -59,3 +65,24 @@ def test_model_failure_falls_back(plan):
 def test_grounding_accepts_rounded_values(plan):
     a = next(x for x in plan.actions if x.type.value == "ORDER")
     assert reason_is_grounded(f"Only {a.facts['stock']} left; order {a.proposal['order_qty']}.", a)
+
+
+@pytest.mark.parametrize(("raw", "tidy"), [
+    ("Order now to avoid losing 2671.10 UAH in sales.", "Order now to avoid losing ₴2,671 in sales."),
+    ("Втрати близько 2 671,10 грн.", "Втрати близько ₴2,671."),
+    ("About ₴4889.12 at stake", "About ₴4,889 at stake"),
+    ("No money here: 12 units", "No money here: 12 units"),
+])
+def test_money_is_written_like_the_cards(raw, tidy):
+    assert tidy_money(raw) == tidy
+
+
+def test_model_money_is_tidied_and_still_grounded(plan):
+    a = plan.actions[0]
+
+    def drafter(_payload):
+        assert "money_at_stake" in _payload and "risk_uah" not in _payload
+        return BriefingDraft(summary="One urgent item.", priorities=[Pick(action_id=a.id, reason=f"Avoid losing {a.risk_uah:.2f} UAH.")])
+
+    b = build_briefing(plan.actions, plan.notices, drafter=drafter)
+    assert b.priorities[0].reason == f"Avoid losing ₴{int(a.risk_uah + 0.5):,}."

@@ -11,7 +11,8 @@ import {
   SOURCE_LABEL,
   TEAM_FALLBACK,
 } from "../src/lib/workforce-ai";
-import type { Employee, Plan, Profile } from "../src/lib/workforce";
+import { tidyMoney } from "../src/lib/model";
+import { changeSummary, type Employee, type Plan, type Profile } from "../src/lib/workforce";
 
 /*
  * The workforce AI texts (src/lib/workforce-ai.ts) run in Node here with fetch mocked as the store AI
@@ -174,8 +175,8 @@ test.describe("workforce AI texts", () => {
   test("explainPlan: real model wording with plan figures, absent staff and one-item paragraphs is used", async () => {
     const good = {
       sentences: [
-        "The plan for 2026-11-02 schedules 46.5 labour hours with a coverage percentage of 90.4 and 0 rule violations.",
-        "Olena K. and Serhiy T. handle 10 supplier deliveries due (91 cases) from 08:00 to 11:00; labour cost is 4,202 UAH.",
+        "The plan for Monday 2 November schedules 46.5 labour hours with a coverage percentage of 90.4 and 0 rule violations.",
+        "Olena K. and Serhiy T. handle 10 supplier deliveries due (91 cases) from 08:00 to 11:00; labour cost is ₴4,202.",
         "The evening from 5 pm to 21:00 is run by the late shift.",
       ],
       watch_out: ["Gap 17:00–20:00 missing 1 because Oksana V. is sick and Kateryna Z. is on vacation."],
@@ -194,10 +195,18 @@ test.describe("workforce AI texts", () => {
     expect(r).toMatchObject({ source: "model", sentences: good.sentences });
     m.restore();
 
+    // a KPI key the model copied reads as words
+    m = mockAi({ ...good, sentences: [...good.sentences.slice(0, 2), "The coverage_pct is 90.4."] });
+    restore = m.restore;
+    r = await explainPlan(PLAN, KEY);
+    expect(r.source).toBe("model");
+    expect(r.sentences[2]).toBe("The coverage is 90.4.");
+    m.restore();
+
     for (const bad of [
       { ...good, sentences: [...good.sentences.slice(0, 2), "Coverage rises to 97.5% after 12 supplier deliveries."] },
       { ...good, watch_out: ["Gap 17:00–20:00 missing 23 staff."] },
-      { ...good, sentences: [...good.sentences.slice(0, 2), "The coverage_pct is 90.4."] },
+      { ...good, sentences: [...good.sentences.slice(0, 2), "The shift_lead_flag is 90.4."] },
     ]) {
       m = mockAi(bad);
       restore = m.restore;
@@ -260,4 +269,14 @@ test.describe("workforce AI texts", () => {
       m.restore();
     }
   });
+});
+
+test("money in AI text reads like the cards; change log shows plans in words", () => {
+  expect(tidyMoney("Order 72 to avoid losing 2671.10 UAH in sales.")).toBe("Order 72 to avoid losing ₴2,671 in sales.");
+  expect(tidyMoney("Під загрозою 4 889,12 грн.")).toBe("Під загрозою ₴4,889.");
+  expect(tidyMoney("₴2671.1 at stake, 12 units")).toBe("₴2,671 at stake, 12 units");
+  expect(changeSummary("Manager approved plan air_alert-12")).toBe("Manager approved the air-raid alert re-plan (12:00–14:00)");
+  expect(changeSummary("Manager approved plan power-08")).toBe("Manager approved the power cut re-plan (08:00–12:00)");
+  expect(changeSummary("Manager approved plan base")).toBe("Manager approved the agent's draft plan");
+  expect(changeSummary("Replanned for Olena K. sick: 1 changes")).toBe("Replanned for Olena K. sick: 1 change");
 });

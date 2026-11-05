@@ -26,12 +26,13 @@ CANDIDATES = 12
 
 SYSTEM_PROMPT = """You help the manager of a small discount store plan their day.
 You receive candidate actions computed from the store's data. Each has an id, a type, the numbers behind it
-and an estimated amount of money at stake in UAH.
+and an estimated amount of money at stake.
 
 Choose the five actions the manager should handle today and order them by urgency. Money at stake matters most,
 but an item that will run out before a delivery can arrive is more urgent than slow stock that can wait a few
 days. Write one short reason per action for a busy store manager: at most 25 words, plain language, no jargon.
-Use only numbers that appear in that action's data. Write a one-sentence summary of the day.
+Use only numbers that appear in that action's data. Money is already written in the store's format (for example
+"₴2,671"); copy it exactly, never write UAH or kopecks. Write a one-sentence summary of the day.
 Return exactly the JSON requested."""
 
 
@@ -106,11 +107,41 @@ def default_drafter() -> Drafter | None:
 # --------------------------------------------------------------------------- validation
 
 _NUM = re.compile(r"\d+(?:[.,]\d+)?")
+# "2,671" / "2 671" are one number with thousands separators; "1.4" / "1,4" one with a decimal part
+_TOKEN = re.compile(r"\d{1,3}(?:[,\u00a0\u202f ]\d{3})+(?:\.\d+)?(?!\d)|\d+(?:[.,]\d+)?")
+_AMOUNT = r"\d{1,3}(?:[ \u00a0\u202f,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?"
+_MONEY_AFTER = re.compile(rf"({_AMOUNT})\s*(?:UAH|грн(?:\.(?=\s+[a-zа-яіїєґ]))?|гривень|гривні|гривня|hryvnias?)(?![^\W\d_])", re.IGNORECASE)
+_MONEY_BEFORE = re.compile(rf"(?:₴|UAH)\s?({_AMOUNT})", re.IGNORECASE)
+
+
+def money(v: float) -> str:
+    """An amount as the app's cards show it: ₴2,671."""
+    return f"₴{int(v + 0.5):,}"
+
+
+def _amount(raw: str) -> float:
+    t = re.sub(r"[ \u00a0\u202f]", "", raw)
+    if re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", t):
+        return float(t.replace(",", ""))
+    return float(t.replace(",", "."))
+
+
+def tidy_money(text: str) -> str:
+    """'2671.10 UAH', '2 671,1 грн' and '₴2671.1' all become '₴2,671'."""
+    fix = lambda m: money(_amount(m.group(1)))
+    return _MONEY_BEFORE.sub(fix, _MONEY_AFTER.sub(fix, text))
+
+
+def _number(token: str) -> float:
+    t = re.sub(r"[ \u00a0\u202f]", "", token)
+    if re.fullmatch(r"\d{1,3}(,\d{3})+(\.\d+)?", t):
+        return float(t.replace(",", ""))
+    return float(t.replace(",", "."))
 
 
 def _allowed_numbers(a: Action) -> set[float]:
     nums: set[float] = set()
-    for v in list(a.facts.values()) + list(a.proposal.values()) + [a.risk_uah]:
+    for v in list(a.facts.values()) + list(a.proposal.values()) + [a.risk_uah, a.product_name]:
         for m in _NUM.findall(str(v)):
             x = float(m.replace(",", "."))
             nums |= {x, round(x), round(x, 1)}
@@ -119,15 +150,15 @@ def _allowed_numbers(a: Action) -> set[float]:
 
 def reason_is_grounded(reason: str, action: Action) -> bool:
     allowed = _allowed_numbers(action)
-    for m in _NUM.findall(reason.replace(" ", "").replace(" ", "")):
-        x = float(m.replace(",", "."))
+    for m in _TOKEN.findall(reason):
+        x = _number(m)
         if x not in allowed and round(x) not in allowed and not (x <= 7 and x == int(x)):
             return False  # small whole numbers (e.g. "2 cases", "5 items") are allowed
     return len(reason.split()) <= 40
 
 
 def _payload(cands: list[Action], notices: list[Action]) -> str:
-    rows = [{"id": a.id, "type": a.type.value, "product": a.product_name, "risk_uah": a.risk_uah,
+    rows = [{"id": a.id, "type": a.type.value, "product": a.product_name, "money_at_stake": money(a.risk_uah),
              "facts": a.facts, "proposal": a.proposal} for a in cands]
     notes = [n.reason for n in notices]
     return json.dumps({"candidates": rows, "store_notes": notes}, ensure_ascii=False)
@@ -135,7 +166,7 @@ def _payload(cands: list[Action], notices: list[Action]) -> str:
 
 def _fallback_summary(top: list[Action]) -> str:
     total = sum(a.risk_uah for a in top)
-    return f"{len(top)} priorities today, about ₴{total:,.0f} at stake."
+    return f"{len(top)} priorities today, about {money(total)} at stake."
 
 
 def build_briefing(actions: list[Action], notices: list[Action], top_n: int = 5,
@@ -157,7 +188,8 @@ def build_briefing(actions: list[Action], notices: list[Action], top_n: int = 5,
         a = by_id.get(p.action_id)
         if a is None or a in chosen:
             continue
-        reason = p.reason.strip() if reason_is_grounded(p.reason, a) else a.reason
+        text = tidy_money(p.reason.strip())
+        reason = text if reason_is_grounded(text, a) else a.reason
         chosen.append(a.model_copy(update={"reason": reason}))
         if len(chosen) == top_n:
             break
@@ -166,7 +198,7 @@ def build_briefing(actions: list[Action], notices: list[Action], top_n: int = 5,
             break
         if all(c.id != a.id for c in chosen):
             chosen.append(a)
-    summary = draft.summary.strip()
+    summary = tidy_money(draft.summary.strip())
     merged = Action(**{**chosen[0].model_dump(), "facts": {
         f"{c.id}.{k}": v for c in chosen for k, v in {**c.facts, **c.proposal, "risk": c.risk_uah}.items()}})
     if not summary or not reason_is_grounded(summary, merged):

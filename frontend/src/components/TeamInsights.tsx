@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { aiRoute, aiStatus, useAi } from "@/lib/ai";
 import { fetcher } from "@/lib/api";
 import { money } from "@/lib/format";
-import type { Change, Employee, Plan } from "@/lib/workforce";
+import { type Change, changeSummary, type Employee, type Plan } from "@/lib/workforce";
 import { askTeam, explainPlan, type Source, type TeamAnswer } from "@/lib/workforce-ai";
 import { Badge, CARD, H2, ROW } from "./TeamSheet";
 
@@ -236,7 +236,7 @@ export function ChangeLog({ changes }: { changes: Change[] }) {
         {[...changes].reverse().map((c, i) => (
           <li key={c.at + i} className={`flex items-start gap-3 py-3 ${ROW}`}>
             <span className="num-col w-[40px] shrink-0 text-[13px] leading-5 text-muted">{time(c.at)}</span>
-            <p className="min-w-0 flex-1 text-[14px] leading-5">{c.summary}</p>
+            <p className="min-w-0 flex-1 text-[14px] leading-5">{changeSummary(c.summary)}</p>
             <Badge dot={false} className={c.by === "manager" ? "!bg-zinc-900 !text-white" : ""}>
               {c.by === "manager" ? "Manager" : "Agent"}
             </Badge>

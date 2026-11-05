@@ -163,18 +163,21 @@ export default function Home() {
   const [writeFailed, setWriteFailed] = useState(false);
   const autoWrote = useRef(false);
   // Also behind "Write with AI": writes straight away with the store AI, no settings sheet.
-  const writeWithAi = useCallback(() => {
+  // `retries`: the automatic write tries once more after a failure (a busy model often answers the second time).
+  const writeWithAi = useCallback((retries = 0) => {
     if (!actions || !baseBriefing) return;
     setAutoWriting(true);
     setWriteFailed(false);
-    writeBriefing(actions, baseBriefing.notices)
+    const attempt = (left: number): Promise<void> =>
+      writeBriefing(actions, baseBriefing.notices).catch((e) => (left > 0 ? attempt(left - 1) : Promise.reject(e)));
+    attempt(retries)
       .catch(() => setWriteFailed(true))
       .finally(() => setAutoWriting(false));
   }, [actions, baseBriefing]);
   useEffect(() => {
     if (autoWrote.current || !ai.hasKey || ai.briefing || !actions || !baseBriefing) return;
     autoWrote.current = true;
-    writeWithAi();
+    writeWithAi(1);
   }, [ai.hasKey, ai.briefing, actions, baseBriefing, writeWithAi]);
   // Outside conditions; if the route is missing or fails, the card simply stays hidden.
   const { data: signals } = useSWR<Signals>("/api/signals", fetcher, { refreshInterval: 60_000, shouldRetryOnError: false });
@@ -461,7 +464,7 @@ export default function Home() {
                       {briefing && (
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[var(--divider)] pt-3">
                           <p className="t-footnote min-w-0 text-muted">
-                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : "From store data."}
+                            {briefing.source === "model" ? "Written by AI. Numbers checked against store data." : autoWriting ? "AI is writing today's briefing…" : writeFailed ? "From store data. The AI didn't answer this time." : "From store data."}
                           </p>
                           {briefing.source === "model" ? (
                             <button onClick={() => setAiOpen(true)} className="btn-tag hit shrink-0">
@@ -469,7 +472,7 @@ export default function Home() {
                               AI settings
                             </button>
                           ) : ai.hasKey ? (
-                            <button onClick={writeWithAi} disabled={autoWriting} className="btn-tag hit shrink-0 disabled:opacity-60">
+                            <button onClick={() => writeWithAi()} disabled={autoWriting} className="btn-tag hit shrink-0 disabled:opacity-60">
                               <SparkleIcon size={14} />
                               {autoWriting ? "Writing…" : writeFailed ? "Try again" : "Write with AI"}
                             </button>

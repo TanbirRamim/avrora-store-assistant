@@ -20,7 +20,7 @@
  * real employee, and word limits. Any failure uses the fixed rules for the whole result.
  */
 import type { Lang } from "./assist";
-import { allowedNumbers, chatJson, grounded } from "./model";
+import { allowedNumbers, chatJson, fmtMoney, grounded } from "./model";
 import type { DiffRow, Employee, Plan, Profile } from "./workforce";
 
 export type Source = "model" | "rules";
@@ -94,7 +94,14 @@ export function namesKnown(text: string, known: Iterable<string>): boolean {
   return (text.match(NAME) ?? []).every((n) => set.has(n));
 }
 
-const str = (x: unknown) => (typeof x === "string" ? x.trim() : "");
+/** KPI keys a model may still copy, as the manager reads them; any other data key fails the check. */
+const KPI_WORDS: Record<string, string> = {
+  coverage_pct: "coverage", labour_hours: "labour hours", labour_cost_uah: "labour cost", overtime_hours: "overtime hours",
+  rule_violations: "rule breaks", sales_per_labour_hour_uah: "sales per labour hour",
+};
+/** Model text, trimmed, with a copied KPI key ("overtime_hours") written as words ("overtime hours"). */
+const str = (x: unknown) =>
+  typeof x === "string" ? x.trim().replace(/\b[a-z]+(?:_[a-z]+)+\b/g, (k) => KPI_WORDS[k] ?? k) : "";
 const strs = (x: unknown) => (Array.isArray(x) ? x.map(str) : []);
 
 /** Names written in the data itself (e.g. "Oksana V. sick" in a gap reason), so the model may repeat them. */
@@ -121,6 +128,10 @@ async function withModel<T extends Result>(opts: AiOptions, rules: () => T, ask:
 
 const first = (name: string) => name.split(" ")[0];
 const hourNum = (hhmm: string) => Number.parseInt(hhmm.slice(0, 2), 10);
+/** "Monday 2 November" / "понеділок, 2 листопада": how the manager reads a plan date. */
+export const longDay = (iso: string, lang: Lang = "en") =>
+  new Intl.DateTimeFormat(lang === "uk" ? "uk-UA" : "en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
+    .format(new Date(`${iso}T00:00:00Z`));
 const dayLabel = (iso: string, lang: Lang) =>
   new Intl.DateTimeFormat(lang === "uk" ? "uk-UA" : "en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
     .format(new Date(`${iso}T00:00:00Z`));
@@ -172,7 +183,7 @@ Write 3 to 5 plain sentences (at most 30 words each, each sentence its own array
 items (at most 15 words each) for the risks the manager should check. Use only numbers, times and names that appear in the
 plan, copied exactly as given (for example "90.4%", "46.5 labour hours", "10 supplier deliveries", "17:00-20:00"); never
 invent, add up, subtract or round numbers, and never invent people. Write plain words, never data field names or codes
-(write "coverage", not "coverage_pct"). Write in the language given in the request. Return exactly the JSON requested.`;
+(write "coverage", not "coverage_pct") and never a date code like 2026-11-02: write the day as given. Write in the language given in the request. Return exactly the JSON requested.`;
 
 const PLAN_SCHEMA = {
   type: "object",
@@ -180,9 +191,17 @@ const PLAN_SCHEMA = {
   required: ["sentences", "watch_out"],
 };
 
-function planPayload(plan: Plan) {
+/** KPIs under plain names and in the app's formats, so the model never copies a field name or "4202 UAH". */
+function kpiPayload(k: Plan["kpis"]) {
   return {
-    date: plan.date, opening: plan.opening, conditions: plan.conditions, blocks: plan.blocks, gaps: plan.gaps, kpis: plan.kpis,
+    "labour hours": k.labour_hours, "labour cost": fmtMoney(k.labour_cost_uah), coverage: `${k.coverage_pct}%`,
+    "sales per labour hour": fmtMoney(k.sales_per_labour_hour_uah), "overtime hours": k.overtime_hours, "rule breaks": k.rule_violations,
+  };
+}
+
+function planPayload(plan: Plan, lang: Lang = "en") {
+  return {
+    day: longDay(plan.date, lang), opening: plan.opening, conditions: plan.conditions, blocks: plan.blocks, gaps: plan.gaps, kpis: kpiPayload(plan.kpis),
     hours: plan.hours.map((h) => ({ hour: h.hour, customers: h.customers, required: h.required, scheduled: h.scheduled })),
     shifts: plan.shifts.map((s) => ({
       employee_id: s.employee_id, name: s.name, role: s.role, start: s.start, end: s.end, break_at: s.break_at,
@@ -196,13 +215,13 @@ export function explainPlan(plan: Plan, opts: AiOptions = {}): Promise<PlanExpla
   const lang = opts.lang ?? "en";
   return withModel(opts, () => explainPlanByRules(plan, lang), async (key) => {
     const out = await chatJson<{ sentences: unknown; watch_out: unknown }>(
-      key, PLAN_PROMPT, JSON.stringify({ language: LANGUAGE[lang], plan: planPayload(plan) }), PLAN_SCHEMA, 120_000,
+      key, PLAN_PROMPT, JSON.stringify({ language: LANGUAGE[lang], plan: planPayload(plan, lang) }), PLAN_SCHEMA,
     );
     // smaller models sometimes put the whole paragraph in one item: split it into its sentences
     let sentences = strs(out.sentences);
     if (sentences.length < 3) sentences = sentences.flatMap((s) => s.split(/(?<![\s(][A-ZА-ЯІЇЄҐ][.!?])(?<=[.!?])\s+/)).map(str).filter(Boolean);
     const watchOut = strs(out.watch_out);
-    const values = flatValues(planPayload(plan));
+    const values = [...flatValues(planPayload(plan, lang)), ...flatValues(plan.kpis)];
     const allowed = allowedNumbers(values);
     // people named anywhere in the plan (gap reasons, blocks) are real too, not only those on shift
     const names = [...plan.shifts.map((s) => s.name), ...namesIn(values)];
@@ -279,10 +298,10 @@ export function explainReplan(before: Plan, after: Plan, diff: DiffRow[], opts: 
   return withModel(opts, () => explainReplanByRules(before, after, diff, lang), async (key) => {
     const payload = {
       language: LANGUAGE[lang], date: after.date, day: dayLabel(after.date, lang),
-      before: { kpis: before.kpis, gaps: before.gaps }, after: { kpis: after.kpis, gaps: after.gaps, conditions: after.conditions },
+      before: { kpis: kpiPayload(before.kpis), gaps: before.gaps }, after: { kpis: kpiPayload(after.kpis), gaps: after.gaps, conditions: after.conditions },
       changes: diff,
     };
-    const out = await chatJson<{ summary: unknown; messages: unknown }>(key, REPLAN_PROMPT, JSON.stringify(payload), REPLAN_SCHEMA, 120_000);
+    const out = await chatJson<{ summary: unknown; messages: unknown }>(key, REPLAN_PROMPT, JSON.stringify(payload), REPLAN_SCHEMA);
     const summary = str(out.summary);
     const names = diff.map((r) => r.name);
     const dayNums = flatValues([after.date, dayLabel(after.date, lang)]);
@@ -401,13 +420,13 @@ export function askTeam(question: string, plan: Plan, employees: Employee[], opt
     const team = teamPayload(plan, employees);
     const parts = dayParts(plan);
     const out = await chatJson<{ answer: unknown; employee_ids: unknown }>(
-      key, ASK_PROMPT, JSON.stringify({ language: LANGUAGE[lang], question: q, day_parts: parts, plan: planPayload(plan), team }), ASK_SCHEMA, 120_000,
+      key, ASK_PROMPT, JSON.stringify({ language: LANGUAGE[lang], question: q, day_parts: parts, plan: planPayload(plan, lang), team }), ASK_SCHEMA,
     );
     const answer = str(out.answer);
     if (answer === "CANNOT_ANSWER") return { answer: TEAM_FALLBACK[lang], refused: true, employeeIds: [], source: "model", lang };
     const ids = new Set(employees.map((e) => e.employee_id));
     const employeeIds = strs(out.employee_ids).filter((id) => ids.has(id));
-    const allowed = allowedNumbers([...flatValues(planPayload(plan)), ...flatValues(team), ...flatValues(parts), ...flatValues(q)]);
+    const allowed = allowedNumbers([...flatValues(planPayload(plan, lang)), ...flatValues(plan.kpis), ...flatValues(team), ...flatValues(parts), ...flatValues(q)]);
     if (!textOk(answer, allowed, employees.map((e) => e.name), 65)) return null;
     return { answer, refused: false, employeeIds, source: "model", lang };
   });
@@ -470,7 +489,7 @@ export function coachingNote(profile: Profile, opts: AiOptions = {}): Promise<Co
       performance: profile.performance.map((w) => Object.fromEntries(Object.entries(w).filter(([k]) => k !== "absences"))),
     };
     const out = await chatJson<{ strengths: unknown; focus: unknown; note: unknown }>(
-      key, COACH_PROMPT, JSON.stringify({ language: LANGUAGE[lang], employee: data }), COACH_SCHEMA, 120_000,
+      key, COACH_PROMPT, JSON.stringify({ language: LANGUAGE[lang], employee: data }), COACH_SCHEMA,
     );
     const strengths = strs(out.strengths);
     const focus = strs(out.focus);

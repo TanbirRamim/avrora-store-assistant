@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
+import useSWR from "swr";
+import { fetcher, type Signals } from "@/lib/api";
 import { aiRoute, aiStatus, useAi } from "@/lib/ai";
 import { explainReplan, type ReplanExplanation } from "@/lib/workforce-ai";
 import { money } from "@/lib/format";
@@ -20,6 +22,12 @@ const OPTIONS: { kind: Kind; label: string; hint: string }[] = [
 ];
 
 const HOURS = Array.from({ length: 13 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`);
+
+const kyiv = (iso: string, part: "date" | "time") =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Kyiv",
+    ...(part === "date" ? { year: "numeric", month: "2-digit", day: "2-digit" } : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
+  } as Intl.DateTimeFormatOptions).format(new Date(iso));
 
 const fieldCls =
   "num min-h-[48px] w-full rounded-[10px] border border-[var(--border)] bg-paper px-3 text-[16px] focus:border-ink focus:shadow-[0_0_0_3px_rgba(24,24,27,0.12)] focus:outline-none";
@@ -48,6 +56,14 @@ export function ReplanSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ai = useAi();
+  // A scheduled power cut on this plan's day (Today's live conditions): the power re-plan starts with it.
+  const { data: signals } = useSWR<Signals>("/api/signals", fetcher, { shouldRetryOnError: false });
+  const livePower = signals?.signals.find((s) => s.kind === "power" && kyiv(s.starts_at, "date") === plan.date);
+  const liveFrom = livePower ? `${kyiv(livePower.starts_at, "time").slice(0, 2)}:00` : null;
+  const pickKind = (k: Kind) => {
+    setKind(k);
+    if (k === "power" && liveFrom && HOURS.includes(liveFrom)) setFrom(liveFrom);
+  };
   const [story, setStory] = useState<ReplanExplanation | null>(null);
   // only the newest proposal may set its explanation
   const seq = useRef(0);
@@ -134,7 +150,7 @@ export function ReplanSheet({
             <div className={`overflow-hidden ${CARD}`}>
               {OPTIONS.map((o) => (
                 <label key={o.kind} className={`flex min-h-[60px] cursor-pointer items-center gap-3 px-4 py-2 hover:bg-[var(--surface-2)] has-[:checked]:bg-[var(--surface-2)] ${ROW}`}>
-                  <input type="radio" name="replan-kind" value={o.kind} checked={kind === o.kind} onChange={() => setKind(o.kind)} className="peer sr-only" />
+                  <input type="radio" name="replan-kind" value={o.kind} checked={kind === o.kind} onChange={() => pickKind(o.kind)} className="peer sr-only" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] font-medium leading-5">{o.label}</span>
                     <span className="block text-[13px] leading-[18px] text-muted">{o.hint}</span>
@@ -187,6 +203,12 @@ export function ReplanSheet({
                   until {endOf(kind, from)}, {EVENT_HOURS[kind]} h
                 </span>
               </div>
+              {kind === "power" && livePower && (
+                <p className="pt-2 text-[13px] leading-[18px] text-muted" data-testid="replan-live-power">
+                  Live conditions: scheduled power cut {kyiv(livePower.starts_at, "time")}
+                  {livePower.ends_at ? `–${kyiv(livePower.ends_at, "time")}` : ""}.
+                </p>
+              )}
             </div>
           )}
           {error && (
